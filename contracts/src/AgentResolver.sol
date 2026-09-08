@@ -49,6 +49,28 @@ contract AgentResolver is IAddrResolver, ITextResolver, IContentHashResolver, IE
     bytes32 internal constant KEY_CONTENTHASH = keccak256(bytes("contenthash"));
 
     ////////////////////////////////////////////////////////////////////////
+    // Aliasing (task 08)
+    ////////////////////////////////////////////////////////////////////////
+
+    /// @dev Cross-key alias: reading `"model"` and finding nothing stored under that exact
+    ///      key falls back to the canonical, admin-gated `"agent.model"` key on the *same*
+    ///      node — one worked example of the general "short key aliases a namespaced key"
+    ///      pattern the task calls for.
+    bytes32 internal constant KEY_MODEL_ALIAS_HASH = keccak256(bytes("model"));
+    string internal constant MODEL_KEY = "agent.model";
+
+    /// @dev How many `parentOf` hops `text` will follow before giving up. Bounds gas and
+    ///      makes an aliasing cycle (A's parent is B, B's parent is A) terminate by returning
+    ///      "" instead of looping forever — see `_resolveText`.
+    uint256 internal constant MAX_ALIAS_DEPTH = 5;
+
+    struct ParentLink {
+        address resolver;
+        bytes32 node;
+        bool isSet;
+    }
+
+    ////////////////////////////////////////////////////////////////////////
     // Storage
     ////////////////////////////////////////////////////////////////////////
 
@@ -63,12 +85,21 @@ contract AgentResolver is IAddrResolver, ITextResolver, IContentHashResolver, IE
     ///      account "an OPERATOR for key X" in task 05's sense.
     mapping(bytes32 node => mapping(bytes32 keyHash => mapping(address => bool))) internal _keyWriters;
 
+    /// @dev Record aliasing (task 08): who a node inherits unset text keys from. The parent
+    ///      may live on a *different* `AgentResolver` instance — this is what lets a
+    ///      `Sovereign` agent's child (spawned into the agent's own sub-registry, with its
+    ///      own `defaultResolver`) inherit from the parent agent's node on the parent
+    ///      registry's resolver. Set by the child's own `AGENT_ADMIN`, not the parent's.
+    mapping(bytes32 node => ParentLink) internal _parents;
+
     ////////////////////////////////////////////////////////////////////////
     // Events
     ////////////////////////////////////////////////////////////////////////
 
     event KeyWriterGranted(bytes32 indexed node, bytes32 indexed keyHash, string key, address indexed account);
     event KeyWriterRevoked(bytes32 indexed node, bytes32 indexed keyHash, string key, address indexed account);
+    event ParentNodeSet(bytes32 indexed node, address indexed parentResolver, bytes32 parentNode);
+    event ParentNodeCleared(bytes32 indexed node);
 
     ////////////////////////////////////////////////////////////////////////
     // Errors
@@ -123,6 +154,27 @@ contract AgentResolver is IAddrResolver, ITextResolver, IContentHashResolver, IE
         return _keyWriters[node][keccak256(bytes(key))][account];
     }
 
+    /// @notice Record aliasing (task 08): `node` inherits any text key it has not set itself
+    ///         from `(parentResolver, parentNode)`. `AGENT_ADMIN` on `node` only — a child
+    ///         picks its own parent, the parent has no say in being read from.
+    function setParentNode(bytes32 node, address parentResolver, bytes32 parentNode) external {
+        _requireAgentAdmin(node);
+        _parents[node] = ParentLink({resolver: parentResolver, node: parentNode, isSet: true});
+        emit ParentNodeSet(node, parentResolver, parentNode);
+    }
+
+    /// @notice Remove `node`'s parent link. Same authorization as `setParentNode`.
+    function clearParentNode(bytes32 node) external {
+        _requireAgentAdmin(node);
+        delete _parents[node];
+        emit ParentNodeCleared(node);
+    }
+
+    function parentOf(bytes32 node) external view returns (address parentResolver, bytes32 parentNode, bool isSet) {
+        ParentLink storage p = _parents[node];
+        return (p.resolver, p.node, p.isSet);
+    }
+
     ////////////////////////////////////////////////////////////////////////
     // Reads — expired/revoked agents resolve to empty, always live against the registry
     ////////////////////////////////////////////////////////////////////////
@@ -133,10 +185,59 @@ contract AgentResolver is IAddrResolver, ITextResolver, IContentHashResolver, IE
         return payable(_addresses[node]);
     }
 
+    /// @notice `node`'s own text value for `key`: the exact key if set, else the cross-key
+    ///         `"model"` -> `"agent.model"` alias (task 08, mechanism A). No parent lookup —
+    ///         this is the per-node primitive `_resolveText` walks across nodes/resolvers with.
+    ///         `public` (not `internal`) so a parent resolver on a *different* `AgentResolver`
+    ///         instance can be queried the same way a local hop is.
+    function ownText(bytes32 node, string memory key) public view returns (string memory) {
+        string memory value = _texts[node][key];
+        if (bytes(value).length != 0) return value;
+        if (keccak256(bytes(key)) == KEY_MODEL_ALIAS_HASH) {
+            return _texts[node][MODEL_KEY];
+        }
+        return "";
+    }
+
     /// @inheritdoc ITextResolver
+    /// @dev Record aliasing (task 08, mechanism A): an unset key climbs to the parent node —
+    ///      possibly on another `AgentResolver` — via `_resolveText`, capped at
+    ///      `MAX_ALIAS_DEPTH` hops so an aliasing cycle (A's parent is B, B's parent is A)
+    ///      terminates instead of looping.
     function text(bytes32 node, string calldata key) external view returns (string memory) {
         if (!registry.isActiveLabelhash(node)) return "";
-        return _texts[node][key];
+        return _resolveText(node, key);
+    }
+
+    function _resolveText(bytes32 node, string memory key) internal view returns (string memory) {
+        address currentResolver = address(this);
+        bytes32 currentNode = node;
+
+        for (uint256 hops; hops <= MAX_ALIAS_DEPTH; ++hops) {
+            string memory value = currentResolver == address(this)
+                ? ownText(currentNode, key)
+                : AgentResolver(currentResolver).ownText(currentNode, key);
+            if (bytes(value).length != 0) return value;
+
+            (address parentResolver, bytes32 parentNode, bool isSet) = currentResolver == address(this)
+                ? _parentOf(currentNode)
+                : AgentResolver(currentResolver).parentOf(currentNode);
+            if (!isSet) return "";
+
+            bool parentActive = parentResolver == address(this)
+                ? registry.isActiveLabelhash(parentNode)
+                : AgentResolver(parentResolver).registry().isActiveLabelhash(parentNode);
+            if (!parentActive) return "";
+
+            currentResolver = parentResolver;
+            currentNode = parentNode;
+        }
+        return "";
+    }
+
+    function _parentOf(bytes32 node) internal view returns (address, bytes32, bool) {
+        ParentLink storage p = _parents[node];
+        return (p.resolver, p.node, p.isSet);
     }
 
     /// @inheritdoc IContentHashResolver
