@@ -2,5 +2,22 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+solc = "0.8.28"
+evm_version = "cancun"
+
+remappings = [
+    "forge-std/=lib/forge-std/src/",
+    "@ens/contracts/=lib/contracts-v2/contracts/lib/ens-contracts/contracts/",
+    "@ensdomains/verifiable-factory/=lib/contracts-v2/contracts/lib/verifiable-factory/src/",
+    "@openzeppelin/contracts/=lib/contracts-v2/contracts/lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts-upgradeable/=lib/contracts-v2/contracts/lib/openzeppelin-contracts-upgradeable/contracts/",
+    "ensv2/=lib/contracts-v2/contracts/src/",
+]
+
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

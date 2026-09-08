@@ -48,8 +48,16 @@ $ anvil
 ### Deploy
 
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ forge script script/<Script>.s.sol:<ScriptContract> --rpc-url <your_rpc_url> --private-key <your_private_key>
 ```
+
+### Fork test against Sepolia
+
+```shell
+$ npm run contracts:test:fork
+```
+
+Requires `SEPOLIA_RPC_URL` to be set (see `.env.example` at the repo root).
 
 ### Cast
 

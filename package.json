@@ -9,6 +9,7 @@
     "lint": "eslint",
     "contracts:build": "cd contracts && forge build",
     "contracts:test": "cd contracts && forge test",
+    "contracts:test:fork": "cd contracts && forge test --match-path test/EnsV2Fork.t.sol --fork-url $SEPOLIA_RPC_URL",
     "contracts:fmt": "cd contracts && forge fmt"
   },
   "dependencies": {
