@@ -8,6 +8,7 @@ import {IEnhancedAccessControl} from "ensv2/access-control/interfaces/IEnhancedA
 import {IOwnedRegistry} from "ensv2/registry/interfaces/IOwnedRegistry.sol";
 import {IRegistry} from "ensv2/registry/interfaces/IRegistry.sol";
 
+import {AgentResolver} from "./AgentResolver.sol";
 import {Roles} from "./Roles.sol";
 
 /// @notice Sub-registry for the AgentVillage fleet.
@@ -41,6 +42,7 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
         bool transferable;
         address resolver;
         IRegistry subregistry; // only meaningful at the Sovereign tier (task 07)
+        uint64 heartbeatCount; // on-chain liveness proof `promote` gates on (task 07)
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -52,6 +54,23 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
 
     IRegistry private _parentRegistry;
     string private _parentLabel;
+
+    /// @notice The registry's own `AgentResolver` (task 05), attached to an agent the first
+    ///         time it is promoted off the free wildcard tier (task 07, 0->1). One shared
+    ///         instance per registry — each agent's records are already segregated inside it
+    ///         by node (`uint256(labelhash)`, the same value used as this registry's EACL
+    ///         resource), so there is nothing to gain from deploying one per agent.
+    AgentResolver public immutable defaultResolver;
+
+    /// @dev Ladder tuning (task 07): how many of an agent's own heartbeats (`heartbeat`) are
+    ///      required, cumulatively, to promote *into* a given tier — `HEARTBEATS_PER_TIER *
+    ///      uint8(toTier)`. This is the "on-chain, readable condition" the task calls for:
+    ///      an agent that never calls `heartbeat` itself can never climb the ladder, no matter
+    ///      who clicks promote.
+    uint64 internal constant HEARTBEATS_PER_TIER = 3;
+
+    /// @dev Initial lease length granted on promotion into the `Leased` tier (0->1).
+    uint64 internal constant PROMOTION_LEASE_DURATION = 30 days;
 
     ////////////////////////////////////////////////////////////////////////
     // Events
@@ -74,6 +93,8 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
     event AgentSubregistryUpdated(bytes32 indexed labelhash, IRegistry subregistry);
     event AgentRecordSet(bytes32 indexed labelhash, bytes32 indexed key, address indexed writer, bytes value);
     event ParentUpdated(IRegistry parent, string label);
+    event AgentHeartbeat(bytes32 indexed labelhash, uint64 count);
+    event Promoted(bytes32 indexed labelhash, Tier fromTier, Tier toTier);
 
     ////////////////////////////////////////////////////////////////////////
     // Errors
@@ -86,6 +107,10 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
     error AgentHasNoExpiry(bytes32 labelhash);
     error InvalidAgentKey();
     error InvalidOwner();
+    error InvalidPromotion(Tier fromTier, Tier toTier);
+    error InsufficientHeartbeats(bytes32 labelhash, uint64 have, uint64 need);
+    error SovereignAgent(bytes32 labelhash);
+    error InvalidSubregistry();
 
     constructor(address fleetOwner) {
         // The fleet owner holds FLEET_ADMIN (spawn/revoke/change tier/renew) and, per the
@@ -98,6 +123,7 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
             fleetOwner,
             false
         );
+        defaultResolver = new AgentResolver(this);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -159,7 +185,8 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
             revocable: revocable,
             transferable: transferable,
             resolver: resolver,
-            subregistry: IRegistry(address(0))
+            subregistry: IRegistry(address(0)),
+            heartbeatCount: 0
         });
 
         uint256 resource = uint256(labelhash);
@@ -169,9 +196,12 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
         emit AgentSpawned(labelhash, label, owner, agentKey, tier, expiry);
     }
 
-    /// @notice Change an agent's tier. `FLEET_ADMIN`-only.
+    /// @notice Change an agent's tier directly, bypassing the ladder's heartbeat gate.
+    ///         `FLEET_ADMIN`-only. Blocked once an agent has reached `Sovereign` — see
+    ///         `promote` for why that tier is a one-way door.
     function setTier(string calldata label, Tier tier) external {
         (bytes32 labelhash, AgentRecord storage agent) = _requireAgentWithRole(label, Roles.FLEET_ADMIN);
+        if (agent.tier == Tier.Sovereign) revert SovereignAgent(labelhash);
         agent.tier = tier;
         emit AgentTierUpdated(labelhash, tier);
     }
@@ -215,6 +245,80 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
         (bytes32 labelhash, AgentRecord storage agent) = _requireAgentWithRole(label, Roles.AGENT_ADMIN);
         agent.resolver = resolver;
         emit AgentResolverUpdated(labelhash, resolver);
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // Ownership ladder (task 07) — AGENT_SELF proves liveness, FLEET_ADMIN promotes
+    ////////////////////////////////////////////////////////////////////////
+
+    /// @notice The agent proves it is alive, signed by its own key. This is the on-chain,
+    ///         readable condition `promote` gates on — the ladder cannot be climbed by
+    ///         clicking a button alone, only by an agent that has actually been running.
+    function heartbeat(string calldata label) external {
+        (bytes32 labelhash, AgentRecord storage agent) = _requireAgentWithRole(label, Roles.AGENT_SELF);
+        agent.heartbeatCount += 1;
+        emit AgentHeartbeat(labelhash, agent.heartbeatCount);
+    }
+
+    /// @notice Climb exactly one tier of the ownership ladder (see
+    ///         docs/tasks/active/07-ownership-ladder.md). `FLEET_ADMIN`-only, but only ever
+    ///         moves an agent one tier upward: `toTier` must be exactly `fromTier + 1`, so
+    ///         reverse moves revert, and — since no valid `Tier` is adjacent-above
+    ///         `Sovereign` — this is also what makes `Sovereign` a one-way door. Also requires
+    ///         `heartbeat` to have been called at least `HEARTBEATS_PER_TIER * uint8(toTier)`
+    ///         times in total.
+    ///
+    /// @param subregistry Only used for the 2->3 (`Sovereign`) transition, where it becomes
+    ///        the agent's own namespace — ignored (pass the zero registry) for every other
+    ///        transition. Pre-deployed by the caller rather than deployed here: a contract
+    ///        cannot embed its own creation bytecode (`new AgentRegistry(...)` from inside
+    ///        `AgentRegistry` itself is a circular reference solc rejects), and this also
+    ///        lets the fleet attach any `IRegistry`-compliant implementation, not only
+    ///        another `AgentRegistry`.
+    function promote(string calldata label, Tier toTier, IRegistry subregistry)
+        external
+        returns (bytes32 labelhash)
+    {
+        AgentRecord storage agent;
+        (labelhash, agent) = _requireAgentWithRole(label, Roles.FLEET_ADMIN);
+
+        Tier fromTier = agent.tier;
+        if (uint8(toTier) != uint8(fromTier) + 1) revert InvalidPromotion(fromTier, toTier);
+
+        uint64 needed = HEARTBEATS_PER_TIER * uint64(uint8(toTier));
+        if (agent.heartbeatCount < needed) revert InsufficientHeartbeats(labelhash, agent.heartbeatCount, needed);
+
+        if (toTier == Tier.Leased) {
+            // Mint for real: attach the registry's own resolver and a real, renewable lease.
+            agent.resolver = address(defaultResolver);
+            agent.expiry = uint64(block.timestamp) + PROMOTION_LEASE_DURATION;
+            agent.revocable = true;
+            emit AgentResolverUpdated(labelhash, agent.resolver);
+        } else if (toTier == Tier.Owned) {
+            agent.revocable = false;
+            agent.transferable = true;
+        } else {
+            // Tier.Sovereign — the one-way door: forever name, no expiry, never revocable
+            // again, and the agent becomes a namespace of its own via its own sub-registry.
+            if (address(subregistry) == address(0)) revert InvalidSubregistry();
+
+            agent.expiry = 0;
+            agent.revocable = false;
+            agent.subregistry = subregistry;
+
+            // Defense-in-depth only: `EnhancedAccessControl` ORs ROOT_RESOURCE roles into
+            // every resource (`_effectiveRoles`), so a fleet-wide FLEET_ADMIN grant can never
+            // actually be stripped at a single resource this way — that guarantee instead
+            // comes from `agent.revocable == false` above (`revoke` reverts on it) and the
+            // `Sovereign` guard in `setTier`. This only clears a FLEET_ADMIN grant made
+            // directly on this resource, e.g. via `grantAgentRole`.
+            _revokeRoles(uint256(labelhash), Roles.FLEET_ADMIN | Roles.FLEET_ADMIN_ADMIN, msg.sender, false);
+
+            emit AgentSubregistryUpdated(labelhash, subregistry);
+        }
+
+        agent.tier = toTier;
+        emit Promoted(labelhash, fromTier, toTier);
     }
 
     ////////////////////////////////////////////////////////////////////////
