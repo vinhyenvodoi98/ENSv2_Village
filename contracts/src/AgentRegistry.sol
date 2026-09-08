@@ -2,10 +2,13 @@
 pragma solidity ^0.8.28;
 
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+import {EnhancedAccessControl} from "ensv2/access-control/EnhancedAccessControl.sol";
+import {IEnhancedAccessControl} from "ensv2/access-control/interfaces/IEnhancedAccessControl.sol";
 import {IOwnedRegistry} from "ensv2/registry/interfaces/IOwnedRegistry.sol";
 import {IRegistry} from "ensv2/registry/interfaces/IRegistry.sol";
+
+import {Roles} from "./Roles.sol";
 
 /// @notice Sub-registry for the AgentVillage fleet.
 ///
@@ -13,10 +16,13 @@ import {IRegistry} from "ensv2/registry/interfaces/IRegistry.sol";
 /// contract mints and manages agents as subnames under our own rules. Each agent is
 /// keyed by its labelhash and holds a human owner distinct from the agent's own signing key.
 ///
-/// Access control is deliberately `onlyOwner` (the registry admin, i.e. the controller of
-/// the parent name) for admin actions, and gated on the per-agent `owner` for lifecycle
-/// actions the agent's human is entitled to perform. This is refactored onto EACL in task 04.
-contract AgentRegistry is IOwnedRegistry, Ownable {
+/// Access control is ENSv2's real Enhanced Access Control (`EnhancedAccessControl` /
+/// `IEnhancedAccessControl`, see `ensv2/access-control/`) — not a bespoke AccessControl
+/// system. Every agent is its own EACL *resource* (`uint256(labelhash)`); the fleet owner
+/// holds `Roles.FLEET_ADMIN` at `ROOT_RESOURCE`, which — per `EnhancedAccessControl`'s
+/// ROOT_RESOURCE fallback — automatically applies to every agent resource. See
+/// `docs/tasks/active/04-eacl-roles.md` for the full role table and rationale.
+contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
     enum Tier {
         Wildcard,
         Leased,
@@ -42,6 +48,7 @@ contract AgentRegistry is IOwnedRegistry, Ownable {
     ////////////////////////////////////////////////////////////////////////
 
     mapping(bytes32 labelhash => AgentRecord) private _agents;
+    mapping(bytes32 labelhash => mapping(bytes32 key => bytes value)) private _records;
 
     IRegistry private _parentRegistry;
     string private _parentLabel;
@@ -59,10 +66,13 @@ contract AgentRegistry is IOwnedRegistry, Ownable {
         uint64 expiry
     );
     event AgentKeyUpdated(bytes32 indexed labelhash, address indexed oldKey, address indexed newKey);
+    event AgentResolverUpdated(bytes32 indexed labelhash, address resolver);
+    event AgentTierUpdated(bytes32 indexed labelhash, Tier tier);
     event AgentRenewed(bytes32 indexed labelhash, uint64 newExpiry);
     event AgentRevoked(bytes32 indexed labelhash);
     event AgentTransferred(bytes32 indexed labelhash, address indexed from, address indexed to);
     event AgentSubregistryUpdated(bytes32 indexed labelhash, IRegistry subregistry);
+    event AgentRecordSet(bytes32 indexed labelhash, bytes32 indexed key, address indexed writer, bytes value);
     event ParentUpdated(IRegistry parent, string label);
 
     ////////////////////////////////////////////////////////////////////////
@@ -71,28 +81,51 @@ contract AgentRegistry is IOwnedRegistry, Ownable {
 
     error AgentAlreadyExists(bytes32 labelhash);
     error AgentDoesNotExist(bytes32 labelhash);
-    error NotAgentOwner(bytes32 labelhash, address caller);
     error NotRevocable(bytes32 labelhash);
     error NotTransferable(bytes32 labelhash);
     error AgentHasNoExpiry(bytes32 labelhash);
     error InvalidAgentKey();
     error InvalidOwner();
 
-    constructor(address initialOwner) Ownable(initialOwner) {}
-
-    ////////////////////////////////////////////////////////////////////////
-    // Modifiers
-    ////////////////////////////////////////////////////////////////////////
-
-    modifier onlyAgentOwner(bytes32 labelhash) {
-        AgentRecord storage agent = _agents[labelhash];
-        if (!agent.exists) revert AgentDoesNotExist(labelhash);
-        if (agent.owner != msg.sender) revert NotAgentOwner(labelhash, msg.sender);
-        _;
+    constructor(address fleetOwner) {
+        // The fleet owner holds FLEET_ADMIN (spawn/revoke/change tier/renew) and, per the
+        // role table, is also an AGENT_ADMIN for every agent (change agentKey/endpoint) —
+        // both granted at ROOT_RESOURCE so EnhancedAccessControl's root fallback applies
+        // them to every per-agent resource without a separate grant at spawn time.
+        _grantRoles(
+            ROOT_RESOURCE,
+            Roles.FLEET_ADMIN | Roles.FLEET_ADMIN_ADMIN | Roles.AGENT_ADMIN | Roles.AGENT_ADMIN_ADMIN,
+            fleetOwner,
+            false
+        );
     }
 
     ////////////////////////////////////////////////////////////////////////
-    // Admin — registry owner only
+    // Internal helpers
+    ////////////////////////////////////////////////////////////////////////
+
+    function _requireAgent(string calldata label) internal view returns (bytes32 labelhash) {
+        labelhash = keccak256(bytes(label));
+        if (!_agents[labelhash].exists) revert AgentDoesNotExist(labelhash);
+    }
+
+    /// @dev Resolves `label`, checks the agent exists, and requires `msg.sender` hold
+    ///      `role` on its resource (or `Roles.FLEET_ADMIN`-equivalent at `ROOT_RESOURCE`,
+    ///      via `EnhancedAccessControl`'s root fallback). Used instead of a modifier so the
+    ///      labelhash is computed once and reused by the caller.
+    function _requireAgentWithRole(string calldata label, uint256 role)
+        internal
+        view
+        returns (bytes32 labelhash, AgentRecord storage agent)
+    {
+        labelhash = keccak256(bytes(label));
+        agent = _agents[labelhash];
+        if (!agent.exists) revert AgentDoesNotExist(labelhash);
+        _checkRoles(uint256(labelhash), role, msg.sender);
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // Admin — FLEET_ADMIN (fleet owner)
     ////////////////////////////////////////////////////////////////////////
 
     /// @notice Mint a new agent as a subname of this registry.
@@ -107,7 +140,7 @@ contract AgentRegistry is IOwnedRegistry, Ownable {
         address resolver
     )
         external
-        onlyOwner
+        onlyRootRoles(Roles.FLEET_ADMIN)
         returns (bytes32 labelhash)
     {
         if (owner == address(0)) revert InvalidOwner();
@@ -129,49 +162,105 @@ contract AgentRegistry is IOwnedRegistry, Ownable {
             subregistry: IRegistry(address(0))
         });
 
+        uint256 resource = uint256(labelhash);
+        _grantRoles(resource, Roles.AGENT_ADMIN | Roles.OWNER_ADMIN_BUNDLE, owner, false);
+        _grantRoles(resource, Roles.AGENT_SELF, agentKey, false);
+
         emit AgentSpawned(labelhash, label, owner, agentKey, tier, expiry);
     }
 
-    /// @notice Rotate an agent's signing key. `AGENT_ADMIN`-equivalent action (registry owner).
-    function setAgentKey(string calldata label, address newKey) external onlyOwner {
-        if (newKey == address(0)) revert InvalidAgentKey();
-        bytes32 labelhash = keccak256(bytes(label));
-        AgentRecord storage agent = _agents[labelhash];
-        if (!agent.exists) revert AgentDoesNotExist(labelhash);
-
-        address oldKey = agent.agentKey;
-        agent.agentKey = newKey;
-        emit AgentKeyUpdated(labelhash, oldKey, newKey);
-    }
-
-    /// @notice Attach a sub-registry to an agent. Only meaningful at the Sovereign tier (task 07).
-    function setAgentSubregistry(string calldata label, IRegistry registry) external onlyOwner {
-        bytes32 labelhash = keccak256(bytes(label));
-        AgentRecord storage agent = _agents[labelhash];
-        if (!agent.exists) revert AgentDoesNotExist(labelhash);
-
-        agent.subregistry = registry;
-        emit AgentSubregistryUpdated(labelhash, registry);
+    /// @notice Change an agent's tier. `FLEET_ADMIN`-only.
+    function setTier(string calldata label, Tier tier) external {
+        (bytes32 labelhash, AgentRecord storage agent) = _requireAgentWithRole(label, Roles.FLEET_ADMIN);
+        agent.tier = tier;
+        emit AgentTierUpdated(labelhash, tier);
     }
 
     /// @notice Set the canonical parent of this registry, so it can be located as the
     ///         subregistry of a real ENSv2 name (e.g. `agentvillage.eth`).
-    function setParent(IRegistry parent, string calldata label) external onlyOwner {
+    function setParent(IRegistry parent, string calldata label) external onlyRootRoles(Roles.FLEET_ADMIN) {
         _parentRegistry = parent;
         _parentLabel = label;
         emit ParentUpdated(parent, label);
     }
 
+    /// @notice Attach a sub-registry to an agent. Only meaningful at the Sovereign tier (task 07).
+    function setAgentSubregistry(string calldata label, IRegistry registry) external onlyRootRoles(Roles.FLEET_ADMIN) {
+        bytes32 labelhash = _requireAgent(label);
+        _agents[labelhash].subregistry = registry;
+        emit AgentSubregistryUpdated(labelhash, registry);
+    }
+
     ////////////////////////////////////////////////////////////////////////
-    // Lifecycle — agent's human owner only
+    // AGENT_ADMIN — fleet owner or a delegated party, per agent
+    ////////////////////////////////////////////////////////////////////////
+
+    /// @notice Rotate an agent's signing key.
+    function setAgentKey(string calldata label, address newKey) external {
+        if (newKey == address(0)) revert InvalidAgentKey();
+        (bytes32 labelhash, AgentRecord storage agent) = _requireAgentWithRole(label, Roles.AGENT_ADMIN);
+
+        address oldKey = agent.agentKey;
+        agent.agentKey = newKey;
+
+        uint256 resource = uint256(labelhash);
+        _revokeRoles(resource, Roles.AGENT_SELF, oldKey, false);
+        _grantRoles(resource, Roles.AGENT_SELF, newKey, false);
+
+        emit AgentKeyUpdated(labelhash, oldKey, newKey);
+    }
+
+    /// @notice Change an agent's endpoint/resolver.
+    function setAgentResolver(string calldata label, address resolver) external {
+        (bytes32 labelhash, AgentRecord storage agent) = _requireAgentWithRole(label, Roles.AGENT_ADMIN);
+        agent.resolver = resolver;
+        emit AgentResolverUpdated(labelhash, resolver);
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // Roles — grant/revoke at the agent level (task 04 item 4)
+    ////////////////////////////////////////////////////////////////////////
+
+    /// @notice Grant `roleBitmap` to `account` on a single agent's resource. Authorized by
+    ///         `EnhancedAccessControl.grantRoles` itself — caller must already hold the
+    ///         matching admin role(s) on this agent (or `FLEET_ADMIN` at `ROOT_RESOURCE`).
+    function grantAgentRole(string calldata label, uint256 roleBitmap, address account) external returns (bool) {
+        return grantRoles(uint256(_requireAgent(label)), roleBitmap, account);
+    }
+
+    /// @notice Revoke `roleBitmap` from `account` on a single agent's resource. Same
+    ///         authorization as `grantAgentRole`.
+    function revokeAgentRole(string calldata label, uint256 roleBitmap, address account) external returns (bool) {
+        return revokeRoles(uint256(_requireAgent(label)), roleBitmap, account);
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // OPERATOR — write a specified set of records, no more
+    ////////////////////////////////////////////////////////////////////////
+
+    /// @notice Write an arbitrary record on an agent. Gated to `OPERATOR` — see
+    ///         `AgentResolver` (task 05) for the real per-key ENSIP-10 record store; this is
+    ///         the minimal registry-level record write the role model needs to be testable
+    ///         on its own.
+    function setRecord(string calldata label, bytes32 key, bytes calldata value) external {
+        (bytes32 labelhash,) = _requireAgentWithRole(label, Roles.OPERATOR);
+        _records[labelhash][key] = value;
+        emit AgentRecordSet(labelhash, key, msg.sender, value);
+    }
+
+    function recordOf(string calldata label, bytes32 key) external view returns (bytes memory) {
+        return _records[keccak256(bytes(label))][key];
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // Lifecycle — FLEET_ADMIN only (see docs/tasks/active/04-eacl-roles.md: at the
+    // Wildcard tier the parent/fleet owner retains full control; the ownership ladder
+    // (task 07) is what progressively moves these powers to the agent's owner)
     ////////////////////////////////////////////////////////////////////////
 
     /// @notice Extend an agent's lease by `duration` seconds.
     function renew(string calldata label, uint64 duration) external {
-        bytes32 labelhash = keccak256(bytes(label));
-        AgentRecord storage agent = _agents[labelhash];
-        if (!agent.exists) revert AgentDoesNotExist(labelhash);
-        if (agent.owner != msg.sender) revert NotAgentOwner(labelhash, msg.sender);
+        (bytes32 labelhash, AgentRecord storage agent) = _requireAgentWithRole(label, Roles.FLEET_ADMIN);
         if (agent.expiry == 0) revert AgentHasNoExpiry(labelhash);
 
         uint64 base = agent.expiry > block.timestamp ? agent.expiry : uint64(block.timestamp);
@@ -182,10 +271,7 @@ contract AgentRegistry is IOwnedRegistry, Ownable {
 
     /// @notice Burn an agent. Only allowed when the agent was spawned as `revocable`.
     function revoke(string calldata label) external {
-        bytes32 labelhash = keccak256(bytes(label));
-        AgentRecord storage agent = _agents[labelhash];
-        if (!agent.exists) revert AgentDoesNotExist(labelhash);
-        if (agent.owner != msg.sender) revert NotAgentOwner(labelhash, msg.sender);
+        (bytes32 labelhash, AgentRecord storage agent) = _requireAgentWithRole(label, Roles.FLEET_ADMIN);
         if (!agent.revocable) revert NotRevocable(labelhash);
 
         agent.revoked = true;
@@ -195,14 +281,16 @@ contract AgentRegistry is IOwnedRegistry, Ownable {
     /// @notice Transfer an agent to a new human owner. Only allowed when `transferable`.
     function transfer(string calldata label, address to) external {
         if (to == address(0)) revert InvalidOwner();
-        bytes32 labelhash = keccak256(bytes(label));
-        AgentRecord storage agent = _agents[labelhash];
-        if (!agent.exists) revert AgentDoesNotExist(labelhash);
-        if (agent.owner != msg.sender) revert NotAgentOwner(labelhash, msg.sender);
+        (bytes32 labelhash, AgentRecord storage agent) = _requireAgentWithRole(label, Roles.FLEET_ADMIN);
         if (!agent.transferable) revert NotTransferable(labelhash);
 
         address from = agent.owner;
         agent.owner = to;
+
+        uint256 resource = uint256(labelhash);
+        _revokeRoles(resource, Roles.AGENT_ADMIN | Roles.OWNER_ADMIN_BUNDLE, from, false);
+        _grantRoles(resource, Roles.AGENT_ADMIN | Roles.OWNER_ADMIN_BUNDLE, to, false);
+
         emit AgentTransferred(labelhash, from, to);
     }
 
@@ -261,9 +349,11 @@ contract AgentRegistry is IOwnedRegistry, Ownable {
         return _isActive(labelhash) ? _agents[labelhash].owner : address(0);
     }
 
-    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
         return interfaceId == type(IRegistry).interfaceId ||
             interfaceId == type(IOwnedRegistry).interfaceId ||
-            interfaceId == type(IERC165).interfaceId;
+            interfaceId == type(IEnhancedAccessControl).interfaceId ||
+            interfaceId == type(IERC165).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 }
