@@ -43,6 +43,10 @@ export interface WorldTheme {
     wall: MaterialSpec;
     roof: MaterialSpec;
     banner: MaterialSpec;
+    /** Windows, portcullis bars — dark ironwork/glass detail. */
+    window: MaterialSpec;
+    /** Small fixed set of banner cloth colors; a fortress picks one by seeded RNG. */
+    bannerVariantColors: string[];
   };
   roads: {
     path: MaterialSpec;
@@ -84,10 +88,12 @@ export const medievalTheme: WorldTheme = {
     highlight: { color: "#ffd966", roughness: 0.6, metalness: 0 },
   },
   fortress: {
-    keep: { color: "#b8ab97", roughness: 0.85, metalness: 0.05 },
-    wall: { color: "#a49a86", roughness: 0.9, metalness: 0.03 },
-    roof: { color: "#7a3b3b", roughness: 0.7, metalness: 0 },
-    banner: { color: "#8e1f2b", roughness: 0.6, metalness: 0 },
+    keep: { color: "#b8ab97", roughness: 0.85, metalness: 0.05, flatShading: true },
+    wall: { color: "#a49a86", roughness: 0.9, metalness: 0.03, flatShading: true },
+    roof: { color: "#7a3b3b", roughness: 0.7, metalness: 0, flatShading: true },
+    banner: { color: "#8e1f2b", roughness: 0.6, metalness: 0, flatShading: true },
+    window: { color: "#2a2420", roughness: 0.4, metalness: 0.3, flatShading: true },
+    bannerVariantColors: ["#8e1f2b", "#1f3f8e", "#1f7a3b", "#8e6f1f"],
   },
   roads: {
     path: { color: "#b09b73", roughness: 1, metalness: 0 },

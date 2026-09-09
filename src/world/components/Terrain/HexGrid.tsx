@@ -3,8 +3,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { Instance, Instances } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
-import { coordKey, hexToWorld, worldToHex } from "@/world/core/hex";
-import { HEX_HEIGHT, WORLD_RADIUS, WORLD_SEED } from "@/world/config/world.config";
+import { coordKey, distance, hexToWorld, worldToHex } from "@/world/core/hex";
+import { FORTRESS_BUILD_DISTANCE, HEX_HEIGHT, WORLD_RADIUS, WORLD_SEED } from "@/world/config/world.config";
 import { medievalTheme } from "@/world/config/theme";
 import { useWorldStore } from "@/world/state/useWorldStore";
 import { selectAllTiles, selectHoveredTile } from "@/world/state/selectors";
@@ -34,7 +34,12 @@ export function HexGrid({ theme = medievalTheme }: HexGridProps) {
     let cancelled = false;
     const source = createLocalWorldSource(WORLD_SEED, WORLD_RADIUS, terrainAmplitude);
     Promise.resolve(source.loadTiles()).then((loaded) => {
-      if (!cancelled) setTiles(loaded);
+      if (cancelled) return;
+      setTiles(loaded);
+      // First fortress at world init, so there's always a valid build target.
+      if (useWorldStore.getState().fortressList.length === 0) {
+        useWorldStore.getState().placeFortress({ q: 0, r: 0 });
+      }
     });
     return () => {
       cancelled = true;
@@ -65,6 +70,9 @@ interface TileInstancesProps {
  */
 const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstancesProps) {
   const setHoveredCoord = useWorldStore((state) => state.setHoveredCoord);
+  const placeFortress = useWorldStore((state) => state.placeFortress);
+  const selectFortress = useWorldStore((state) => state.selectFortress);
+  const setBuildMessage = useWorldStore((state) => state.setBuildMessage);
   const lastMoveAt = useRef(0);
   const base = theme.terrain.grass;
 
@@ -81,6 +89,39 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
 
   const handlePointerOut = useCallback(() => setHoveredCoord(null), [setHoveredCoord]);
 
+  const handleClick = useCallback(
+    (event: ThreeEvent<MouseEvent>) => {
+      event.stopPropagation();
+      // Raycast lands on the tile-top instances themselves, not a ground
+      // plane, so this reads correctly even over raised terrain.
+      const coord = worldToHex(event.point.x, event.point.z);
+      const key = coordKey(coord);
+
+      const { tiles: tileMap, fortressList } = useWorldStore.getState();
+      if (!tileMap.has(key)) {
+        setBuildMessage("There's no tile there.");
+        return;
+      }
+
+      const occupyingFortress = fortressList.find((fortress) => coordKey(fortress.coord) === key);
+      if (occupyingFortress) {
+        selectFortress(occupyingFortress.id);
+        return;
+      }
+
+      const isAtBuildDistance = fortressList.some(
+        (fortress) => distance(fortress.coord, coord) === FORTRESS_BUILD_DISTANCE
+      );
+      if (!isAtBuildDistance) {
+        setBuildMessage(`Build only on a hex ${FORTRESS_BUILD_DISTANCE} tiles from an existing fortress.`);
+        return;
+      }
+
+      placeFortress(coord);
+    },
+    [placeFortress, selectFortress, setBuildMessage]
+  );
+
   return (
     <Instances
       limit={tiles.length}
@@ -88,6 +129,7 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
       receiveShadow
       onPointerMove={handlePointerMove}
       onPointerOut={handlePointerOut}
+      onClick={handleClick}
     >
       <primitive object={hexGeometry} attach="geometry" />
       <meshStandardMaterial roughness={base.roughness} metalness={base.metalness} />

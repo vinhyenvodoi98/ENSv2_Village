@@ -10,6 +10,7 @@ import { Lighting } from "./Lighting";
 import { CameraRig } from "./CameraRig";
 import { Ground } from "../Terrain/Ground";
 import { HexGrid } from "../Terrain/HexGrid";
+import { FortressLayer } from "../Fortress/FortressLayer";
 
 /**
  * Root of the 3D world. The only place a `<Canvas>` is created — everything
@@ -20,7 +21,7 @@ import { HexGrid } from "../Terrain/HexGrid";
 export function WorldCanvas() {
   const presetName = useWorldStore(selectPresetName);
   const fogDensity = useWorldStore((state) => state.debug.fogDensity);
-  const { theme } = resolvePreset(presetName);
+  const { preset, theme } = resolvePreset(presetName);
 
   return (
     <Canvas
@@ -44,6 +45,7 @@ export function WorldCanvas() {
       <CameraRig />
       <Ground theme={theme} />
       <HexGrid theme={theme} />
+      <FortressLayer theme={theme} kitId={preset.fortressKit} />
     </Canvas>
   );
 }

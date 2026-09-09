@@ -27,3 +27,10 @@ export const selectCitizensByFortress = (fortressId: string) => (state: WorldSta
 export const selectPresetName = (state: WorldState) => state.presetName;
 
 export const selectDebugSettings = (state: WorldState) => state.debug;
+
+export const selectFortressList = (state: WorldState) => state.fortressList;
+
+export const selectSelectedFortress = (state: WorldState) =>
+  state.selectedFortressId ? state.fortresses.get(state.selectedFortressId) : undefined;
+
+export const selectBuildMessage = (state: WorldState) => state.buildMessage;

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { coordKey } from "../core/hex";
-import type { AxialCoord, Cart, Citizen, Road, Tile, Weather } from "../core/types";
+import type { AxialCoord, Cart, Citizen, FortressEntity, Road, Tile, Weather } from "../core/types";
 import { DEFAULT_PRESET, presets } from "../config/presets";
 import { POPULATION, TERRAIN } from "../config/world.config";
 
@@ -43,8 +43,17 @@ export interface WorldState {
   presetName: PresetName;
   debug: DebugSettings;
 
+  fortresses: Map<string, FortressEntity>;
+  /** Kept in lockstep with `fortresses`, same reasoning as `tileList`. */
+  fortressList: FortressEntity[];
+  selectedFortressId: string | null;
+  /** Transient reason shown in the HUD when a build click is rejected. */
+  buildMessage: string | null;
+
   setTiles: (tiles: Tile[]) => void;
-  placeFortress: (coord: AxialCoord, fortressId: string) => void;
+  placeFortress: (coord: AxialCoord) => void;
+  selectFortress: (id: string | null) => void;
+  setBuildMessage: (message: string | null) => void;
   setWeather: (weather: Weather) => void;
   advanceTick: () => void;
   setHoveredCoord: (coord: AxialCoord | null) => void;
@@ -64,22 +73,45 @@ export const useWorldStore = create<WorldState>((set) => ({
   presetName: DEFAULT_PRESET,
   debug: DEFAULT_DEBUG_SETTINGS,
 
+  fortresses: new Map(),
+  fortressList: [],
+  selectedFortressId: null,
+  buildMessage: null,
+
   setTiles: (tiles) =>
     set(() => {
       const map = new Map(tiles.map((tile) => [coordKey(tile.coord), tile]));
       return { tiles: map, tileList: Array.from(map.values()) };
     }),
 
-  placeFortress: (coord, fortressId) =>
+  placeFortress: (coord) =>
     set((state) => {
       const key = coordKey(coord);
-      const tile = state.tiles.get(key);
-      if (!tile) return state;
+      if (!state.tiles.has(key)) return state;
+      if (state.fortressList.some((fortress) => coordKey(fortress.coord) === key)) return state;
 
+      const id = `fortress-${key}`;
+      const tile = state.tiles.get(key)!;
       const tiles = new Map(state.tiles);
-      tiles.set(key, { ...tile, occupantId: fortressId });
-      return { tiles, tileList: Array.from(tiles.values()) };
+      tiles.set(key, { ...tile, occupantId: id });
+
+      const fortress: FortressEntity = { id, coord, tier: 1 };
+      const fortresses = new Map(state.fortresses);
+      fortresses.set(id, fortress);
+
+      return {
+        tiles,
+        tileList: Array.from(tiles.values()),
+        fortresses,
+        fortressList: Array.from(fortresses.values()),
+        selectedFortressId: id,
+        buildMessage: null,
+      };
     }),
+
+  selectFortress: (id) => set({ selectedFortressId: id }),
+
+  setBuildMessage: (message) => set({ buildMessage: message }),
 
   setWeather: (weather) => set({ weather }),
 

@@ -11,6 +11,12 @@ export interface Tile {
   occupantId?: string;
 }
 
+export interface FortressEntity {
+  id: string;
+  coord: AxialCoord;
+  tier: number;
+}
+
 export interface Road {
   id: string;
   path: AxialCoord[];

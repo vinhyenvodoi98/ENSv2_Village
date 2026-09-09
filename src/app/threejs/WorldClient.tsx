@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { WorldHud } from "@/world/ui/WorldHud";
 import { DebugPanel } from "@/world/ui/DebugPanel";
+import { TilePanel } from "@/world/ui/TilePanel";
+import { BuildBar } from "@/world/ui/BuildBar";
 
 const WorldCanvas = dynamic(
   () => import("@/world/components/Scene/WorldCanvas").then((mod) => mod.WorldCanvas),
@@ -20,6 +22,8 @@ export default function WorldClient() {
     <>
       <WorldCanvas />
       <WorldHud />
+      <TilePanel />
+      <BuildBar />
       <DebugPanel />
     </>
   );

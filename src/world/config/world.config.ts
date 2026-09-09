@@ -4,13 +4,16 @@
  */
 
 /** Flat-top hex circumradius, in world units. */
-export const HEX_SIZE = 1;
+export const HEX_SIZE = 2;
 
 /** Extruded height of a single hex tile. */
 export const HEX_HEIGHT = 0.35;
 
 /** Max hex ring radius rendered by default (0 = just the center tile). */
-export const WORLD_RADIUS = 12;
+export const WORLD_RADIUS = 6;
+
+/** Hexes of empty space required between a fortress and the next one built off it. */
+export const FORTRESS_BUILD_DISTANCE = 2;
 
 export const TERRAIN = {
   /** Simplex noise sample frequency; lower = broader hills. */
