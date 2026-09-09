@@ -11,6 +11,7 @@ import { CameraRig } from "./CameraRig";
 import { Ground } from "../Terrain/Ground";
 import { HexGrid } from "../Terrain/HexGrid";
 import { FortressLayer } from "../Fortress/FortressLayer";
+import { RoadNetwork } from "../Roads/RoadNetwork";
 
 /**
  * Root of the 3D world. The only place a `<Canvas>` is created — everything
@@ -45,6 +46,7 @@ export function WorldCanvas() {
       <CameraRig />
       <Ground theme={theme} />
       <HexGrid theme={theme} />
+      <RoadNetwork theme={theme} />
       <FortressLayer theme={theme} kitId={preset.fortressKit} />
     </Canvas>
   );

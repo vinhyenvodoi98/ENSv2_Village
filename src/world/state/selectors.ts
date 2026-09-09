@@ -34,3 +34,8 @@ export const selectSelectedFortress = (state: WorldState) =>
   state.selectedFortressId ? state.fortresses.get(state.selectedFortressId) : undefined;
 
 export const selectBuildMessage = (state: WorldState) => state.buildMessage;
+
+export const selectRoadList = (state: WorldState) => state.roadList;
+
+/** Undirected coordKey -> neighboring coordKeys graph, for citizen pathing (task 25). */
+export const selectRoadAdjacency = (state: WorldState) => state.roadAdjacency;

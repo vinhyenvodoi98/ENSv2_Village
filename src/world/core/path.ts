@@ -6,6 +6,14 @@ export interface PathfindOptions {
   isWalkable?: (coord: AxialCoord) => boolean;
   /** Safety cap on explored nodes so a bad grid can't hang a tick. */
   maxIterations?: number;
+  /** Cost of stepping from one hex to an adjacent one. Defaults to a flat 1 per step. */
+  edgeCost?: (from: AxialCoord, to: AxialCoord) => number;
+  /**
+   * Lower bound on `edgeCost` across the whole grid — keeps the A* heuristic
+   * admissible when `edgeCost` can go below 1 (e.g. a discount for reusing
+   * an existing road). Defaults to 1, matching the default flat cost.
+   */
+  minEdgeCost?: number;
 }
 
 /** A* search over the hex grid. Returns null if no path exists. */
@@ -16,6 +24,9 @@ export function findPath(
 ): AxialCoord[] | null {
   const isWalkable = options.isWalkable ?? (() => true);
   const maxIterations = options.maxIterations ?? 2000;
+  const edgeCost = options.edgeCost ?? (() => 1);
+  const minEdgeCost = options.minEdgeCost ?? 1;
+  const heuristic = (coord: AxialCoord) => distance(coord, goal) * minEdgeCost;
 
   const startKey = coordKey(start);
   const goalKey = coordKey(goal);
@@ -25,7 +36,7 @@ export function findPath(
   const coordsByKey = new Map<string, AxialCoord>([[startKey, start], [goalKey, goal]]);
 
   const gScore = new Map<string, number>([[startKey, 0]]);
-  const fScore = new Map<string, number>([[startKey, distance(start, goal)]]);
+  const fScore = new Map<string, number>([[startKey, heuristic(start)]]);
 
   let iterations = 0;
 
@@ -55,11 +66,11 @@ export function findPath(
       const neighborKey = coordKey(neighbor);
       coordsByKey.set(neighborKey, neighbor);
 
-      const tentativeG = (gScore.get(currentKey) ?? Infinity) + 1;
+      const tentativeG = (gScore.get(currentKey) ?? Infinity) + edgeCost(current, neighbor);
       if (tentativeG < (gScore.get(neighborKey) ?? Infinity)) {
         cameFrom.set(neighborKey, currentKey);
         gScore.set(neighborKey, tentativeG);
-        fScore.set(neighborKey, tentativeG + distance(neighbor, goal));
+        fScore.set(neighborKey, tentativeG + heuristic(neighbor));
         if (!openSet.has(neighborKey)) {
           openSet.set(neighborKey, neighbor);
         }

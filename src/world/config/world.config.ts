@@ -66,3 +66,18 @@ export const FRAME_BUDGET = {
 } as const;
 
 export const WORLD_SEED = 1337;
+
+export const ROADS = {
+  /** Ribbon width in world units. */
+  width: 0.55,
+  /** Lift above the tile top so the ribbon never z-fights with terrain. */
+  surfaceOffset: 0.05,
+  /** Catmull-Rom samples per hex step along a road's path. */
+  samplesPerSegment: 6,
+  /** Cost multiplier for an A* edge that reuses an existing road segment — pulls new roads onto trunk routes instead of drawing parallel lines. */
+  reuseDiscount: 0.3,
+  /** Weight blending neighbor height difference into A* edge cost, so paths skirt hills rather than climb them. */
+  heightCostWeight: 1.5,
+  /** Ms for a road's ribbon to visibly draw in once built. */
+  growDurationMs: 600,
+} as const;

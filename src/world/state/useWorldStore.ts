@@ -3,6 +3,7 @@ import { coordKey } from "../core/hex";
 import type { AxialCoord, Cart, Citizen, FortressEntity, Road, Tile, Weather } from "../core/types";
 import { DEFAULT_PRESET, presets } from "../config/presets";
 import { POPULATION, TERRAIN } from "../config/world.config";
+import { buildRoadAdjacency, connectFortress } from "../systems/roadSystem";
 
 export type PresetName = keyof typeof presets;
 
@@ -33,6 +34,10 @@ export interface WorldState {
    */
   tileList: Tile[];
   roads: Map<string, Road>;
+  /** Kept in lockstep with `roads`, same reasoning as `tileList`. */
+  roadList: Road[];
+  /** Undirected coordKey -> neighboring coordKeys, derived from every road's path. Kept in lockstep with `roads`. */
+  roadAdjacency: Map<string, string[]>;
   citizens: Map<string, Citizen>;
   carts: Map<string, Cart>;
   weather: Weather;
@@ -65,6 +70,8 @@ export const useWorldStore = create<WorldState>((set) => ({
   tiles: new Map(),
   tileList: [],
   roads: new Map(),
+  roadList: [],
+  roadAdjacency: new Map(),
   citizens: new Map(),
   carts: new Map(),
   weather: { kind: "clear", intensity: 0 },
@@ -99,11 +106,19 @@ export const useWorldStore = create<WorldState>((set) => ({
       const fortresses = new Map(state.fortresses);
       fortresses.set(id, fortress);
 
+      // Connect the new fortress to the network with a road, biased to skirt
+      // hills and merge onto existing segments — see roadSystem.connectFortress.
+      const newRoad = connectFortress(fortress, state.fortressList, tiles, state.roads);
+      const roads = newRoad ? new Map(state.roads).set(newRoad.id, newRoad) : state.roads;
+
       return {
         tiles,
         tileList: Array.from(tiles.values()),
         fortresses,
         fortressList: Array.from(fortresses.values()),
+        roads,
+        roadList: newRoad ? Array.from(roads.values()) : state.roadList,
+        roadAdjacency: newRoad ? buildRoadAdjacency(roads.values()) : state.roadAdjacency,
         selectedFortressId: id,
         buildMessage: null,
       };
