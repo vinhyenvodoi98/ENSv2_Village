@@ -1,10 +1,15 @@
 "use client";
 
+import { zeroAddress } from "viem";
 import type { NamespaceNode } from "@/lib/ens";
 import { explorerAddressUrl } from "@/lib/explorer";
 import { truncateAddress } from "@/lib/format";
 import { TierBadge } from "@/components/tree/TierBadge";
 import type { SelectedAgent } from "@/components/tree/AgentSubtree";
+import { LifecycleActions } from "@/components/lifecycle/LifecycleActions";
+import { DelegatePanel } from "@/components/permissions/DelegatePanel";
+import { EscalationButton } from "@/components/permissions/EscalationButton";
+import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
 import { EventTimeline } from "./EventTimeline";
 import { LadderProgress } from "./LadderProgress";
 import { RecordTable } from "./RecordTable";
@@ -98,9 +103,21 @@ export function AgentDetailPanel({
               <LadderProgress node={node} />
             </Section>
 
+            <Section title="Lifecycle">
+              <LifecycleActions node={node} />
+            </Section>
+
             <Section title="Records">
               <RecordTable node={node} directory={directory} resolverIndex={resolverIndex} />
             </Section>
+
+            {!node.isLocalPreview && node.resolver !== zeroAddress && (
+              <Section title="Permissions (EACL)">
+                <PermissionMatrix node={node} />
+                <EscalationButton node={node} />
+                <DelegatePanel node={node} />
+              </Section>
+            )}
 
             {node.tier === "Sovereign" && (
               <Section title="Sub-registry & child agents">

@@ -17,6 +17,12 @@ export type NamespaceNode = AgentTreeNode & {
   /// about this node (records, roles, events) must target *this* address, not the fleet root.
   registry: `0x${string}`;
   children: NamespaceNode[];
+  /// Task 14: a `Wildcard`-tier spawn is genuinely free — no `AgentRegistry.spawn` tx, nothing
+  /// written on-chain (task 06's wildcard resolution answers by rule, not by table). Set on the
+  /// browser-local synthetic nodes `useLocalWildcardAgents` builds so the rest of the UI (detail
+  /// panel, lifecycle actions) can tell "not really minted yet" apart from a real `Wildcard`-tier
+  /// registry entry. Always `undefined`/falsy on anything read from the chain.
+  isLocalPreview?: boolean;
 };
 
 /// Recursively walks the whole namespace: the fleet's own `AgentRegistry`, then — for every

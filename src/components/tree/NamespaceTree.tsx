@@ -1,17 +1,23 @@
 "use client";
 
 import { CONTRACTS } from "@/lib/contracts/addresses";
-import { useNamespaceTree } from "@/lib/ens";
+import { useNamespaceTree, type NamespaceNode } from "@/lib/ens";
 import { AgentSubtree, type SelectedAgent } from "./AgentSubtree";
 
 export function NamespaceTree({
+  localNodes = [],
   selected,
   onSelect,
 }: {
+  /// Task 14: labels "spawned" at the free `Wildcard` tier (`useLocalWildcardAgents`) — never
+  /// on-chain, so never part of `useNamespaceTree`'s `AgentSpawned`-sourced result. Rendered
+  /// alongside the real tree so a wildcard spawn "appears on the tree immediately" with no tx.
+  localNodes?: NamespaceNode[];
   selected: SelectedAgent | null;
   onSelect: (agent: SelectedAgent) => void;
 }) {
   const { data: tree, isLoading, error } = useNamespaceTree();
+  const combined = [...(tree ?? []), ...localNodes];
 
   return (
     <section className="flex w-full flex-col gap-4">
@@ -24,12 +30,12 @@ export function NamespaceTree({
 
       {isLoading && <p className="text-sm text-zinc-500 dark:text-zinc-400">Reading agent tree from Sepolia…</p>}
       {error && <p className="text-sm text-red-500">Failed to read tree: {error.message}</p>}
-      {tree && tree.length === 0 && (
+      {!isLoading && combined.length === 0 && (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">No agents spawned yet under {CONTRACTS.parentName}.</p>
       )}
 
-      {tree && tree.length > 0 && (
-        <AgentSubtree nodes={tree} registry={CONTRACTS.agentRegistry} selected={selected} onSelect={onSelect} />
+      {combined.length > 0 && (
+        <AgentSubtree nodes={combined} registry={CONTRACTS.agentRegistry} selected={selected} onSelect={onSelect} />
       )}
     </section>
   );

@@ -1,9 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { zeroAddress } from "viem";
 import {
   namespaceKey,
   useAgentRecords,
+  useKeyWriters,
   useRecordParent,
   useWildcardRecord,
   type NamespaceNode,
@@ -77,7 +79,19 @@ function OwnResolverRecordTable({
   directory: Map<string, NamespaceNode>;
   resolverIndex: Map<string, `0x${string}`>;
 }) {
-  const { data, isLoading, error } = useAgentRecords(node.labelhash, RECORD_KEYS, node.resolver);
+  // Task 13: any key `grantKeyWriter` has ever touched for this node is a real, writable record
+  // key too (`AgentResolver._checkWrite`'s "any other key" / OPERATOR bucket) — shown here in
+  // addition to the six the resolver knows by name, so a task-13 delegation is actually
+  // "verified in the record panel" once the delegate writes to it, not just in the matrix.
+  const { data: keyWriters } = useKeyWriters(node.resolver, node.labelhash);
+  const keys = useMemo(() => {
+    const known = new Set<string>(RECORD_KEYS);
+    const custom = new Set<string>();
+    for (const grant of keyWriters ?? []) if (!known.has(grant.key)) custom.add(grant.key);
+    return [...RECORD_KEYS, ...[...custom].sort()];
+  }, [keyWriters]);
+
+  const { data, isLoading, error } = useAgentRecords(node.labelhash, keys, node.resolver);
   const hasInherited = data ? Object.values(data.records).some((r) => r.inherited) : false;
   const { data: parentLink } = useRecordParent(node.resolver, hasInherited ? node.labelhash : undefined);
 
@@ -98,13 +112,14 @@ function OwnResolverRecordTable({
             value={data.addr === zeroAddress ? "(unset)" : truncateAddress(data.addr)}
             source={<SourceBadge kind="own" label="own" />}
           />
-          {RECORD_KEYS.map((key) => {
+          {keys.map((key) => {
             const record = data.records[key];
             const empty = record.value === "";
+            const isCustom = !(RECORD_KEYS as readonly string[]).includes(key);
             return (
               <Row
                 key={key}
-                keyName={key}
+                keyName={isCustom ? `${key} (delegated)` : key}
                 value={empty ? "(empty)" : record.value}
                 source={
                   record.inherited ? (

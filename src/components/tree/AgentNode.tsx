@@ -58,6 +58,12 @@ export function AgentNode({
         </span>
       )}
 
+      {node.isLocalPreview && (
+        <span className="w-fit rounded-full border border-dashed border-zinc-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-600 dark:text-zinc-400">
+          0 gas · not on-chain
+        </span>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <span className="inline-flex items-center gap-1">
           <span
