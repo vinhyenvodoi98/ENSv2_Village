@@ -2,13 +2,25 @@
 
 import { medievalTheme } from "@/world/config/theme";
 import { LIGHTING, RENDER } from "@/world/config/world.config";
+import { useWorldStore } from "@/world/state/useWorldStore";
 
 interface LightingProps {
   theme?: typeof medievalTheme;
 }
 
+const SUN_RADIUS = Math.hypot(LIGHTING.directionalPosition[0], LIGHTING.directionalPosition[2]);
+const SUN_HEIGHT = LIGHTING.directionalPosition[1];
+
+/** Sun angle (degrees, around the world's vertical axis) -> light position. */
+function sunPositionFromAngle(deg: number): [number, number, number] {
+  const rad = (deg * Math.PI) / 180;
+  return [Math.cos(rad) * SUN_RADIUS, SUN_HEIGHT, Math.sin(rad) * SUN_RADIUS];
+}
+
 export function Lighting({ theme = medievalTheme }: LightingProps) {
   const { lighting } = theme;
+  const sunAngleDeg = useWorldStore((state) => state.debug.sunAngleDeg);
+  const sunPosition = sunPositionFromAngle(sunAngleDeg);
 
   return (
     <>
@@ -21,7 +33,7 @@ export function Lighting({ theme = medievalTheme }: LightingProps) {
       <directionalLight
         color={lighting.directionalColor}
         intensity={lighting.directionalIntensity}
-        position={LIGHTING.directionalPosition}
+        position={sunPosition}
         castShadow
         shadow-mapSize={[RENDER.shadowMapSize, RENDER.shadowMapSize]}
         shadow-camera-left={-LIGHTING.shadowCameraBounds}

@@ -8,6 +8,8 @@ export interface MaterialSpec {
   color: string;
   roughness: number;
   metalness: number;
+  /** Facet look for low-poly parts (fortress/citizens). Defaults to false. */
+  flatShading?: boolean;
 }
 
 export interface WorldTheme {

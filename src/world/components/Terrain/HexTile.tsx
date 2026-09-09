@@ -1,31 +1,36 @@
 "use client";
 
-import { HEX_HEIGHT, HEX_SIZE } from "@/world/config/world.config";
-import { toWorld } from "@/world/core/hex";
-import { medievalTheme, type MaterialSpec } from "@/world/config/theme";
-import type { AxialCoord } from "@/world/core/types";
+import { HEX_HEIGHT } from "@/world/config/world.config";
+import { hexToWorld } from "@/world/core/hex";
+import { medievalTheme } from "@/world/config/theme";
+import { getThemeMaterials } from "@/world/config/materials";
+import type { AxialCoord, Tile } from "@/world/core/types";
+import { hexGeometry } from "./hexGeometry";
 
 interface HexTileProps {
   coord: AxialCoord;
   height?: number;
-  material?: MaterialSpec;
+  kind?: Tile["kind"];
+  theme?: typeof medievalTheme;
 }
 
 /**
- * A single extruded hex tile. Stub for task 20 — the real grid is built and
- * instanced in task 21.
+ * A single hex tile — used for previews and the selected tile. Shares
+ * `hexGeometry` and the cached theme material with `HexGrid`'s instances, so
+ * hover and placement previews render identically to what actually gets
+ * built.
  */
-export function HexTile({ coord, height = 0, material = medievalTheme.terrain.grass }: HexTileProps) {
-  const [x, z] = toWorld(coord);
+export function HexTile({ coord, height = 0, kind = "grass", theme = medievalTheme }: HexTileProps) {
+  const [x, z] = hexToWorld(coord);
+  const material = getThemeMaterials(theme).terrain[kind];
 
   return (
-    <mesh position={[x, HEX_HEIGHT / 2 + height, z]} castShadow receiveShadow>
-      <cylinderGeometry args={[HEX_SIZE, HEX_SIZE, HEX_HEIGHT, 6]} />
-      <meshStandardMaterial
-        color={material.color}
-        roughness={material.roughness}
-        metalness={material.metalness}
-      />
-    </mesh>
+    <mesh
+      position={[x, HEX_HEIGHT / 2 + height, z]}
+      geometry={hexGeometry}
+      material={material}
+      castShadow
+      receiveShadow
+    />
   );
 }

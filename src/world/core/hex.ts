@@ -1,7 +1,16 @@
 import { HEX_SIZE } from "../config/world.config";
 import type { AxialCoord } from "./types";
 
-/** Flat-top axial hex grid math. Pure TypeScript, no React, no three. */
+/**
+ * Pointy-top axial hex grid math. Pure TypeScript, no React, no three.
+ *
+ * Convention: axial (q, r), pointy-top orientation — each hex has a vertex
+ * pointing along +z/-z (the "r" axis) and flat edges facing +x/-x. This
+ * matches the default orientation of a `CylinderGeometry` with
+ * `radialSegments = 6` (no extra rotation needed), so `HexTile` / `HexGrid`
+ * can extrude the geometry as-is. Never mix this with offset coordinates
+ * elsewhere in the codebase.
+ */
 
 const AXIAL_DIRECTIONS: AxialCoord[] = [
   { q: 1, r: 0 },
@@ -60,18 +69,37 @@ export function spiral(center: AxialCoord, radius: number): AxialCoord[] {
   return results;
 }
 
-/** Axial -> flat-top world-space (x, z). Y is left to the caller (terrain height). */
-export function toWorld(coord: AxialCoord, size: number = HEX_SIZE): [number, number] {
-  const x = size * ((3 / 2) * coord.q);
-  const z = size * ((Math.sqrt(3) / 2) * coord.q + Math.sqrt(3) * coord.r);
+/** Axial -> pointy-top world-space (x, z). Y is left to the caller (terrain height). */
+export function hexToWorld(coord: AxialCoord, size: number = HEX_SIZE): [number, number] {
+  const x = size * Math.sqrt(3) * (coord.q + coord.r / 2);
+  const z = size * (3 / 2) * coord.r;
   return [x, z];
 }
 
-/** World-space (x, z) -> nearest axial coord (flat-top). */
-export function fromWorld(x: number, z: number, size: number = HEX_SIZE): AxialCoord {
-  const q = ((2 / 3) * x) / size;
-  const r = ((-1 / 3) * x + (Math.sqrt(3) / 3) * z) / size;
+/** World-space (x, z) -> nearest axial coord (pointy-top). */
+export function worldToHex(x: number, z: number, size: number = HEX_SIZE): AxialCoord {
+  const q = (Math.sqrt(3) * x - z) / (3 * size);
+  const r = (2 * z) / (3 * size);
   return roundAxial(q, r);
+}
+
+/**
+ * The 6 world-space corner points of a hex, in the same pointy-top
+ * orientation as `hexToWorld` (corner 0 points toward +z). `y` is a flat
+ * offset applied to every corner — callers pass the tile's terrain height.
+ */
+export function hexCorners(
+  coord: AxialCoord,
+  size: number = HEX_SIZE,
+  y: number = 0
+): [number, number, number][] {
+  const [cx, cz] = hexToWorld(coord, size);
+  const corners: [number, number, number][] = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i;
+    corners.push([cx + size * Math.sin(angle), y, cz + size * Math.cos(angle)]);
+  }
+  return corners;
 }
 
 function roundAxial(q: number, r: number): AxialCoord {
