@@ -1,0 +1,12 @@
+{
+  "agentRegistry": "0x1C299E10A7Be7A364f9FE6B6304A3D022ef76B78",
+  "agentResolver": "0x4Ed4ba7D8cFD0Ecef8bD92abC3d7F698480a4CEe",
+  "chainId": 11155111,
+  "deployBlock": 11665587,
+  "ethRegistry": "0xBDC85dD5b15D7ecb354cd7cb6f2c50b4f2c4F0E2",
+  "parentName": "agentvillage.eth",
+  "parentNode": "0x50beecd863f427e95caa987d9dd9c85fe7c8498708329c53022f969be631ec86",
+  "universalResolver": "0x6d80F2172CFdEc5730fE683860C33d26fC42e6F1",
+  "wildcardResolver": "0x39eBD25439C81355a0c85684567F8Cb0A80DBCD8",
+  "wildcardStateStore": "0x9497f3Cc80560a7273022183c95e2d0153ACE090"
+}

@@ -14,6 +14,10 @@ remappings = [
     "ensv2/=lib/contracts-v2/contracts/src/",
 ]
 
+fs_permissions = [
+    { access = "read-write", path = "../src/lib/contracts" },
+]
+
 [rpc_endpoints]
 sepolia = "${SEPOLIA_RPC_URL}"
 

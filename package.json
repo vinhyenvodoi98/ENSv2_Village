@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "contracts:build": "cd contracts && forge build",
+    "contracts:build": "cd contracts && forge build && node script/export-abis.mjs",
+    "contracts:abis": "cd contracts && node script/export-abis.mjs",
     "contracts:test": "cd contracts && forge test",
     "contracts:test:fork": "cd contracts && forge test --match-path test/EnsV2Fork.t.sol --fork-url $SEPOLIA_RPC_URL",
     "contracts:fmt": "cd contracts && forge fmt"
