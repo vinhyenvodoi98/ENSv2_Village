@@ -24,3 +24,21 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Fired by useHeartbeatPulse when an agent's on-chain heartbeatCount ticks up — a visible,
+   time-bounded response to a genuine chain write, not a decorative loop. */
+@keyframes heartbeat-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 var(--pulse-color, rgba(16, 185, 129, 0.55));
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.animate-heartbeat-pulse {
+  animation: heartbeat-pulse-ring 1.6s ease-out 1;
+}

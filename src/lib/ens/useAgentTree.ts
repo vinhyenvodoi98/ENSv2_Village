@@ -1,4 +1,4 @@
-import { keccak256, toBytes } from "viem";
+import { keccak256, toBytes, type PublicClient } from "viem";
 import { usePublicClient } from "wagmi";
 import { agentRegistryAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
@@ -24,54 +24,64 @@ export type AgentTreeNode = {
   heartbeatCount: bigint;
 };
 
-/// Reads the full agent tree of an `AgentRegistry` instance (default: the fleet's own, from
-/// `deployments.json`) — every label ever spawned, with its current on-chain state.
+/// Reads the full agent tree of a single `AgentRegistry` instance (any registry — the fleet's
+/// own, or a `Sovereign` agent's own sub-registry, task 07) directly, non-recursively. Shared by
+/// `useAgentTree` (single-registry hook) and `useNamespaceTree` (recursive whole-tree walk).
 ///
-/// Two-step, as the task calls for: `AgentSpawned` events give the complete label set (an event
+/// Two-step, as task 10 calls for: `AgentSpawned` events give the complete label set (an event
 /// is the only place a label's plaintext string is recorded — the registry itself only ever
 /// indexes by `labelhash`), then a single `multicall` reads every label's *current* `agentOf`
 /// state in one round trip — so a later revoke/promote/transfer is reflected correctly without
 /// having to replay and reduce every event ourselves.
+export async function fetchAgentTree(
+  publicClient: PublicClient,
+  root: `0x${string}`,
+  fromBlock: bigint = CONTRACTS.deployBlock
+): Promise<AgentTreeNode[]> {
+  const spawnLogs = await publicClient.getContractEvents({
+    address: root,
+    abi: agentRegistryAbi,
+    eventName: "AgentSpawned",
+    fromBlock,
+    toBlock: "latest",
+  });
+
+  const labels = [...new Set(spawnLogs.map((log) => log.args.label).filter((label): label is string => !!label))];
+  if (labels.length === 0) return [];
+
+  const contract = { address: root, abi: agentRegistryAbi } as const;
+  const records = await publicClient.multicall({
+    allowFailure: false,
+    contracts: labels.map((label) => ({ ...contract, functionName: "agentOf", args: [label] }) as const),
+  });
+
+  return labels.map((label, i) => {
+    const record = records[i];
+    return {
+      label,
+      labelhash: keccakLabel(label),
+      owner: record.owner,
+      agentKey: record.agentKey,
+      tier: AGENT_TIERS[record.tier],
+      expiry: record.expiry,
+      revoked: record.revoked,
+      revocable: record.revocable,
+      transferable: record.transferable,
+      resolver: record.resolver,
+      subregistry: record.subregistry,
+      heartbeatCount: record.heartbeatCount,
+    } satisfies AgentTreeNode;
+  });
+}
+
+/// Reads the full agent tree of one `AgentRegistry` instance (default: the fleet's own, from
+/// `deployments.json`) — every label ever spawned, with its current on-chain state.
 export function useAgentTree(root: `0x${string}` = CONTRACTS.agentRegistry) {
   const publicClient = usePublicClient();
 
   return useBlockGatedQuery<AgentTreeNode[]>(["agentTree", root], async () => {
     if (!publicClient) throw new Error("useAgentTree: missing publicClient");
-
-    const spawnLogs = await publicClient.getContractEvents({
-      address: root,
-      abi: agentRegistryAbi,
-      eventName: "AgentSpawned",
-      fromBlock: CONTRACTS.deployBlock,
-      toBlock: "latest",
-    });
-
-    const labels = [...new Set(spawnLogs.map((log) => log.args.label).filter((label): label is string => !!label))];
-    if (labels.length === 0) return [];
-
-    const contract = { address: root, abi: agentRegistryAbi } as const;
-    const records = await publicClient.multicall({
-      allowFailure: false,
-      contracts: labels.map((label) => ({ ...contract, functionName: "agentOf", args: [label] }) as const),
-    });
-
-    return labels.map((label, i) => {
-      const record = records[i];
-      return {
-        label,
-        labelhash: keccakLabel(label),
-        owner: record.owner,
-        agentKey: record.agentKey,
-        tier: AGENT_TIERS[record.tier],
-        expiry: record.expiry,
-        revoked: record.revoked,
-        revocable: record.revocable,
-        transferable: record.transferable,
-        resolver: record.resolver,
-        subregistry: record.subregistry,
-        heartbeatCount: record.heartbeatCount,
-      } satisfies AgentTreeNode;
-    });
+    return fetchAgentTree(publicClient, root);
   });
 }
 
