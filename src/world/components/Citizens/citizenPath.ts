@@ -1,0 +1,41 @@
+import { CatmullRomCurve3, Vector3 } from "three";
+import { coordKey, hexToWorld } from "@/world/core/hex";
+import { HEX_HEIGHT, ROADS, CITIZENS } from "@/world/config/world.config";
+import type { AxialCoord, Tile } from "@/world/core/types";
+
+/** Same curve family `roadGeometry.ts` builds its ribbon from, lifted a hair above the road surface so feet never z-fight it. */
+export function buildCitizenPathCurve(path: AxialCoord[], tiles: Map<string, Tile>): CatmullRomCurve3 | null {
+  if (path.length < 2) return null;
+
+  const points = path.map((coord) => {
+    const [x, z] = hexToWorld(coord);
+    const height = tiles.get(coordKey(coord))?.height ?? 0;
+    return new Vector3(x, HEX_HEIGHT + height + ROADS.surfaceOffset + CITIZENS.groundClearance, z);
+  });
+
+  return new CatmullRomCurve3(points, false, "catmullrom", 0.5);
+}
+
+const UP = new Vector3(0, 1, 0);
+const scratchTangent = new Vector3();
+const scratchSide = new Vector3();
+
+/**
+ * World position + heading for a citizen at parameter `t` along its path
+ * curve, offset sideways from the centerline so a crowd doesn't all walk the
+ * exact same line. `out` is written in place to avoid per-frame allocation.
+ */
+export function sampleCitizenPose(
+  curve: CatmullRomCurve3,
+  t: number,
+  lateralSign: 1 | -1,
+  out: { position: Vector3; headingRad: number }
+): void {
+  const clamped = Math.min(1, Math.max(0, t));
+  curve.getPointAt(clamped, out.position);
+  curve.getTangentAt(clamped, scratchTangent);
+
+  scratchSide.crossVectors(scratchTangent, UP).normalize();
+  out.position.addScaledVector(scratchSide, lateralSign * CITIZENS.lateralOffset);
+  out.headingRad = Math.atan2(scratchTangent.x, scratchTangent.z);
+}

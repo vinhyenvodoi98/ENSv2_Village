@@ -25,6 +25,12 @@ export function coordKey(coord: AxialCoord): string {
   return `${coord.q},${coord.r}`;
 }
 
+/** Inverse of `coordKey`. Assumes a well-formed `"q,r"` key. */
+export function parseCoordKey(key: string): AxialCoord {
+  const [q, r] = key.split(",").map(Number);
+  return { q, r };
+}
+
 export function coordsEqual(a: AxialCoord, b: AxialCoord): boolean {
   return a.q === b.q && a.r === b.r;
 }

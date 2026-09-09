@@ -40,56 +40,74 @@ const KEEP_FLAG: FortressPartPlacement = {
   part: "banner",
   position: [0, medievalShapeKit.keep.height + medievalShapeKit.keep.roofHeight, 0],
   rotation: [0, 0, 0],
-  scale: [0.55, 0.55, 0.55],
+  scale: [0.62, 0.62, 0.62],
 };
 
-// Ring radii are kept well inside a hex's apothem (HEX_SIZE * cos(30°) ≈
-// 1.73 at the default HEX_SIZE) so the whole silhouette — including tier-3's
-// outer wall and jitter scale — sits snugly on its own tile.
-const INNER_RADIUS = 1.05;
-const OUTER_RADIUS = 1.35;
+// These are wall apothems, not arbitrary ring radii. With six segments the
+// inner wall length closely matches `shapeKit.wall.length`, producing a
+// closed curtain wall instead of six disconnected radial slabs.
+const INNER_WALL_RADIUS = 0.8;
+const INNER_CORNER_RADIUS = INNER_WALL_RADIUS / Math.cos(Math.PI / 6);
+const OUTER_WALL_RADIUS = 1.18;
 
-const PALISADE = ring("wall", INNER_RADIUS, 6);
-const PALISADE_MERLONS = ring("merlon", INNER_RADIUS, 12, Math.PI / 6, medievalShapeKit.wall.height);
+const INNER_WALLS = ring("wall", INNER_WALL_RADIUS, 6).filter((_, index) => index !== 0);
+const INNER_MERLONS = ring("merlon", INNER_WALL_RADIUS, 18, 0, medievalShapeKit.wall.height);
+const ALL_INNER_TOWERS = ring("tower", INNER_CORNER_RADIUS, 6, Math.PI / 6);
+const STARTER_TOWERS = ALL_INNER_TOWERS.filter((_, index) => index % 2 === 0);
 
-const TIER_1_PARTS: FortressPartPlacement[] = [KEEP, KEEP_FLAG, ...PALISADE, ...PALISADE_MERLONS];
-
-const CORNER_TOWERS = ring("tower", INNER_RADIUS, 6, Math.PI / 6).filter((_, i) => i % 2 === 0);
-const TOWER_MERLONS = CORNER_TOWERS.flatMap((tower) =>
-  [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3].map((offset) => ({
-    part: "merlon" as const,
-    position: [
-      tower.position[0] + medievalShapeKit.tower.radius * 0.7 * Math.sin(tower.rotation[1] + offset),
-      medievalShapeKit.tower.height,
-      tower.position[2] + medievalShapeKit.tower.radius * 0.7 * Math.cos(tower.rotation[1] + offset),
-    ] as [number, number, number],
-    rotation: [0, tower.rotation[1] + offset, 0] as [number, number, number],
-    scale: IDENTITY_SCALE,
-  }))
-);
 const GATE: FortressPartPlacement = {
   part: "gate",
-  position: [0, 0, INNER_RADIUS],
+  position: [0, 0, INNER_WALL_RADIUS],
   rotation: [0, 0, 0],
   scale: IDENTITY_SCALE,
 };
 
-const TIER_2_PARTS: FortressPartPlacement[] = [
-  ...TIER_1_PARTS,
-  ...CORNER_TOWERS,
-  ...TOWER_MERLONS,
+const TIER_1_PARTS: FortressPartPlacement[] = [
+  KEEP,
+  KEEP_FLAG,
+  ...INNER_WALLS,
+  ...INNER_MERLONS,
+  ...STARTER_TOWERS,
   GATE,
 ];
 
-const OUTER_WALL = ring("wall", OUTER_RADIUS, 10);
-const OUTER_WALL_MERLONS = ring("merlon", OUTER_RADIUS, 20, Math.PI / 10, medievalShapeKit.wall.height);
-const BANNERS = ring("banner", 0.85, 4, Math.PI / 4);
+const TOWER_BANNERS = ALL_INNER_TOWERS.filter((_, index) => index % 2 === 0).map((tower) => ({
+  part: "banner" as const,
+  position: [
+    tower.position[0],
+    medievalShapeKit.tower.height + medievalShapeKit.tower.roofHeight,
+    tower.position[2],
+  ] as [number, number, number],
+  rotation: tower.rotation,
+  scale: [0.42, 0.42, 0.42] as [number, number, number],
+}));
+
+const TIER_2_PARTS: FortressPartPlacement[] = [
+  KEEP,
+  KEEP_FLAG,
+  ...INNER_WALLS,
+  ...INNER_MERLONS,
+  ...ALL_INNER_TOWERS,
+  GATE,
+  ...TOWER_BANNERS,
+];
+
+const OUTER_WALL_SCALE = (2 * OUTER_WALL_RADIUS * Math.tan(Math.PI / 12)) / medievalShapeKit.wall.length;
+const OUTER_WALL = ring("wall", OUTER_WALL_RADIUS, 12)
+  .filter((_, index) => index !== 0)
+  .map((placement) => ({ ...placement, scale: [OUTER_WALL_SCALE, 1, 1] as [number, number, number] }));
+const OUTER_WALL_MERLONS = ring("merlon", OUTER_WALL_RADIUS, 24, 0, medievalShapeKit.wall.height);
+const OUTER_GATE: FortressPartPlacement = {
+  ...GATE,
+  position: [0, 0, OUTER_WALL_RADIUS],
+  scale: [0.92, 0.92, 0.92],
+};
 
 const TIER_3_PARTS: FortressPartPlacement[] = [
   ...TIER_2_PARTS,
   ...OUTER_WALL,
   ...OUTER_WALL_MERLONS,
-  ...BANNERS,
+  OUTER_GATE,
 ];
 
 /**

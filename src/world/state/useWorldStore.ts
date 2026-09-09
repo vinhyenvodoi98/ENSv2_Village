@@ -4,6 +4,7 @@ import type { AxialCoord, Cart, Citizen, FortressEntity, Road, Tile, Weather } f
 import { DEFAULT_PRESET, presets } from "../config/presets";
 import { POPULATION, TERRAIN } from "../config/world.config";
 import { buildRoadAdjacency, connectFortress } from "../systems/roadSystem";
+import { spawnCitizensForFortress, tickCitizens } from "../systems/citizenSystem";
 
 export type PresetName = keyof typeof presets;
 
@@ -39,6 +40,8 @@ export interface WorldState {
   /** Undirected coordKey -> neighboring coordKeys, derived from every road's path. Kept in lockstep with `roads`. */
   roadAdjacency: Map<string, string[]>;
   citizens: Map<string, Citizen>;
+  /** Kept in lockstep with `citizens`, same reasoning as `tileList`. Insertion order stable — new citizens are appended, never reordered — so a renderer can use array index as a stable per-citizen instance slot. */
+  citizenList: Citizen[];
   carts: Map<string, Cart>;
   weather: Weather;
   tick: number;
@@ -61,6 +64,8 @@ export interface WorldState {
   setBuildMessage: (message: string | null) => void;
   setWeather: (weather: Weather) => void;
   advanceTick: () => void;
+  /** Advances every fixed-tick world system (citizens, ...) by one step of `dtSeconds`. */
+  tickWorld: (dtSeconds: number) => void;
   setHoveredCoord: (coord: AxialCoord | null) => void;
   setPreset: (name: PresetName) => void;
   setDebug: (patch: Partial<DebugSettings>) => void;
@@ -73,6 +78,7 @@ export const useWorldStore = create<WorldState>((set) => ({
   roadList: [],
   roadAdjacency: new Map(),
   citizens: new Map(),
+  citizenList: [],
   carts: new Map(),
   weather: { kind: "clear", intensity: 0 },
   tick: 0,
@@ -111,6 +117,10 @@ export const useWorldStore = create<WorldState>((set) => ({
       const newRoad = connectFortress(fortress, state.fortressList, tiles, state.roads);
       const roads = newRoad ? new Map(state.roads).set(newRoad.id, newRoad) : state.roads;
 
+      const spawned = spawnCitizensForFortress(fortress, state.citizens.size);
+      const citizens = spawned.length > 0 ? new Map(state.citizens) : state.citizens;
+      spawned.forEach((citizen) => citizens.set(citizen.id, citizen));
+
       return {
         tiles,
         tileList: Array.from(tiles.values()),
@@ -119,6 +129,8 @@ export const useWorldStore = create<WorldState>((set) => ({
         roads,
         roadList: newRoad ? Array.from(roads.values()) : state.roadList,
         roadAdjacency: newRoad ? buildRoadAdjacency(roads.values()) : state.roadAdjacency,
+        citizens,
+        citizenList: spawned.length > 0 ? [...state.citizenList, ...spawned] : state.citizenList,
         selectedFortressId: id,
         buildMessage: null,
       };
@@ -131,6 +143,17 @@ export const useWorldStore = create<WorldState>((set) => ({
   setWeather: (weather) => set({ weather }),
 
   advanceTick: () => set((state) => ({ tick: state.tick + 1 })),
+
+  tickWorld: (dtSeconds) =>
+    set((state) => {
+      const citizens = tickCitizens(state, dtSeconds);
+      if (citizens === state.citizens) return { tick: state.tick + 1 };
+      return {
+        tick: state.tick + 1,
+        citizens,
+        citizenList: Array.from(citizens.values()),
+      };
+    }),
 
   setHoveredCoord: (hoveredCoord) => set({ hoveredCoord }),
 

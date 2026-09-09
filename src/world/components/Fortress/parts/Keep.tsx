@@ -20,29 +20,37 @@ interface KeepProps {
 export function Keep({ shapeKit, bodyMaterial, roofMaterial, windowMaterial }: KeepProps) {
   const geometries = getPartGeometries(shapeKit);
   const { width, depth, height, roofHeight } = shapeKit.keep;
-  const { finialHeight, brimThickness } = shapeKit.detail;
-  const windowY = height * 0.42;
-  const windowEpsilon = 0.005;
+  const { finialHeight, brimThickness, windowInset } = shapeKit.detail;
+  const windowColumns = [-0.2, 0.2];
+  const windowRows = [0.42, 0.68];
 
-  const faces: { offset: [number, number, number]; rotationY: number }[] = [
-    { offset: [0, 0, depth / 2 + windowEpsilon], rotationY: 0 },
-    { offset: [0, 0, -depth / 2 - windowEpsilon], rotationY: Math.PI },
-    { offset: [width / 2 + windowEpsilon, 0, 0], rotationY: Math.PI / 2 },
-    { offset: [-width / 2 - windowEpsilon, 0, 0], rotationY: -Math.PI / 2 },
+  const faces: { position: [number, number, number]; rotationY: number; horizontalAxis: "x" | "z" }[] = [
+    { position: [0, 0, depth / 2 + windowInset], rotationY: 0, horizontalAxis: "x" },
+    { position: [0, 0, -depth / 2 - windowInset], rotationY: Math.PI, horizontalAxis: "x" },
+    { position: [width / 2 + windowInset, 0, 0], rotationY: Math.PI / 2, horizontalAxis: "z" },
+    { position: [-width / 2 - windowInset, 0, 0], rotationY: -Math.PI / 2, horizontalAxis: "z" },
   ];
 
   return (
     <group>
       <mesh geometry={geometries.keepBody} material={bodyMaterial} position={[0, height / 2, 0]} castShadow receiveShadow />
-      {faces.map((face, i) => (
-        <mesh
-          key={i}
-          geometry={geometries.window}
-          material={windowMaterial}
-          position={[face.offset[0], windowY, face.offset[2]]}
-          rotation={[0, face.rotationY, 0]}
-        />
-      ))}
+      {faces.flatMap((face, faceIndex) =>
+        windowRows.flatMap((row) =>
+          windowColumns.map((column) => (
+            <mesh
+              key={`${faceIndex}-${row}-${column}`}
+              geometry={geometries.window}
+              material={windowMaterial}
+              position={[
+                face.position[0] + (face.horizontalAxis === "x" ? width * column : 0),
+                height * row,
+                face.position[2] + (face.horizontalAxis === "z" ? depth * column : 0),
+              ]}
+              rotation={[0, face.rotationY, 0]}
+            />
+          ))
+        )
+      )}
       <mesh
         geometry={geometries.keepBrim}
         material={roofMaterial}

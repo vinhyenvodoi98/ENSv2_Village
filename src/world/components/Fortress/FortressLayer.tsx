@@ -64,6 +64,7 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
           <Fortress
             key={fortress.id}
             coord={fortress.coord}
+            name={fortress.name}
             tier={fortress.tier}
             height={HEX_HEIGHT + (tile?.height ?? 0)}
             kitId={kitId}

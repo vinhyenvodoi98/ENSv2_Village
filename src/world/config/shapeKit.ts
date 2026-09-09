@@ -46,6 +46,8 @@ export interface ShapeKit {
   detail: {
     windowWidth: number;
     windowHeight: number;
+    /** Tiny offset that keeps inset planes from z-fighting with masonry. */
+    windowInset: number;
     /** Spike topping every roof. */
     finialRadius: number;
     finialHeight: number;
@@ -55,6 +57,11 @@ export interface ShapeKit {
     brimOverhang: number;
     /** Portcullis bar thickness, in the gate opening. */
     barThickness: number;
+    /** Portion of the gate opening occupied by the hanging grille. */
+    portcullisHeightRatio: number;
+    portcullisBarCount: number;
+    portcullisCrossbarCount: number;
+    portcullisSpikeHeight: number;
   };
 }
 
@@ -69,20 +76,25 @@ export const medievalShapeKit: ShapeKit = {
   // pushes the fortress's radial footprint outside the hex, so the
   // silhouette can go as vertical as the reference castle without
   // threatening `fortress.presets.ts`'s apothem margin.
-  keep: { width: 0.9, depth: 0.9, height: 1.3, roofHeight: 0.9 },
-  wall: { length: 0.85, height: 0.5, thickness: 0.14 },
-  tower: { radius: 0.26, height: 1.1, taper: 0.68, roofHeight: 0.7 },
-  gate: { width: 0.65, height: 0.6, depth: 0.18 },
-  banner: { width: 0.22, height: 0.32, poleHeight: 0.7 },
-  merlon: { width: 0.13, height: 0.14, depth: 0.13 },
+  keep: { width: 0.76, depth: 0.68, height: 1.34, roofHeight: 0.58 },
+  wall: { length: 0.92, height: 0.57, thickness: 0.16 },
+  tower: { radius: 0.27, height: 0.98, taper: 0.9, roofHeight: 0.48 },
+  gate: { width: 0.58, height: 0.62, depth: 0.2 },
+  banner: { width: 0.24, height: 0.3, poleHeight: 0.62 },
+  merlon: { width: 0.11, height: 0.15, depth: 0.14 },
   detail: {
-    windowWidth: 0.1,
-    windowHeight: 0.18,
-    finialRadius: 0.03,
-    finialHeight: 0.16,
-    brimThickness: 0.035,
-    brimOverhang: 1.4,
-    barThickness: 0.02,
+    windowWidth: 0.085,
+    windowHeight: 0.17,
+    windowInset: 0.006,
+    finialRadius: 0.025,
+    finialHeight: 0.14,
+    brimThickness: 0.055,
+    brimOverhang: 1.18,
+    barThickness: 0.018,
+    portcullisHeightRatio: 0.78,
+    portcullisBarCount: 5,
+    portcullisCrossbarCount: 2,
+    portcullisSpikeHeight: 0.055,
   },
 };
 

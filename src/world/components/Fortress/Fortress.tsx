@@ -16,11 +16,14 @@ import { Tower } from "./parts/Tower";
 import { Gate } from "./parts/Gate";
 import { Banner } from "./parts/Banner";
 import { Merlon } from "./parts/Merlon";
+import { FortressNameplate } from "./FortressNameplate";
 
 /** ~400ms grow-in with a slight overshoot, run entirely off `useFrame`. */
 const GROW_DURATION_MS = 400;
 const ROTATION_JITTER_RAD = 0.35;
 const SCALE_JITTER = 0.05;
+const FORTRESS_NAME_PREFIXES = ["Ash", "Dawn", "Dragon", "High", "Iron", "Moon", "Raven", "Stone"] as const;
+const FORTRESS_NAME_SUFFIXES = ["crest", "fall", "guard", "haven", "hold", "keep", "spire", "watch"] as const;
 
 /** 32-bit FNV-1a — deterministic, so the same hex always hashes the same. */
 function hashCoord(coord: AxialCoord): number {
@@ -40,8 +43,18 @@ function easeOutBack(t: number): number {
   return 1 + c3 * x * x * x + c1 * x * x;
 }
 
-interface FortressProps {
+/** Stable fallback name: random-looking, but deterministic for a given hex. */
+export function getGeneratedFortressName(coord: AxialCoord): string {
+  const rng = createRng(hashCoord(coord) ^ 0x9e3779b9);
+  return `${FORTRESS_NAME_PREFIXES[rng.int(FORTRESS_NAME_PREFIXES.length)]}${
+    FORTRESS_NAME_SUFFIXES[rng.int(FORTRESS_NAME_SUFFIXES.length)]
+  }`;
+}
+
+export interface FortressProps {
   coord: AxialCoord;
+  /** Name displayed in the framed label above the fortress. Falls back to a seeded generated name. */
+  name?: string;
   tier?: number;
   /** World-space y of the tile's top surface this fortress sits on. */
   height?: number;
@@ -58,6 +71,7 @@ interface FortressProps {
  */
 export function Fortress({
   coord,
+  name,
   tier = 1,
   height = 0,
   kitId = "medieval",
@@ -70,6 +84,9 @@ export function Fortress({
   const parts = useMemo(() => getFortressParts(kitId, tier), [kitId, tier]);
   const shapeKit = useMemo(() => getShapeKit(kitId), [kitId]);
   const materials = useMemo(() => getThemeMaterials(theme), [theme]);
+  const generatedName = getGeneratedFortressName(coord);
+  const displayName = name?.trim() || generatedName;
+  const nameplateY = shapeKit.keep.height + shapeKit.keep.roofHeight + shapeKit.banner.poleHeight * 0.78;
 
   const jitter = useMemo(() => {
     const rng = createRng(hashCoord(coord));
@@ -116,6 +133,7 @@ export function Fortress({
           windowMaterial={windowMaterial}
         />
       ))}
+      {!ghost ? <FortressNameplate name={displayName} positionY={nameplateY} /> : null}
     </group>
   );
 }

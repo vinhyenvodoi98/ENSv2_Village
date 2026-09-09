@@ -12,6 +12,7 @@ import { Ground } from "../Terrain/Ground";
 import { HexGrid } from "../Terrain/HexGrid";
 import { FortressLayer } from "../Fortress/FortressLayer";
 import { RoadNetwork } from "../Roads/RoadNetwork";
+import { CitizenCrowd } from "../Citizens/CitizenCrowd";
 
 /**
  * Root of the 3D world. The only place a `<Canvas>` is created — everything
@@ -48,6 +49,7 @@ export function WorldCanvas() {
       <HexGrid theme={theme} />
       <RoadNetwork theme={theme} />
       <FortressLayer theme={theme} kitId={preset.fortressKit} />
+      <CitizenCrowd theme={theme} />
     </Canvas>
   );
 }

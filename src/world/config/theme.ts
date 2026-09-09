@@ -56,6 +56,19 @@ export interface WorldTheme {
     outfitPrimary: MaterialSpec;
     outfitSecondary: MaterialSpec;
   };
+  /** Named cloth colors outfits.ts resolves its tunic/trouser/accent slots against. */
+  cloth: {
+    undyed: MaterialSpec;
+    brown: MaterialSpec;
+    slate: MaterialSpec;
+    forest: MaterialSpec;
+    rust: MaterialSpec;
+    charcoal: MaterialSpec;
+    burgundy: MaterialSpec;
+    gold: MaterialSpec;
+    navy: MaterialSpec;
+    cream: MaterialSpec;
+  };
   weather: {
     cloudColor: string;
     rainColor: string;
@@ -88,11 +101,11 @@ export const medievalTheme: WorldTheme = {
     highlight: { color: "#ffd966", roughness: 0.6, metalness: 0 },
   },
   fortress: {
-    keep: { color: "#b8ab97", roughness: 0.85, metalness: 0.05, flatShading: true },
-    wall: { color: "#a49a86", roughness: 0.9, metalness: 0.03, flatShading: true },
-    roof: { color: "#7a3b3b", roughness: 0.7, metalness: 0, flatShading: true },
+    keep: { color: "#c7c1b4", roughness: 0.9, metalness: 0.02, flatShading: true },
+    wall: { color: "#aaa69c", roughness: 0.94, metalness: 0.01, flatShading: true },
+    roof: { color: "#555966", roughness: 0.78, metalness: 0.08, flatShading: true },
     banner: { color: "#8e1f2b", roughness: 0.6, metalness: 0, flatShading: true },
-    window: { color: "#2a2420", roughness: 0.4, metalness: 0.3, flatShading: true },
+    window: { color: "#1d2730", roughness: 0.32, metalness: 0.48, flatShading: true },
     bannerVariantColors: ["#8e1f2b", "#1f3f8e", "#1f7a3b", "#8e6f1f"],
   },
   roads: {
@@ -102,6 +115,18 @@ export const medievalTheme: WorldTheme = {
     skin: { color: "#e0b593", roughness: 0.8, metalness: 0 },
     outfitPrimary: { color: "#4a6f8a", roughness: 0.85, metalness: 0 },
     outfitSecondary: { color: "#c9a15a", roughness: 0.85, metalness: 0 },
+  },
+  cloth: {
+    undyed: { color: "#d8cdb8", roughness: 0.9, metalness: 0 },
+    brown: { color: "#7a5a3a", roughness: 0.9, metalness: 0 },
+    slate: { color: "#5a6a76", roughness: 0.85, metalness: 0 },
+    forest: { color: "#3e6b47", roughness: 0.85, metalness: 0 },
+    rust: { color: "#9a5230", roughness: 0.85, metalness: 0 },
+    charcoal: { color: "#3a3a3e", roughness: 0.8, metalness: 0 },
+    burgundy: { color: "#6e2333", roughness: 0.8, metalness: 0 },
+    gold: { color: "#c9a15a", roughness: 0.7, metalness: 0.05 },
+    navy: { color: "#2e3f5c", roughness: 0.85, metalness: 0 },
+    cream: { color: "#e8dcc4", roughness: 0.85, metalness: 0 },
   },
   weather: {
     cloudColor: "#ffffff",

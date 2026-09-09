@@ -51,12 +51,33 @@ export const LIGHTING = {
   shadowCameraFar: 80,
 } as const;
 
-/** Ticks per second for world systems (citizens, carts, weather). */
-export const TICK_RATE = 4;
+/** Ticks per second for world systems (citizens, carts, weather). Movement is simulated on this fixed schedule and interpolated for render, so frame rate never changes walking speed. */
+export const TICK_RATE = 10;
 
 export const POPULATION = {
   maxCitizensPerFortress: 8,
   maxCartsPerRoad: 3,
+} as const;
+
+/** Hard cap on simultaneously-alive citizens, across every fortress. */
+export const POPULATION_CAP = 200;
+
+export const CITIZENS = {
+  /** Progress along a walked path is expressed in path-index units (one hex step = 1 unit), not world distance — adjacent hex centers are equidistant on this grid, so this is a fair stand-in for constant walking speed. */
+  walkSpeed: 0.4,
+  /** Seconds spent idling at a fortress before picking a new destination. */
+  idleMinSec: 2,
+  idleMaxSec: 6,
+  /** New citizens spawned per fortress tier when it's built. */
+  citizensPerTier: 3,
+  /** Max perpendicular offset from the road centerline, in world units. */
+  lateralOffset: 0.32,
+  /** Clearance above the road ribbon surface so feet never z-fight it. */
+  groundClearance: 0.03,
+  /** Walk-cycle leg swing, in cycles per world-unit of path traveled. */
+  strideFrequency: 3.2,
+  legSwingRad: 0.5,
+  bobHeight: 0.045,
 } as const;
 
 /** Per-frame work budgets so systems stay off the render-blocking path. */

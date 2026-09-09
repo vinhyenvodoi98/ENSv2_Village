@@ -9,7 +9,7 @@ interface MerlonProps {
   bodyMaterial: MeshStandardMaterial;
 }
 
-/** A single crenellation block, lining wall and tower tops. */
+/** A single raised tooth; gaps between placements form the wall's embrasures. */
 export function Merlon({ shapeKit, bodyMaterial }: MerlonProps) {
   const geometries = getPartGeometries(shapeKit);
   const { height } = shapeKit.merlon;

@@ -13,6 +13,16 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
+/** 32-bit FNV-1a — deterministic, so the same string always hashes the same. */
+export function hashString(value: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
 export interface SeededRng {
   next(): number;
   int(maxExclusive: number): number;

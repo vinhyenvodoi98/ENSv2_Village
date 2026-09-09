@@ -18,7 +18,16 @@ export interface ThemeMaterials {
   terrain: MaterialGroup<WorldTheme["terrain"]>;
   fortress: FortressMaterials;
   roads: MaterialGroup<WorldTheme["roads"]>;
-  citizens: MaterialGroup<WorldTheme["citizens"]>;
+  citizens: CitizenMaterials;
+}
+
+export interface CitizenMaterials extends MaterialGroup<WorldTheme["citizens"]> {
+  /**
+   * Neutral white base for the torso/leg/waistband instanced meshes — an
+   * instance's `instanceColor` multiplies this, so it must stay white for
+   * the outfit color (picked from `theme.cloth`) to come through true.
+   */
+  clothBase: MeshStandardMaterial;
 }
 
 const cache = new Map<string, ThemeMaterials>();
@@ -65,6 +74,17 @@ function buildFortressMaterials(fortress: WorldTheme["fortress"]): FortressMater
   return { ...base, bannerVariants, ghost };
 }
 
+function buildCitizenMaterials(citizens: WorldTheme["citizens"]): CitizenMaterials {
+  const base = buildGroup(citizens);
+  const clothBase = new MeshStandardMaterial({
+    color: "#ffffff",
+    roughness: 0.85,
+    metalness: 0,
+    flatShading: true,
+  });
+  return { ...base, clothBase };
+}
+
 /**
  * Builds every `MeshStandardMaterial` for a theme exactly once and caches
  * the set by theme name. Components read a shared reference from here —
@@ -80,7 +100,7 @@ export function getThemeMaterials(theme: WorldTheme): ThemeMaterials {
     terrain: buildGroup(theme.terrain),
     fortress: buildFortressMaterials(theme.fortress),
     roads: buildGroup(theme.roads),
-    citizens: buildGroup(theme.citizens),
+    citizens: buildCitizenMaterials(theme.citizens),
   };
   cache.set(theme.name, built);
   return built;

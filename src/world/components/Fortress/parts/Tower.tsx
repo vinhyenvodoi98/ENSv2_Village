@@ -11,7 +11,11 @@ interface TowerProps {
   windowMaterial: MeshStandardMaterial;
 }
 
-const WINDOW_ANGLES = [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3];
+const WINDOW_ANGLES = [0, Math.PI / 2, Math.PI, (Math.PI * 3) / 2];
+const WINDOW_RINGS = [
+  { heightFraction: 0.44, angleOffset: Math.PI / 4 },
+  { heightFraction: 0.7, angleOffset: 0 },
+] as const;
 
 /**
  * Corner/wall tower: a tapered cylinder body with a conical roof, a ring of
@@ -21,26 +25,28 @@ const WINDOW_ANGLES = [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3];
 export function Tower({ shapeKit, bodyMaterial, roofMaterial, windowMaterial }: TowerProps) {
   const geometries = getPartGeometries(shapeKit);
   const { radius, height, roofHeight, taper } = shapeKit.tower;
-  const { finialHeight, brimThickness } = shapeKit.detail;
-  const windowHeightFraction = 0.6;
-  const windowY = height * windowHeightFraction;
-  // The body tapers linearly from `radius` at the base to `radius * taper`
-  // at the top, so the window ring must sit on the interpolated surface —
-  // pinning it to the base radius would float it outside a narrowed tower.
-  const windowRadius = radius - windowHeightFraction * (radius - radius * taper) + 0.005;
+  const { finialHeight, brimThickness, windowInset } = shapeKit.detail;
 
   return (
     <group>
       <mesh geometry={geometries.towerBody} material={bodyMaterial} position={[0, height / 2, 0]} castShadow receiveShadow />
-      {WINDOW_ANGLES.map((angle) => (
-        <mesh
-          key={angle}
-          geometry={geometries.window}
-          material={windowMaterial}
-          position={[windowRadius * Math.sin(angle), windowY, windowRadius * Math.cos(angle)]}
-          rotation={[0, angle, 0]}
-        />
-      ))}
+      {WINDOW_RINGS.flatMap(({ heightFraction, angleOffset }) => {
+        // The body tapers linearly, so each window ring hugs the masonry
+        // instead of floating at the base radius.
+        const windowRadius = radius - heightFraction * (radius - radius * taper) + windowInset;
+        return WINDOW_ANGLES.map((baseAngle) => {
+          const angle = baseAngle + angleOffset;
+          return (
+            <mesh
+              key={`${heightFraction}-${angle}`}
+              geometry={geometries.window}
+              material={windowMaterial}
+              position={[windowRadius * Math.sin(angle), height * heightFraction, windowRadius * Math.cos(angle)]}
+              rotation={[0, angle, 0]}
+            />
+          );
+        });
+      })}
       <mesh
         geometry={geometries.towerBrim}
         material={roofMaterial}

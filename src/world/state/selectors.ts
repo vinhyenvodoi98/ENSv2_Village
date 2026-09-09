@@ -24,6 +24,8 @@ export const selectHoveredTile = (state: WorldState) =>
 export const selectCitizensByFortress = (fortressId: string) => (state: WorldState) =>
   Array.from(state.citizens.values()).filter((citizen) => citizen.fortressId === fortressId);
 
+export const selectCitizenList = (state: WorldState) => state.citizenList;
+
 export const selectPresetName = (state: WorldState) => state.presetName;
 
 export const selectDebugSettings = (state: WorldState) => state.debug;

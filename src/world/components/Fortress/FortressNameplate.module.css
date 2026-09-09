@@ -1,0 +1,54 @@
+.anchor {
+  pointer-events: none;
+  user-select: none;
+}
+
+.plate {
+  position: relative;
+  min-width: 124px;
+  padding: 8px 16px 9px;
+  border: 2px solid #d9bd78;
+  border-radius: 7px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(40, 48, 57, 0.96), rgba(19, 25, 31, 0.96));
+  box-shadow:
+    0 0 0 2px rgba(39, 30, 18, 0.72),
+    0 7px 18px rgba(0, 0, 0, 0.38),
+    inset 0 1px rgba(255, 255, 255, 0.14);
+  color: #fff4d2;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.plate::before,
+.plate::after {
+  position: absolute;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.plate::before {
+  top: -6px;
+  border-top: 2px solid #d9bd78;
+  border-left: 2px solid #d9bd78;
+  background: #303944;
+}
+
+.plate::after {
+  bottom: -7px;
+  z-index: -1;
+  border-right: 2px solid #d9bd78;
+  border-bottom: 2px solid #d9bd78;
+  background: #151c22;
+}
