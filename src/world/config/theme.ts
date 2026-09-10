@@ -65,6 +65,12 @@ export interface WorldTheme {
     banner: MaterialSpec;
     /** Windows, portcullis bars — dark ironwork/glass detail. */
     window: MaterialSpec;
+    /**
+     * Weathered stone for a revoked or lapsed agent's castle (task 29). A
+     * revoke has to leave a visible ruin — the consequence is the point — so
+     * the castle is drained of color and loses its banners, never removed.
+     */
+    ruined: MaterialSpec;
     /** Small fixed set of banner cloth colors; a fortress picks one by seeded RNG. */
     bannerVariantColors: string[];
   };
@@ -139,6 +145,7 @@ export const medievalTheme: WorldTheme = {
     roof: { color: "#555966", roughness: 0.78, metalness: 0.08, flatShading: true },
     banner: { color: "#8e1f2b", roughness: 0.6, metalness: 0, flatShading: true },
     window: { color: "#1d2730", roughness: 0.32, metalness: 0.48, flatShading: true },
+    ruined: { color: "#6f6e69", roughness: 1, metalness: 0, flatShading: true },
     bannerVariantColors: ["#8e1f2b", "#1f3f8e", "#1f7a3b", "#8e6f1f"],
   },
   roads: {

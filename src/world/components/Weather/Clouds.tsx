@@ -40,14 +40,29 @@ function seedCloudPuffs(volumeCount: number, puffsPerVolume: number): CloudPuff[
   const rng = createRng(hashString("weather-cloud-puffs"));
   const puffs: CloudPuff[] = [];
   for (let volume = 0; volume < volumeCount; volume++) {
+    const heading = rng.next() * Math.PI * 2;
+    const alongX = Math.cos(heading);
+    const alongZ = Math.sin(heading);
+    const acrossX = -alongZ;
+    const acrossZ = alongX;
+
     for (let p = 0; p < puffsPerVolume; p++) {
       const spread = WEATHER.cloudClusterSpread;
+      const normalized = puffsPerVolume === 1 ? 0 : p / (puffsPerVolume - 1) - 0.5;
+      const along = normalized * spread * 2;
+      // A narrow perpendicular jitter keeps every puff overlapping the next,
+      // while avoiding an obviously straight row of identical primitives.
+      const across = (rng.next() * 2 - 1) * WEATHER.cloudPuffRadius * 0.52;
       puffs.push({
         volume,
-        offsetX: (rng.next() * 2 - 1) * spread,
-        offsetY: (rng.next() * 2 - 1) * spread * 0.3,
-        offsetZ: (rng.next() * 2 - 1) * spread,
-        scale: 0.6 + rng.next() * 0.7,
+        offsetX: alongX * along + acrossX * across,
+        offsetY:
+          (rng.next() * 2 - 1) * WEATHER.cloudPuffRadius * 0.22
+          + (1 - Math.abs(normalized) * 2) * WEATHER.cloudPuffRadius * 0.18,
+        offsetZ: alongZ * along + acrossZ * across,
+        scale:
+          WEATHER.cloudPuffScaleMin
+          + rng.next() * (WEATHER.cloudPuffScaleMax - WEATHER.cloudPuffScaleMin),
       });
     }
   }
@@ -114,7 +129,11 @@ export function Clouds({ theme = medievalTheme }: CloudsProps) {
       const x = wrapSigned(base.x + windX * t, WEATHER.cloudWrapBound) + puff.offsetX;
       const z = wrapSigned(base.z + windZ * t, WEATHER.cloudWrapBound) + puff.offsetZ;
       dummy.position.set(x, base.y + puff.offsetY, z);
-      dummy.scale.setScalar(puff.scale);
+      dummy.scale.set(
+        puff.scale * WEATHER.cloudWidthScale,
+        puff.scale * WEATHER.cloudVerticalScale,
+        puff.scale
+      );
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }

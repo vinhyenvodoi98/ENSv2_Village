@@ -43,3 +43,13 @@ export const selectRoadList = (state: WorldState) => state.roadList;
 
 /** Undirected coordKey -> neighboring coordKeys graph, for citizen pathing (task 25). */
 export const selectRoadAdjacency = (state: WorldState) => state.roadAdjacency;
+
+export const selectSelectedFortressId = (state: WorldState) => state.selectedFortressId;
+
+export const selectMode = (state: WorldState) => state.mode;
+
+export const selectWorldRadius = (state: WorldState) => state.worldRadius;
+
+export const selectCameraFocus = (state: WorldState) => state.cameraFocus;
+
+export const selectSpawnFormOpen = (state: WorldState) => state.spawnFormOpen;

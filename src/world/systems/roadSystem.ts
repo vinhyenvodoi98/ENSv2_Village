@@ -63,7 +63,65 @@ export function connectFortress(
   const path = planPath(newFortress.coord, nearest.coord, tiles, existingEdges);
   if (!path) return null;
 
-  return { id: `road-${newFortress.id}-${nearest.id}`, path };
+  return { id: `road-${newFortress.ensKey}-${nearest.ensKey}`, path };
+}
+
+/** Stable, order-independent id for the road that draws one parent-child ENS link. */
+export function parentRoadId(parentEnsKey: string, childEnsKey: string): string {
+  return `road:${parentEnsKey}->${childEnsKey}`;
+}
+
+/**
+ * Task 29: roads stop meaning "nearest neighbour" and start meaning
+ * "namespace parentage" — a road exists exactly when one agent was spawned in
+ * another's sub-registry, so the ENS tree is legible from the map alone.
+ *
+ * Reconciles rather than rebuilds: a link that already has a road keeps its
+ * existing path, so a new block never re-triggers every ribbon's draw-in
+ * animation. New links are planned in a deterministic order and each sees the
+ * edges laid before it, so they still merge onto trunk routes.
+ */
+export function buildParentRoads(
+  fortressList: FortressEntity[],
+  tiles: Map<string, Tile>,
+  existingRoads: Map<string, Road>
+): Map<string, Road> {
+  const byKey = new Map(fortressList.map((fortress) => [fortress.ensKey, fortress]));
+  const roads = new Map<string, Road>();
+  const edges = new Set<string>();
+
+  const links = fortressList
+    .filter((fortress) => fortress.parentEnsKey && byKey.has(fortress.parentEnsKey))
+    .sort((a, b) => (a.ensKey < b.ensKey ? -1 : a.ensKey > b.ensKey ? 1 : 0));
+
+  const addEdges = (road: Road) => {
+    for (let i = 0; i < road.path.length - 1; i++) edges.add(edgeKey(road.path[i], road.path[i + 1]));
+  };
+
+  // Existing roads for links that survived contribute their edges up front, so
+  // a newly planned road is discounted onto them the same way it would have
+  // been had it been planned in the same pass.
+  for (const child of links) {
+    const id = parentRoadId(child.parentEnsKey!, child.ensKey);
+    const existing = existingRoads.get(id);
+    if (existing) {
+      roads.set(id, existing);
+      addEdges(existing);
+    }
+  }
+
+  for (const child of links) {
+    const id = parentRoadId(child.parentEnsKey!, child.ensKey);
+    if (roads.has(id)) continue;
+    const parent = byKey.get(child.parentEnsKey!)!;
+    const path = planPath(child.coord, parent.coord, tiles, edges);
+    if (!path) continue;
+    const road: Road = { id, path };
+    roads.set(id, road);
+    addEdges(road);
+  }
+
+  return roads;
 }
 
 /**

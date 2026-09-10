@@ -2,6 +2,7 @@ export { useAgentTree, fetchAgentTree, AGENT_TIERS, type AgentTier, type AgentTr
 export {
   useNamespaceTree,
   flattenNamespace,
+  mergeLocalPreviews,
   buildResolverIndex,
   namespaceKey,
   type NamespaceNode,
@@ -19,6 +20,7 @@ export { useTxAction, describeError, type TxState } from "./useTxAction";
 export {
   useLocalWildcardAgents,
   localWildcardToNode,
+  localWildcardKey,
   type LocalWildcardAgent,
 } from "./useLocalWildcardAgents";
 export {

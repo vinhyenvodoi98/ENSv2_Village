@@ -97,18 +97,20 @@ export function measureCitizenPath(path: AxialCoord[], tiles: Map<string, Tile>)
  */
 export function spawnCitizensForFortress(fortress: FortressEntity, currentTotal: number): Citizen[] {
   const room = Math.max(0, POPULATION_CAP - currentTotal);
-  const wanted = CITIZENS.citizensPerTier * fortress.tier;
+  // Tier 0 (Wildcard) is a real castle, not an empty one — clamp so the
+  // lowest rung still gets a population instead of a deserted keep.
+  const wanted = CITIZENS.citizensPerTier * Math.max(1, fortress.tier);
   const count = Math.min(room, wanted);
 
   const citizens: Citizen[] = [];
   for (let i = 0; i < count; i++) {
-    const id = `citizen-${fortress.id}-${i}`;
+    const id = `citizen-${fortress.ensKey}-${i}`;
     const rng = createRng(hashString(id));
     citizens.push({
       id,
-      fortressId: fortress.id,
-      originId: fortress.id,
-      targetId: fortress.id,
+      fortressId: fortress.ensKey,
+      originId: fortress.ensKey,
+      targetId: fortress.ensKey,
       position: fortress.coord,
       status: "idle",
       path: [],
@@ -158,8 +160,8 @@ function startNewLeg(citizen: Citizen, ctx: TickContext): Citizen {
 
   return {
     ...citizen,
-    originId: origin.id,
-    targetId: destination.id,
+    originId: origin.ensKey,
+    targetId: destination.ensKey,
     status: "walking",
     path,
     progress: 0,

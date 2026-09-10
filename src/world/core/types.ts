@@ -11,12 +11,32 @@ export interface Tile {
   occupantId?: string;
 }
 
+/**
+ * One castle on the map. Since task 29 this is *always* the projection of one
+ * ENS namespace node (`ensKey` is `namespaceKey(registry, labelhash)`), never
+ * a free-standing map entity — the `/threejs` sandbox is the one exception and
+ * synthesizes its own `ensKey` from the hex it was placed on.
+ *
+ * Deliberately plain data: `src/world/` must never import wagmi/viem, so the
+ * page layer reads the chain and hands the result down through
+ * `syncFortressesFromEns`.
+ */
 export interface FortressEntity {
-  id: string;
+  /** Stable identity. `namespaceKey(registry, labelhash)` for ENS-backed castles. */
+  ensKey: string;
   coord: AxialCoord;
-  /** Optional persisted name; the renderer supplies a stable generated fallback. */
-  name?: string;
+  /** Short ENS label shown on the nameplate. */
+  name: string;
+  /** Dotted ENS name shown in tooltips / the detail panel. */
+  fullName: string;
+  /** `AGENT_TIERS` index: 0 Wildcard … 3 Sovereign. Drives the castle preset. */
   tier: number;
+  /** `ensKey` of the parent namespace node, or null at the root ring. */
+  parentEnsKey: string | null;
+  /** Free wildcard label that has no on-chain `spawn` yet — rendered as a ghost. */
+  isLocalPreview?: boolean;
+  /** Revoked on-chain, or an expired `Leased` node — rendered derelict, never removed. */
+  derelict: boolean;
 }
 
 export interface Road {

@@ -1,12 +1,13 @@
 "use client";
 
 import { zeroAddress } from "viem";
-import type { NamespaceNode } from "@/lib/ens";
+import type { LocalWildcardAgent, NamespaceNode } from "@/lib/ens";
 import { explorerAddressUrl } from "@/lib/explorer";
 import { truncateAddress } from "@/lib/format";
 import { TierBadge } from "@/components/tree/TierBadge";
 import type { SelectedAgent } from "@/components/tree/AgentSubtree";
 import { LifecycleActions } from "@/components/lifecycle/LifecycleActions";
+import { SpawnAgentForm } from "@/components/lifecycle/SpawnAgentForm";
 import { DelegatePanel } from "@/components/permissions/DelegatePanel";
 import { EscalationButton } from "@/components/permissions/EscalationButton";
 import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
@@ -24,12 +25,16 @@ export function AgentDetailPanel({
   resolverIndex,
   onClose,
   onSelectChild,
+  onSpawnedLocally,
 }: {
   node: NamespaceNode | null;
   directory: Map<string, NamespaceNode>;
   resolverIndex: Map<string, `0x${string}`>;
   onClose: () => void;
   onSelectChild: (agent: SelectedAgent) => void;
+  /// Task 29: spawning a child *from the selected agent* lives in this panel, so the parent is
+  /// never ambiguous. Omit to hide the section (e.g. a read-only embedding).
+  onSpawnedLocally?: (agent: LocalWildcardAgent) => void;
 }) {
   return (
     <>
@@ -106,6 +111,15 @@ export function AgentDetailPanel({
             <Section title="Lifecycle">
               <LifecycleActions node={node} />
             </Section>
+
+            {onSpawnedLocally && (
+              <Section title="Spawn child agent">
+                {/* Sits directly under "Lifecycle" on purpose: when this agent
+                    isn't Sovereign yet the form blocks and points at promote,
+                    which is the control immediately above. */}
+                <SpawnAgentForm parent={node} onSpawnedLocally={onSpawnedLocally} />
+              </Section>
+            )}
 
             <Section title="Records">
               <RecordTable node={node} directory={directory} resolverIndex={resolverIndex} />

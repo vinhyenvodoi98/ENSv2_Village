@@ -5,7 +5,7 @@ import { coordKey, ring } from "@/world/core/hex";
 import { FORTRESS_BUILD_DISTANCE, HEX_HEIGHT } from "@/world/config/world.config";
 import { medievalTheme } from "@/world/config/theme";
 import { useWorldStore } from "@/world/state/useWorldStore";
-import { selectFortressList, selectHoveredCoord, selectHoveredTile } from "@/world/state/selectors";
+import { selectFortressList, selectHoveredCoord, selectHoveredTile, selectMode } from "@/world/state/selectors";
 import type { AxialCoord, FortressEntity, Tile } from "@/world/core/types";
 import { Fortress } from "./Fortress";
 import { BuildMarkers } from "./BuildMarkers";
@@ -39,21 +39,30 @@ export function computeValidBuildCoords(fortressList: FortressEntity[], tiles: M
 }
 
 /**
- * Renders every placed fortress plus the build-target markers and hover
- * ghost. Owns none of the click/placement logic — that lives with the tile
- * raycast in `HexGrid`, which is the surface clicks actually land on.
+ * Renders every castle on the map. In `ens` mode each one is a namespace node
+ * synced in by the page — clicking it selects that agent, which is what opens
+ * the ENS detail panel. Placement itself is never decided here: the store owns
+ * it, and in `ens` mode only a confirmed `spawn` can add a castle, so the
+ * build markers and hover ghost are sandbox-only.
  */
 export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerProps) {
   const fortressList = useWorldStore(selectFortressList);
   const tiles = useWorldStore((state) => state.tiles);
   const hoveredCoord = useWorldStore(selectHoveredCoord);
   const hoveredTile = useWorldStore(selectHoveredTile);
+  const mode = useWorldStore(selectMode);
+  const selectFortress = useWorldStore((state) => state.selectFortress);
 
-  const validCoords = useMemo(() => computeValidBuildCoords(fortressList, tiles), [fortressList, tiles]);
+  const isSandbox = mode === "sandbox";
+
+  const validCoords = useMemo(
+    () => (isSandbox ? computeValidBuildCoords(fortressList, tiles) : []),
+    [isSandbox, fortressList, tiles]
+  );
 
   const validKeySet = useMemo(() => new Set(validCoords.map(coordKey)), [validCoords]);
 
-  const showGhost = Boolean(hoveredCoord && hoveredTile && validKeySet.has(coordKey(hoveredCoord)));
+  const showGhost = isSandbox && Boolean(hoveredCoord && hoveredTile && validKeySet.has(coordKey(hoveredCoord)));
 
   return (
     <>
@@ -62,13 +71,20 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
         const tile = tiles.get(coordKey(fortress.coord));
         return (
           <Fortress
-            key={fortress.id}
+            key={fortress.ensKey}
             coord={fortress.coord}
             name={fortress.name}
+            fullName={fortress.fullName}
             tier={fortress.tier}
+            derelict={fortress.derelict}
+            // A free wildcard label has no `spawn` tx behind it — showing it
+            // solid would claim something the chain doesn't say.
+            ghost={fortress.isLocalPreview}
+            nameplateNote={fortress.isLocalPreview ? "not on-chain" : undefined}
             height={HEX_HEIGHT + (tile?.height ?? 0)}
             kitId={kitId}
             theme={theme}
+            onClick={() => selectFortress(fortress.ensKey)}
           />
         );
       })}

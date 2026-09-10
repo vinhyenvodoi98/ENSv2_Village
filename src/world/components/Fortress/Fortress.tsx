@@ -3,7 +3,7 @@
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
-import { getFortressParts, type FortressPart, type FortressPartPlacement } from "./fortress.presets";
+import { getFortressParts, stripBanners, type FortressPart, type FortressPartPlacement } from "./fortress.presets";
 import { medievalTheme } from "@/world/config/theme";
 import { getThemeMaterials } from "@/world/config/materials";
 import { getShapeKit } from "@/world/config/shapeKit";
@@ -22,8 +22,9 @@ import { FortressNameplate } from "./FortressNameplate";
 const GROW_DURATION_MS = 400;
 const ROTATION_JITTER_RAD = 0.35;
 const SCALE_JITTER = 0.05;
-const FORTRESS_NAME_PREFIXES = ["Ash", "Dawn", "Dragon", "High", "Iron", "Moon", "Raven", "Stone"] as const;
-const FORTRESS_NAME_SUFFIXES = ["crest", "fall", "guard", "haven", "hold", "keep", "spire", "watch"] as const;
+/** A ruin has settled into the ground and lost its roofline. */
+const DERELICT_SCALE = 0.88;
+const DERELICT_TILT_RAD = 0.06;
 
 /** 32-bit FNV-1a — deterministic, so the same hex always hashes the same. */
 function hashCoord(coord: AxialCoord): number {
@@ -43,18 +44,17 @@ function easeOutBack(t: number): number {
   return 1 + c3 * x * x * x + c1 * x * x;
 }
 
-/** Stable fallback name: random-looking, but deterministic for a given hex. */
-export function getGeneratedFortressName(coord: AxialCoord): string {
-  const rng = createRng(hashCoord(coord) ^ 0x9e3779b9);
-  return `${FORTRESS_NAME_PREFIXES[rng.int(FORTRESS_NAME_PREFIXES.length)]}${
-    FORTRESS_NAME_SUFFIXES[rng.int(FORTRESS_NAME_SUFFIXES.length)]
-  }`;
-}
-
 export interface FortressProps {
   coord: AxialCoord;
-  /** Name displayed in the framed label above the fortress. Falls back to a seeded generated name. */
+  /**
+   * Nameplate text. On the root map this is always an ENS label read off
+   * Sepolia — there is deliberately no generated fallback, so a missing name
+   * shows as no nameplate rather than as an invented one.
+   */
   name?: string;
+  /** Dotted ENS name, shown on nameplate hover. */
+  fullName?: string;
+  /** `AGENT_TIERS` index, 0 Wildcard … 3 Sovereign. Selects the silhouette preset. */
   tier?: number;
   /** World-space y of the tile's top surface this fortress sits on. */
   height?: number;
@@ -62,6 +62,11 @@ export interface FortressProps {
   theme?: typeof medievalTheme;
   /** Translucent preview mode for the hover-to-build ghost. Skips growth and jitter randomness stays visually neutral. */
   ghost?: boolean;
+  /** Revoked or lapsed on chain: grey stone, banners struck, slumped into the hill. */
+  derelict?: boolean;
+  /** Extra caption under the nameplate — "not on-chain" for a wildcard preview. */
+  nameplateNote?: string;
+  onClick?: () => void;
 }
 
 /**
@@ -72,20 +77,26 @@ export interface FortressProps {
 export function Fortress({
   coord,
   name,
+  fullName,
   tier = 1,
   height = 0,
   kitId = "medieval",
   theme = medievalTheme,
   ghost = false,
+  derelict = false,
+  nameplateNote,
+  onClick,
 }: FortressProps) {
   const groupRef = useRef<Group>(null);
   const mountedAt = useRef<number | null>(null);
 
-  const parts = useMemo(() => getFortressParts(kitId, tier), [kitId, tier]);
+  const parts = useMemo(() => {
+    const tierParts = getFortressParts(kitId, tier);
+    return derelict ? stripBanners(tierParts) : tierParts;
+  }, [kitId, tier, derelict]);
   const shapeKit = useMemo(() => getShapeKit(kitId), [kitId]);
   const materials = useMemo(() => getThemeMaterials(theme), [theme]);
-  const generatedName = getGeneratedFortressName(coord);
-  const displayName = name?.trim() || generatedName;
+  const displayName = name?.trim() ?? "";
   const nameplateY = shapeKit.keep.height + shapeKit.keep.roofHeight + shapeKit.banner.poleHeight * 0.78;
 
   const jitter = useMemo(() => {
@@ -100,27 +111,44 @@ export function Fortress({
 
   const [x, z] = useMemo(() => hexToWorld(coord), [coord]);
 
+  const baseScale = jitter.scale * (derelict ? DERELICT_SCALE : 1);
+
   useFrame(() => {
     const group = groupRef.current;
     if (!group) return;
     if (ghost) {
-      group.scale.setScalar(jitter.scale);
+      group.scale.setScalar(baseScale);
       return;
     }
     if (mountedAt.current === null) mountedAt.current = performance.now();
     const elapsed = performance.now() - mountedAt.current;
     const t = Math.min(1, elapsed / GROW_DURATION_MS);
-    group.scale.setScalar(jitter.scale * easeOutBack(t));
+    group.scale.setScalar(baseScale * easeOutBack(t));
   });
 
-  const bannerMaterial = ghost ? materials.fortress.ghost : materials.fortress.bannerVariants[jitter.bannerVariant];
-  const bodyMaterial = ghost ? materials.fortress.ghost : materials.fortress.keep;
-  const wallMaterial = ghost ? materials.fortress.ghost : materials.fortress.wall;
-  const roofMaterial = ghost ? materials.fortress.ghost : materials.fortress.roof;
-  const windowMaterial = ghost ? materials.fortress.ghost : materials.fortress.window;
+  // Three visual states, one lookup table: a ghost is uniformly translucent, a
+  // ruin is uniformly grey stone, and a live castle uses the full palette.
+  const override = ghost ? materials.fortress.ghost : derelict ? materials.fortress.ruined : null;
+  const bannerMaterial = override ?? materials.fortress.bannerVariants[jitter.bannerVariant];
+  const bodyMaterial = override ?? materials.fortress.keep;
+  const wallMaterial = override ?? materials.fortress.wall;
+  const roofMaterial = override ?? materials.fortress.roof;
+  const windowMaterial = override ?? materials.fortress.window;
 
   return (
-    <group ref={groupRef} position={[x, height, z]} rotation={[0, jitter.rotationY, 0]}>
+    <group
+      ref={groupRef}
+      position={[x, height, z]}
+      rotation={[derelict ? DERELICT_TILT_RAD : 0, jitter.rotationY, 0]}
+      onClick={
+        onClick
+          ? (event) => {
+              event.stopPropagation();
+              onClick();
+            }
+          : undefined
+      }
+    >
       {parts.map((placement, index) => (
         <PartInstance
           key={index}
@@ -133,7 +161,16 @@ export function Fortress({
           windowMaterial={windowMaterial}
         />
       ))}
-      {!ghost ? <FortressNameplate name={displayName} positionY={nameplateY} /> : null}
+      {displayName ? (
+        <FortressNameplate
+          name={displayName}
+          fullName={fullName ?? displayName}
+          tier={tier}
+          derelict={derelict}
+          note={nameplateNote}
+          positionY={nameplateY}
+        />
+      ) : null}
     </group>
   );
 }

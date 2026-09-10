@@ -5,10 +5,15 @@ import { useNamespaceTree, type NamespaceNode } from "@/lib/ens";
 import { AgentSubtree, type SelectedAgent } from "./AgentSubtree";
 
 export function NamespaceTree({
+  nodes,
   localNodes = [],
   selected,
   onSelect,
 }: {
+  /// Pre-merged tree to render. Task 29's root page passes the same array it projects onto the
+  /// 3D map, so the list and the map can never disagree about what exists. Omitted (e.g. a
+  /// standalone embedding) means "read it yourself" — the query is shared, so this costs nothing.
+  nodes?: NamespaceNode[];
   /// Task 14: labels "spawned" at the free `Wildcard` tier (`useLocalWildcardAgents`) — never
   /// on-chain, so never part of `useNamespaceTree`'s `AgentSpawned`-sourced result. Rendered
   /// alongside the real tree so a wildcard spawn "appears on the tree immediately" with no tx.
@@ -17,7 +22,7 @@ export function NamespaceTree({
   onSelect: (agent: SelectedAgent) => void;
 }) {
   const { data: tree, isLoading, error } = useNamespaceTree();
-  const combined = [...(tree ?? []), ...localNodes];
+  const combined = nodes ?? [...(tree ?? []), ...localNodes];
 
   return (
     <section className="flex w-full flex-col gap-4">

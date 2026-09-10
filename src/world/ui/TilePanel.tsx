@@ -5,7 +5,12 @@ import { useWorldStore } from "@/world/state/useWorldStore";
 import { selectSelectedFortress } from "@/world/state/selectors";
 import { coordsEqual } from "@/world/core/hex";
 
-/** Selected-fortress detail panel: name, tier, population, connected roads. */
+/**
+ * Sandbox-only (`/threejs`) castle summary: tier, population, connected roads.
+ * The root map deliberately does *not* mount this — a selected castle there is
+ * an ENS node and opens `AgentDetailPanel`, so there is exactly one panel per
+ * screen rather than two competing ones.
+ */
 export function TilePanel() {
   const fortress = useWorldStore(selectSelectedFortress);
   const selectFortress = useWorldStore((state) => state.selectFortress);
@@ -19,7 +24,7 @@ export function TilePanel() {
     if (!fortress) return 0;
     let count = 0;
     for (const citizen of citizens.values()) {
-      if (citizen.fortressId === fortress.id) count++;
+      if (citizen.fortressId === fortress.ensKey) count++;
     }
     return count;
   }, [citizens, fortress]);
@@ -34,7 +39,7 @@ export function TilePanel() {
     <div className="pointer-events-auto absolute right-4 top-20 w-64 rounded-lg bg-black/60 p-4 text-white shadow-lg backdrop-blur">
       <div className="flex items-start justify-between gap-2">
         <h2 className="text-sm font-semibold">
-          Fortress ({fortress.coord.q}, {fortress.coord.r})
+          {fortress.name} ({fortress.coord.q}, {fortress.coord.r})
         </h2>
         <button
           type="button"

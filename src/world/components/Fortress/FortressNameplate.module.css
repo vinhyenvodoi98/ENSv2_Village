@@ -28,6 +28,36 @@
   white-space: nowrap;
 }
 
+/* A long ENS label truncates inside the plate rather than stretching the
+   billboard into the next castle. The full name lives in the `title` tooltip
+   and the detail panel. */
+.label {
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Tier glyph, in the same colour scale `TierBadge` uses in the DOM UI, so a
+   Sovereign reads as amber on the map and in the sidebar alike. */
+.tier {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.note {
+  margin-top: 3px;
+  color: #d7c9a4;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+}
+
 .plate::before,
 .plate::after {
   position: absolute;
@@ -51,4 +81,27 @@
   border-right: 2px solid #d9bd78;
   border-bottom: 2px solid #d9bd78;
   background: #151c22;
+}
+
+/* Kept last: these override `.plate::before/::after`, which have equal
+   specificity, so source order is what decides. */
+.derelict {
+  border-color: #7d7d78;
+  color: #b9b7ae;
+  filter: saturate(0.15);
+}
+
+.derelict .label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.derelict::before {
+  border-top-color: #7d7d78;
+  border-left-color: #7d7d78;
+}
+
+.derelict::after {
+  border-right-color: #7d7d78;
+  border-bottom-color: #7d7d78;
 }

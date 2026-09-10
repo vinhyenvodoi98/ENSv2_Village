@@ -10,6 +10,14 @@ export type LocalWildcardAgent = {
   owner: `0x${string}`;
   agentKey: `0x${string}`;
   createdAt: number;
+  /// Registry this label would be minted into. Absent on entries written before task 29 (and on
+  /// root-level spawns), which means the fleet's own registry.
+  registry?: `0x${string}`;
+  /// Parent's dotted name, so a preview spawned under a `Sovereign` shows its real full name
+  /// (`<label>.<parent.fullName>`) instead of pretending to sit at the root.
+  parentFullName?: string;
+  /// `NamespaceNode.depth` of the parent + 1; drives where the ghost castle is clustered.
+  depth?: number;
 };
 
 const STORAGE_KEY = `agentvillage:local-wildcard-agents:${CONTRACTS.chainId}`;
@@ -42,14 +50,21 @@ export function useLocalWildcardAgents() {
   }, [agents]);
 
   const add = useCallback((agent: LocalWildcardAgent) => {
-    setAgents((prev) => (prev.some((a) => a.label === agent.label) ? prev : [...prev, agent]));
+    setAgents((prev) => (prev.some((a) => localWildcardKey(a) === localWildcardKey(agent)) ? prev : [...prev, agent]));
   }, []);
 
-  const remove = useCallback((label: string) => {
-    setAgents((prev) => prev.filter((a) => a.label !== label));
+  /// Keyed by registry *and* label: the same label can legitimately exist in two different
+  /// sub-registries, and dropping both when one gets minted would erase a live preview.
+  const remove = useCallback((key: string) => {
+    setAgents((prev) => prev.filter((a) => localWildcardKey(a) !== key));
   }, []);
 
   return { agents, add, remove };
+}
+
+/// Identity of a local preview: which registry it would be minted into, plus its label.
+export function localWildcardKey(agent: Pick<LocalWildcardAgent, "label" | "registry">): string {
+  return `${(agent.registry ?? CONTRACTS.agentRegistry).toLowerCase()}:${agent.label}`;
 }
 
 /// Builds the synthetic `NamespaceNode` a local-only wildcard label renders as — every field
@@ -71,9 +86,9 @@ export function localWildcardToNode(agent: LocalWildcardAgent): NamespaceNode {
     resolver: zeroAddress,
     subregistry: zeroAddress,
     heartbeatCount: 0n,
-    fullName: `${agent.label}.${CONTRACTS.parentName}`,
-    depth: 0,
-    registry: CONTRACTS.agentRegistry,
+    fullName: `${agent.label}.${agent.parentFullName ?? CONTRACTS.parentName}`,
+    depth: agent.depth ?? 0,
+    registry: agent.registry ?? CONTRACTS.agentRegistry,
     children: [],
     isLocalPreview: true,
   };

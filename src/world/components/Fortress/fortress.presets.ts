@@ -62,6 +62,21 @@ const GATE: FortressPartPlacement = {
   scale: IDENTITY_SCALE,
 };
 
+/**
+ * Tier 0 — `Wildcard`. A free label the parent still fully controls, so it
+ * reads as a squatter's outpost: a bare keep with a flag and no walls at all.
+ * The silhouette gap between this and tier 3 is what makes the ladder legible
+ * from across the map.
+ */
+const TIER_0_PARTS: FortressPartPlacement[] = [
+  { ...KEEP, scale: [0.62, 0.62, 0.62] },
+  {
+    ...KEEP_FLAG,
+    position: [0, medievalShapeKit.keep.height * 0.62 + medievalShapeKit.keep.roofHeight * 0.62, 0],
+    scale: [0.4, 0.4, 0.4],
+  },
+];
+
 const TIER_1_PARTS: FortressPartPlacement[] = [
   KEEP,
   KEEP_FLAG,
@@ -111,12 +126,15 @@ const TIER_3_PARTS: FortressPartPlacement[] = [
 ];
 
 /**
- * A fortress kit's silhouette per tier, described as data. Adding a tier or
+ * A fortress kit's silhouette per tier, described as data. Tier indices are
+ * `AGENT_TIERS` indices since task 29 — 0 `Wildcard` through 3 `Sovereign` —
+ * so an on-chain `promote` is a preset swap and nothing more. Adding a tier or
  * restyling one is editing this table — never `Fortress.tsx` or the part
  * components.
  */
 export const fortressPresets: Record<string, FortressTierPreset[]> = {
   medieval: [
+    { tier: 0, parts: TIER_0_PARTS },
     { tier: 1, parts: TIER_1_PARTS },
     { tier: 2, parts: TIER_2_PARTS },
     { tier: 3, parts: TIER_3_PARTS },
@@ -127,4 +145,13 @@ export function getFortressParts(kitId: string, tier: number): FortressPartPlace
   const kit = fortressPresets[kitId] ?? fortressPresets.medieval;
   const tierPreset = kit.find((t) => t.tier === tier) ?? kit[kit.length - 1];
   return tierPreset?.parts ?? [];
+}
+
+/**
+ * A ruined castle keeps its footprint — you can still tell how big it *was* —
+ * but the banners come down. Colour is handled separately (the `ruined`
+ * material), so tier is still readable on a revoked node.
+ */
+export function stripBanners(parts: FortressPartPlacement[]): FortressPartPlacement[] {
+  return parts.filter((placement) => placement.part !== "banner");
 }

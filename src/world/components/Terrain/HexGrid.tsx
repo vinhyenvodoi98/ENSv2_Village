@@ -5,10 +5,10 @@ import { Instance, Instances } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
 import { Color } from "three";
 import { coordKey, distance, hexToWorld, worldToHex } from "@/world/core/hex";
-import { FORTRESS_BUILD_DISTANCE, HEX_HEIGHT, WORLD_RADIUS, WORLD_SEED } from "@/world/config/world.config";
+import { FORTRESS_BUILD_DISTANCE, HEX_HEIGHT, WORLD_SEED } from "@/world/config/world.config";
 import { medievalTheme } from "@/world/config/theme";
 import { useWorldStore } from "@/world/state/useWorldStore";
-import { selectAllTiles, selectHoveredTile } from "@/world/state/selectors";
+import { selectAllTiles, selectHoveredTile, selectWorldRadius } from "@/world/state/selectors";
 import { createLocalWorldSource } from "@/world/adapters/localWorldSource";
 import type { Tile } from "@/world/core/types";
 import { TileHighlight } from "./TileHighlight";
@@ -31,24 +31,32 @@ export function HexGrid({ theme = medievalTheme }: HexGridProps) {
   const tiles = useWorldStore(selectAllTiles);
   const setTiles = useWorldStore((state) => state.setTiles);
   const terrainAmplitude = useWorldStore((state) => state.debug.terrainAmplitude);
+  const worldRadius = useWorldStore(selectWorldRadius);
 
   useEffect(() => {
     let cancelled = false;
-    const source = createLocalWorldSource(WORLD_SEED, WORLD_RADIUS, terrainAmplitude);
+    // Terrain stays locally generated — height and biome are pure decoration,
+    // the one thing the map is allowed to invent. Its *extent* is not: the
+    // radius grows with the namespace (`syncFortressesFromEns`) so a large
+    // tree is never quietly clipped at the old `WORLD_RADIUS`.
+    const source = createLocalWorldSource(WORLD_SEED, worldRadius, terrainAmplitude);
     Promise.resolve(source.loadTiles()).then((loaded) => {
       if (cancelled) return;
       setTiles(loaded);
-      // First fortress at world init, so there's always a valid build target.
-      if (useWorldStore.getState().fortressList.length === 0) {
-        useWorldStore.getState().placeFortress({ q: 0, r: 0 });
+      // The sandbox needs a seed castle so there's always a valid build
+      // target. The root map must not: castles there come from chain only.
+      const store = useWorldStore.getState();
+      if (store.mode === "sandbox" && store.fortressList.length === 0) {
+        store.placeFortress({ q: 0, r: 0 });
       }
     });
     return () => {
       cancelled = true;
     };
-    // Regenerates on mount and whenever the debug panel's amplitude slider
-    // moves — cheap enough (a few hundred tiles) to redo synchronously.
-  }, [terrainAmplitude, setTiles]);
+    // Regenerates on mount, when the namespace outgrows the map, and whenever
+    // the debug panel's amplitude slider moves — cheap enough (a few hundred
+    // tiles) to redo synchronously.
+  }, [terrainAmplitude, worldRadius, setTiles]);
 
   if (tiles.length === 0) return null;
 
@@ -75,6 +83,7 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
   const placeFortress = useWorldStore((state) => state.placeFortress);
   const selectFortress = useWorldStore((state) => state.selectFortress);
   const setBuildMessage = useWorldStore((state) => state.setBuildMessage);
+  const setSpawnFormOpen = useWorldStore((state) => state.setSpawnFormOpen);
   const lastMoveAt = useRef(0);
   const base = theme.terrain.grass;
 
@@ -99,7 +108,7 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
       const coord = worldToHex(event.point.x, event.point.z);
       const key = coordKey(coord);
 
-      const { tiles: tileMap, fortressList } = useWorldStore.getState();
+      const { tiles: tileMap, fortressList, mode } = useWorldStore.getState();
       if (!tileMap.has(key)) {
         setBuildMessage("There's no tile there.");
         return;
@@ -107,7 +116,15 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
 
       const occupyingFortress = fortressList.find((fortress) => coordKey(fortress.coord) === key);
       if (occupyingFortress) {
-        selectFortress(occupyingFortress.id);
+        selectFortress(occupyingFortress.ensKey);
+        return;
+      }
+
+      // On the root map, empty ground is just empty ground: a castle is an ENS
+      // node, and the only way to get one is a `spawn` tx. Clicking here opens
+      // the spawn form instead of conjuring a building.
+      if (mode === "ens") {
+        setSpawnFormOpen(true);
         return;
       }
 
@@ -121,7 +138,7 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
 
       placeFortress(coord);
     },
-    [placeFortress, selectFortress, setBuildMessage]
+    [placeFortress, selectFortress, setBuildMessage, setSpawnFormOpen]
   );
 
   return (

@@ -2,15 +2,21 @@
 
 import { useEffect } from "react";
 import { useWorldStore } from "@/world/state/useWorldStore";
-import { selectBuildMessage } from "@/world/state/selectors";
+import { selectBuildMessage, selectMode } from "@/world/state/selectors";
 import { FORTRESS_BUILD_DISTANCE } from "@/world/config/world.config";
 
 const MESSAGE_TIMEOUT_MS = 3000;
-const DEFAULT_HINT = `Click a glowing hex ${FORTRESS_BUILD_DISTANCE} tiles from a fortress to build.`;
+const SANDBOX_HINT = `Click a glowing hex ${FORTRESS_BUILD_DISTANCE} tiles from a fortress to build.`;
+/**
+ * On the root map you don't build — you spawn. Every castle is an ENS node, so
+ * the hint has to promise a transaction, not a construction click.
+ */
+const ENS_HINT = "Click a castle to inspect its agent, or empty ground to spawn a new one.";
 
 /** Bottom bar showing build hints, and why a click was rejected. */
 export function BuildBar() {
   const message = useWorldStore(selectBuildMessage);
+  const mode = useWorldStore(selectMode);
   const setBuildMessage = useWorldStore((state) => state.setBuildMessage);
 
   useEffect(() => {
@@ -26,7 +32,7 @@ export function BuildBar() {
           message ? "bg-red-900/70" : "bg-black/40"
         }`}
       >
-        {message ?? DEFAULT_HINT}
+        {message ?? (mode === "sandbox" ? SANDBOX_HINT : ENS_HINT)}
       </div>
     </div>
   );

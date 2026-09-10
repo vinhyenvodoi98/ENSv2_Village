@@ -15,6 +15,23 @@ export const WORLD_RADIUS = 6;
 /** Hexes of empty space required between a fortress and the next one built off it. */
 export const FORTRESS_BUILD_DISTANCE = 2;
 
+/**
+ * Rules for projecting the ENS namespace onto the hex field (task 29). Every
+ * value here feeds a *deterministic* placement keyed by labelhash — nothing in
+ * the layout may depend on array order, event order, or wall-clock time, or a
+ * castle would move between reloads.
+ */
+export const LAYOUT = {
+  /** Ring radius (in hexes) the depth-0 agents are seeded on, around the origin. */
+  rootRingRadius: 4,
+  /** Ring radius a Sovereign's children are seeded on, around the parent castle. */
+  childRingRadius: FORTRESS_BUILD_DISTANCE,
+  /** How far the collision probe may spiral out from a node's preferred ring before giving up. */
+  maxProbeRings: 24,
+  /** Empty hexes kept between the outermost castle and the edge of the terrain. */
+  edgeMargin: 3,
+} as const;
+
 export const TERRAIN = {
   /** Simplex noise sample frequency; lower = broader hills. */
   noiseFrequency: 0.08,
@@ -169,18 +186,22 @@ export const WEATHER = {
   /** Time constant (seconds) for easing sky/fog/light/cloud/rain toward their targets — bigger is slower, never instant. */
   transitionEaseSeconds: 4,
   /** Cloud volume count and base haze — first knobs to turn down on weak hardware. */
-  cloudCount: 6,
+  cloudCount: 12,
   /** Low-poly puffs clustered per volume — no texture/network dependency, matches the fortress/citizen flat-shaded look. */
-  cloudPuffsPerVolume: 5,
-  cloudPuffRadius: 1.6,
-  /** Local spread of a volume's puffs around its center, in world units. */
-  cloudClusterSpread: 2.2,
-  cloudHeight: 20,
-  cloudBaseOpacity: 0.16,
+  cloudPuffsPerVolume: 9,
+  cloudPuffRadius: 2.05,
+  /** Half-length of each linked cloud bank, in world units. */
+  cloudClusterSpread: 5.2,
+  cloudPuffScaleMin: 0.78,
+  cloudPuffScaleMax: 1.34,
+  cloudWidthScale: 1.16,
+  cloudVerticalScale: 0.64,
+  cloudHeight: 7.5,
+  cloudBaseOpacity: 0.22,
   /** World units/second the cloud volumes drift, wrapping at the map bounds. */
   windVector: [0.5, 0, 0.2] as [number, number, number],
   /** Horizontal +/- bound clouds wrap at — kept inside every theme's fog-far so the teleport is hidden in haze rather than popping in view. */
-  cloudWrapBound: 120,
+  cloudWrapBound: 38,
   rainDropCount: 3000,
   /** Width/height/depth of the box rain streaks fall and recycle within, centered on the camera target. */
   rainBoxSize: [40, 24, 40] as [number, number, number],
