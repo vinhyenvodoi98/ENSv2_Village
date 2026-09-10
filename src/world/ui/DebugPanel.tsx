@@ -15,9 +15,14 @@ const DebugPanelInner: ComponentType =
     ? dynamic(() => import("./DebugPanelContent"), { ssr: false })
     : () => null;
 
-export function DebugPanel() {
+export function DebugPanel({
+  className = "pointer-events-none absolute right-4 top-4",
+}: {
+  /** Override when nesting inside a caller-positioned container (e.g. stacked below another HUD widget). */
+  className?: string;
+} = {}) {
   return (
-    <div className="pointer-events-none absolute right-4 top-4">
+    <div className={className}>
       <DebugPanelInner />
     </div>
   );

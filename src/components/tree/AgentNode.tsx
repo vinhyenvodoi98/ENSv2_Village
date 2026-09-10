@@ -46,7 +46,11 @@ export function AgentNode({
         .join(" ")}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className={`font-mono text-sm font-medium ${dead ? "text-zinc-400 line-through dark:text-zinc-500" : ""}`}>
+        <span
+          className={`font-mono text-sm font-medium ${
+            dead ? "text-zinc-400 line-through dark:text-zinc-500" : "text-zinc-900 dark:text-zinc-100"
+          }`}
+        >
           {node.fullName}
         </span>
         <TierBadge tier={node.tier} />

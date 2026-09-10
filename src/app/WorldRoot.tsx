@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ConnectWallet } from "@/components/wallet/connect-wallet";
+import { WalletHud } from "@/components/wallet/WalletHud";
 import { NamespaceTree } from "@/components/tree/NamespaceTree";
 import type { SelectedAgent } from "@/components/tree/AgentSubtree";
 import { AgentDetailPanel } from "@/components/detail/AgentDetailPanel";
@@ -113,6 +113,14 @@ export default function WorldRoot() {
 
   const closePanel = useCallback(() => selectFortress(null), [selectFortress]);
 
+  // Every place that offers "spawn at the root" — the HUD button, the empty-
+  // tree CTA, and the root chip in the sidebar — goes through this single
+  // path, so they can never disagree about what "root" means.
+  const openRootSpawn = useCallback(() => {
+    selectFortress(null);
+    setSpawnOpen(true);
+  }, [selectFortress, setSpawnOpen]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -132,18 +140,42 @@ export default function WorldRoot() {
       <WorldCanvas />
       <WorldHud />
       <BuildBar />
-      <DebugPanel />
 
-      <div className="pointer-events-none absolute right-4 top-4 flex flex-col items-end gap-2">
-        <div className="pointer-events-auto">
-          <ConnectWallet />
-        </div>
+      {/* Wallet widget stacked above the dev-only debug panel — both anchor
+          to the same corner, so they share one positioned container instead
+          of two independent `absolute right-4 top-4` divs landing on top of
+          each other. */}
+      <div className="pointer-events-none absolute right-4 top-4 z-30 flex flex-col items-end gap-3">
+        <WalletHud />
+        <DebugPanel className="pointer-events-none" />
+      </div>
+
+      {/* Lives directly above where the form itself opens (bottom-right), not
+          next to the wallet button — the two are unrelated actions. Styled as
+          a banner plaque (fortress banner red/gold, beveled edge that presses
+          in on click) rather than the rounded gradient pill `ConnectWallet`
+          uses — that pill is a borrowed, recognizable "connect wallet" pattern;
+          this button is a diegetic game action and reads better in the same
+          red/gold/serif language as the castles' own banners (`theme.ts`
+          `fortress.banner` `#8e1f2b`, `cloth.gold` `#c9a15a`). */}
+      <div className="pointer-events-none absolute bottom-6 right-4 z-30">
         <button
           type="button"
-          onClick={() => setSpawnOpen(!spawnOpen)}
-          className="pointer-events-auto rounded-full bg-black/60 px-4 py-2 text-sm font-semibold text-white backdrop-blur hover:bg-black/75"
+          onClick={() => (spawnOpen ? setSpawnOpen(false) : openRootSpawn())}
+          title={spawnOpen ? undefined : `Spawn a new agent under ${CONTRACTS.parentName}`}
+          className={[
+            "pointer-events-auto flex h-12 items-center justify-center gap-2 rounded-sm border-2 px-6",
+            "font-serif text-sm font-bold uppercase tracking-[0.15em]",
+            "transition-transform duration-100 hover:-translate-y-0.5 active:translate-y-[2px]",
+            spawnOpen
+              ? "border-zinc-500 bg-gradient-to-b from-zinc-700 to-zinc-900 text-zinc-200 shadow-[0_4px_0_0_#111827,0_8px_14px_rgba(0,0,0,0.4)] active:shadow-[0_1px_0_0_#111827]"
+              : "border-[#c9a15a] bg-gradient-to-b from-[#8e1f2b] to-[#4c0f16] text-[#f3e6c8] shadow-[0_4px_0_0_#3d0d13,0_8px_14px_rgba(0,0,0,0.45)] hover:border-[#e0bd7a] active:shadow-[0_1px_0_0_#3d0d13]",
+          ].join(" ")}
         >
-          {spawnOpen ? "Close spawn form" : "Spawn agent"}
+          <span aria-hidden className="text-base leading-none">
+            {spawnOpen ? "✕" : "⚑"}
+          </span>
+          {spawnOpen ? "Close" : "Spawn Agent"}
         </button>
       </div>
 
@@ -158,24 +190,46 @@ export default function WorldRoot() {
         error={error}
         onRetry={() => refetch()}
         isEmpty={isEmpty}
-        onSpawnFirst={() => {
-          selectFortress(null);
-          setSpawnOpen(true);
-        }}
+        onSpawnFirst={openRootSpawn}
+        onSpawnRoot={openRootSpawn}
       />
 
       {spawnOpen && (
-        <div className="pointer-events-auto absolute bottom-20 right-4 z-30 w-[22rem] max-w-[calc(100vw-2rem)]">
-          <SpawnAgentForm
-            // A selected agent is the parent; nothing selected spawns at the
-            // fleet root. The form itself refuses (with a reason) when the
-            // parent has no sub-registry — it never silently retargets.
-            parent={selectedNode}
-            onSpawnedLocally={(agent) => {
-              addLocalAgent(agent);
-              setSpawnOpen(false);
-            }}
+        // Centered modal, not a corner popup: this is the "type a name, sign
+        // a tx" moment, the one action every other affordance (HUD button,
+        // root chip, empty-tree CTA) funnels into — it shouldn't be tucked in
+        // a corner where it's easy to miss it opened at all.
+        <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close spawn form"
+            onClick={() => setSpawnOpen(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
+          <div className="relative z-10 w-full max-w-md">
+            <button
+              type="button"
+              onClick={() => setSpawnOpen(false)}
+              aria-label="Close"
+              className="absolute -right-2 -top-2 z-20 rounded-full border border-[#c9a15a] bg-zinc-900 p-1 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+            >
+              ✕
+            </button>
+            <SpawnAgentForm
+              // Root-only, on purpose: this modal is reachable solely via the
+              // "Spawn Agent" HUD button, the root chip, and the empty-tree
+              // CTA — all three route through `openRootSpawn`, which clears
+              // selection first. It never reads `selectedNode`, so it can't
+              // inherit a leftover parent from whatever castle happened to be
+              // selected earlier. Spawning a *child* lives exclusively in
+              // that child's own parent panel below.
+              parent={null}
+              onSpawnedLocally={(agent) => {
+                addLocalAgent(agent);
+                setSpawnOpen(false);
+              }}
+            />
+          </div>
         </div>
       )}
 
@@ -203,6 +257,7 @@ function NamespaceSidebar({
   onRetry,
   isEmpty,
   onSpawnFirst,
+  onSpawnRoot,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -215,6 +270,7 @@ function NamespaceSidebar({
   onRetry: () => void;
   isEmpty: boolean;
   onSpawnFirst: () => void;
+  onSpawnRoot: () => void;
 }) {
   return (
     <>
@@ -272,7 +328,7 @@ function NamespaceSidebar({
           </div>
         )}
 
-        <NamespaceTree nodes={nodes} selected={selected} onSelect={onSelect} />
+        <NamespaceTree nodes={nodes} selected={selected} onSelect={onSelect} onSpawnRoot={onSpawnRoot} />
       </aside>
     </>
   );

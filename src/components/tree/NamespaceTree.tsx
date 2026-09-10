@@ -9,6 +9,7 @@ export function NamespaceTree({
   localNodes = [],
   selected,
   onSelect,
+  onSpawnRoot,
 }: {
   /// Pre-merged tree to render. Task 29's root page passes the same array it projects onto the
   /// 3D map, so the list and the map can never disagree about what exists. Omitted (e.g. a
@@ -20,6 +21,10 @@ export function NamespaceTree({
   localNodes?: NamespaceNode[];
   selected: SelectedAgent | null;
   onSelect: (agent: SelectedAgent) => void;
+  /// Task: root itself is a spawn shortcut, same as clicking a castle opens
+  /// *its* spawn section — the root chip is the root's equivalent of a
+  /// castle. Omitted keeps the chip inert (e.g. a read-only embedding).
+  onSpawnRoot?: () => void;
 }) {
   const { data: tree, isLoading, error } = useNamespaceTree();
   const combined = nodes ?? [...(tree ?? []), ...localNodes];
@@ -27,10 +32,26 @@ export function NamespaceTree({
   return (
     <section className="flex w-full flex-col gap-4">
       <div className="flex items-center gap-2">
-        <span className="rounded-lg border border-black/10 bg-black/[.03] px-3 py-1.5 font-mono text-sm font-semibold dark:border-white/10 dark:bg-white/[.04]">
-          {CONTRACTS.parentName}
+        {onSpawnRoot ? (
+          <button
+            type="button"
+            onClick={onSpawnRoot}
+            title={`Spawn a new agent under ${CONTRACTS.parentName}`}
+            className="group rounded-lg border border-black/10 bg-black/[.03] px-3 py-1.5 font-mono text-sm font-semibold transition-colors hover:border-[#c9a15a] hover:bg-[#c9a15a]/10 dark:border-white/10 dark:bg-white/[.04] dark:hover:border-[#c9a15a] dark:hover:bg-[#c9a15a]/10"
+          >
+            {CONTRACTS.parentName}
+            <span aria-hidden className="ml-1.5 text-[#c9a15a] opacity-0 transition-opacity group-hover:opacity-100">
+              ⚑
+            </span>
+          </button>
+        ) : (
+          <span className="rounded-lg border border-black/10 bg-black/[.03] px-3 py-1.5 font-mono text-sm font-semibold dark:border-white/10 dark:bg-white/[.04]">
+            {CONTRACTS.parentName}
+          </span>
+        )}
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+          root{onSpawnRoot ? " — click to spawn here, or browse the tree below" : " — every agent below is a real Sepolia read"}
         </span>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">root — every agent below is a real Sepolia read</span>
       </div>
 
       {isLoading && <p className="text-sm text-zinc-500 dark:text-zinc-400">Reading agent tree from Sepolia…</p>}

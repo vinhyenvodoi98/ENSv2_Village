@@ -8,10 +8,13 @@ import { FORTRESS_BUILD_DISTANCE } from "@/world/config/world.config";
 const MESSAGE_TIMEOUT_MS = 3000;
 const SANDBOX_HINT = `Click a glowing hex ${FORTRESS_BUILD_DISTANCE} tiles from a fortress to build.`;
 /**
- * On the root map you don't build — you spawn. Every castle is an ENS node, so
- * the hint has to promise a transaction, not a construction click.
+ * On the root map you don't build — you spawn, and never by clicking empty
+ * ground (that used to silently spawn at the root parent regardless of what
+ * was selected). Every castle is an ENS node with a deterministic position,
+ * so the only two spawn actions are: a castle's own panel (spawns a child of
+ * that castle) and the "New root agent" HUD button (spawns at the root).
  */
-const ENS_HINT = "Click a castle to inspect its agent, or empty ground to spawn a new one.";
+const ENS_HINT = "Click a castle to inspect it and spawn children from its panel.";
 
 /** Bottom bar showing build hints, and why a click was rejected. */
 export function BuildBar() {

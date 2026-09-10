@@ -90,7 +90,6 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
   const placeFortress = useWorldStore((state) => state.placeFortress);
   const selectFortress = useWorldStore((state) => state.selectFortress);
   const setBuildMessage = useWorldStore((state) => state.setBuildMessage);
-  const setSpawnFormOpen = useWorldStore((state) => state.setSpawnFormOpen);
   const lastMoveAt = useRef(0);
   const base = theme.terrain.grass;
 
@@ -128,10 +127,13 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
       }
 
       // On the root map, empty ground is just empty ground: a castle is an ENS
-      // node, and the only way to get one is a `spawn` tx. Clicking here opens
-      // the spawn form instead of conjuring a building.
+      // node, and layout is deterministic from labelhash — there is no "place
+      // it here" click to offer. Spawning a child happens from the parent's
+      // own panel (unambiguous parent); spawning at the root happens from the
+      // explicit "New root agent" HUD action. Neither is reachable by
+      // clicking a tile, which used to silently default to the root parent.
       if (mode === "ens") {
-        setSpawnFormOpen(true);
+        setBuildMessage("Select a castle to spawn a child, or use “+ New root agent”.");
         return;
       }
 
@@ -145,7 +147,7 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
 
       placeFortress(coord);
     },
-    [placeFortress, selectFortress, setBuildMessage, setSpawnFormOpen]
+    [placeFortress, selectFortress, setBuildMessage]
   );
 
   return (

@@ -52,6 +52,7 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
   const hoveredTile = useWorldStore(selectHoveredTile);
   const mode = useWorldStore(selectMode);
   const selectFortress = useWorldStore((state) => state.selectFortress);
+  const setSpawnFormOpen = useWorldStore((state) => state.setSpawnFormOpen);
 
   const isSandbox = mode === "sandbox";
 
@@ -85,8 +86,19 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
             kitId={kitId}
             theme={theme}
             // The root castle is the fleet's own ENS name, not a namespace
-            // node — there's no agent record for it to open a detail panel on.
-            onClick={fortress.ensKey === ROOT_ENS_KEY ? undefined : () => selectFortress(fortress.ensKey)}
+            // node — there's no agent record for it to open a detail panel
+            // on. Clicking it still does something, though: it's the root's
+            // own hex, so it opens the same root-spawn modal as the HUD
+            // button and the sidebar's root chip (all three clear selection
+            // first, so none can inherit a stale parent).
+            onClick={
+              fortress.ensKey === ROOT_ENS_KEY
+                ? () => {
+                    selectFortress(null);
+                    setSpawnFormOpen(true);
+                  }
+                : () => selectFortress(fortress.ensKey)
+            }
           />
         );
       })}
