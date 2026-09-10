@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { Instance, Instances } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
+import { Color } from "three";
 import { coordKey, distance, hexToWorld, worldToHex } from "@/world/core/hex";
 import { FORTRESS_BUILD_DISTANCE, HEX_HEIGHT, WORLD_RADIUS, WORLD_SEED } from "@/world/config/world.config";
 import { medievalTheme } from "@/world/config/theme";
@@ -12,6 +13,7 @@ import { createLocalWorldSource } from "@/world/adapters/localWorldSource";
 import type { Tile } from "@/world/core/types";
 import { TileHighlight } from "./TileHighlight";
 import { hexGeometry } from "./hexGeometry";
+import { hashString } from "@/world/core/rng";
 
 /** Skip hover updates faster than this — pointer events, never a per-frame raycast. */
 const HOVER_THROTTLE_MS = 32;
@@ -142,7 +144,17 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
 
 function TileInstance({ tile, theme }: { tile: Tile; theme: typeof medievalTheme }) {
   const [x, z] = useMemo(() => hexToWorld(tile.coord), [tile.coord]);
-  const color = theme.terrain[tile.kind].color;
+  const color = useMemo(() => {
+    const base = new Color(theme.terrain[tile.kind].color);
+    // Pull neighboring biomes toward the grass family so the board reads as
+    // one landscape rather than four unrelated color blocks.
+    if (tile.kind !== "grass" && tile.kind !== "water") {
+      base.lerp(new Color(theme.terrain.grass.color), 0.24);
+    }
+    const variation = hashString(`${WORLD_SEED}:tile:${coordKey(tile.coord)}`) / 0xffffffff;
+    base.offsetHSL(0, (variation - 0.5) * 0.035, (variation - 0.5) * 0.075);
+    return `#${base.getHexString()}`;
+  }, [theme, tile.coord, tile.kind]);
   return <Instance position={[x, HEX_HEIGHT / 2 + tile.height, z]} color={color} />;
 }
 

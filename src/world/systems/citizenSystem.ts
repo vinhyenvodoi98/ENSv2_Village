@@ -1,8 +1,8 @@
-import { coordKey, parseCoordKey } from "../core/hex";
+import { coordKey, hexToWorld, parseCoordKey } from "../core/hex";
 import { createRng, hashString, type SeededRng } from "../core/rng";
 import { CITIZENS, FRAME_BUDGET, POPULATION_CAP, WORLD_SEED } from "../config/world.config";
 import { pickOutfitId } from "../components/Citizens/outfits";
-import type { AxialCoord, Citizen, FortressEntity } from "../core/types";
+import type { AxialCoord, Citizen, FortressEntity, Tile } from "../core/types";
 import type { WorldState } from "../state/useWorldStore";
 
 /** Unweighted shortest path over the road adjacency graph, as a list of coordKeys. */
@@ -74,6 +74,21 @@ function randomBetween(rng: SeededRng, min: number, max: number): number {
   return min + rng.next() * (max - min);
 }
 
+/** Polyline length without Three.js, including terrain elevation and fortress-end trimming. */
+export function measureCitizenPath(path: AxialCoord[], tiles: Map<string, Tile>): number {
+  let length = 0;
+  for (let index = 1; index < path.length; index++) {
+    const previous = path[index - 1];
+    const current = path[index];
+    const [previousX, previousZ] = hexToWorld(previous);
+    const [currentX, currentZ] = hexToWorld(current);
+    const previousY = tiles.get(coordKey(previous))?.height ?? 0;
+    const currentY = tiles.get(coordKey(current))?.height ?? 0;
+    length += Math.hypot(currentX - previousX, currentY - previousY, currentZ - previousZ);
+  }
+  return Math.max(0.01, length - CITIZENS.fortressClearance * 2);
+}
+
 /**
  * New citizens for a freshly built (or upgraded) fortress, capped so
  * `POPULATION_CAP` is never exceeded across the whole world. Every spawned
@@ -98,9 +113,12 @@ export function spawnCitizensForFortress(fortress: FortressEntity, currentTotal:
       status: "idle",
       path: [],
       progress: 0,
+      speed: 0,
+      pathLength: 0,
       idleRemaining: randomBetween(rng, CITIZENS.idleMinSec, CITIZENS.idleMaxSec),
       outfitId: pickOutfitId(rng),
       lateralSign: rng.next() < 0.5 ? -1 : 1,
+      lateralOffset: randomBetween(rng, CITIZENS.lateralOffsetMin, CITIZENS.lateralOffsetMax),
       animPhase: rng.next() * Math.PI * 2,
     });
   }
@@ -114,6 +132,7 @@ interface TickContext {
   rng: SeededRng;
   /** Shared across every citizen this tick — new-path searches are the only expensive step, so this is what gets rationed. */
   pathfindBudget: { remaining: number };
+  tiles: Map<string, Tile>;
 }
 
 function startNewLeg(citizen: Citizen, ctx: TickContext): Citizen {
@@ -144,7 +163,14 @@ function startNewLeg(citizen: Citizen, ctx: TickContext): Citizen {
     status: "walking",
     path,
     progress: 0,
+    speed: 0,
+    pathLength: measureCitizenPath(path, ctx.tiles),
   };
+}
+
+function moveToward(current: number, target: number, maxDelta: number): number {
+  if (current < target) return Math.min(target, current + maxDelta);
+  return Math.max(target, current - maxDelta);
 }
 
 function stepCitizen(citizen: Citizen, dtSeconds: number, ctx: TickContext): Citizen {
@@ -153,20 +179,31 @@ function stepCitizen(citizen: Citizen, dtSeconds: number, ctx: TickContext): Cit
     return idleRemaining > 0 ? { ...citizen, idleRemaining } : startNewLeg(citizen, ctx);
   }
 
-  const steps = Math.max(1, citizen.path.length - 1);
-  const progress = citizen.progress + (dtSeconds * CITIZENS.walkSpeed) / steps;
+  const pathLength = citizen.pathLength > 0 ? citizen.pathLength : measureCitizenPath(citizen.path, ctx.tiles);
+  const currentSpeed = citizen.speed ?? 0;
+  const remainingDistance = Math.max(0, (1 - citizen.progress) * pathLength);
+  const targetSpeed = Math.min(
+    CITIZENS.walkSpeed,
+    Math.sqrt(2 * CITIZENS.brakingAcceleration * remainingDistance)
+  );
+  const acceleration = targetSpeed < currentSpeed ? CITIZENS.brakingAcceleration : CITIZENS.acceleration;
+  const speed = moveToward(currentSpeed, targetSpeed, acceleration * dtSeconds);
+  const averageSpeed = (currentSpeed + speed) / 2;
+  const progress = citizen.progress + (averageSpeed * dtSeconds) / pathLength;
 
-  if (progress >= 1) {
+  if (progress >= 1 || (1 - progress) * pathLength <= CITIZENS.arrivalThreshold) {
     return {
       ...citizen,
       status: "idle",
       progress: 1,
+      speed: 0,
+      pathLength: 0,
       position: citizen.path[citizen.path.length - 1],
       idleRemaining: randomBetween(ctx.rng, CITIZENS.idleMinSec, CITIZENS.idleMaxSec),
     };
   }
 
-  return { ...citizen, progress };
+  return { ...citizen, progress, speed, pathLength };
 }
 
 /**
@@ -184,6 +221,7 @@ export function tickCitizens(state: WorldState, dtSeconds: number): Map<string, 
     adjacency: state.roadAdjacency,
     rng: createRng(hashString(`citizen-tick-${state.tick}`) ^ WORLD_SEED),
     pathfindBudget: { remaining: FRAME_BUDGET.maxPathfindsPerTick },
+    tiles: state.tiles,
   };
 
   const next = new Map<string, Citizen>();

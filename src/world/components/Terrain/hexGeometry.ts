@@ -7,4 +7,5 @@ import { HEX_HEIGHT, HEX_SIZE } from "@/world/config/world.config";
  * placement previews are pixel-identical to what actually gets built, and
  * no component pays for its own `CylinderGeometry`.
  */
-export const hexGeometry = new CylinderGeometry(HEX_SIZE, HEX_SIZE, HEX_HEIGHT, 6);
+/** A subtly tapered wall softens the hard board-game edge while preserving a flat buildable top. */
+export const hexGeometry = new CylinderGeometry(HEX_SIZE * 0.997, HEX_SIZE, HEX_HEIGHT, 6);

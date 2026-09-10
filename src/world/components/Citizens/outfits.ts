@@ -10,27 +10,30 @@ export interface OutfitSpec {
   accent: ClothKey;
   /** Relative spawn weight — peasants should vastly outnumber nobles. */
   weight: number;
+  /** 0 hides the shared headwear mesh; other values scale its height. */
+  headwearScale: number;
 }
 
 export interface ResolvedOutfit {
   tunic: string;
   trouser: string;
   accent: string;
+  headwearScale: number;
 }
 
 /**
- * Named outfits, each a `{ tunic, trouser, accent }` triple of `theme.cloth`
- * keys plus a spawn weight. Colors are resolved against the active theme so
- * switching presets re-skins the crowd along with everything else.
+ * Named outfits combine a theme-driven cloth palette, spawn weight and cap
+ * silhouette. Colors are resolved against the active theme so switching
+ * presets re-skins the crowd along with everything else.
  */
 export const outfits: Record<string, OutfitSpec> = {
-  peasant: { tunic: "undyed", trouser: "brown", accent: "rust", weight: 40 },
-  farmhand: { tunic: "brown", trouser: "undyed", accent: "forest", weight: 25 },
-  guard: { tunic: "slate", trouser: "charcoal", accent: "burgundy", weight: 12 },
-  merchant: { tunic: "burgundy", trouser: "charcoal", accent: "gold", weight: 10 },
-  smith: { tunic: "charcoal", trouser: "brown", accent: "rust", weight: 8 },
-  monk: { tunic: "undyed", trouser: "undyed", accent: "charcoal", weight: 6 },
-  noble: { tunic: "navy", trouser: "cream", accent: "gold", weight: 3 },
+  peasant: { tunic: "undyed", trouser: "brown", accent: "rust", weight: 40, headwearScale: 0.65 },
+  farmhand: { tunic: "brown", trouser: "undyed", accent: "forest", weight: 25, headwearScale: 0.8 },
+  guard: { tunic: "slate", trouser: "charcoal", accent: "burgundy", weight: 12, headwearScale: 0.42 },
+  merchant: { tunic: "burgundy", trouser: "charcoal", accent: "gold", weight: 10, headwearScale: 0.9 },
+  smith: { tunic: "charcoal", trouser: "brown", accent: "rust", weight: 8, headwearScale: 0 },
+  monk: { tunic: "undyed", trouser: "undyed", accent: "charcoal", weight: 6, headwearScale: 0.38 },
+  noble: { tunic: "navy", trouser: "cream", accent: "gold", weight: 3, headwearScale: 1.15 },
 };
 
 const outfitIds = Object.keys(outfits);
@@ -52,5 +55,6 @@ export function resolveOutfit(theme: WorldTheme, outfitId: string): ResolvedOutf
     tunic: theme.cloth[spec.tunic].color,
     trouser: theme.cloth[spec.trouser].color,
     accent: theme.cloth[spec.accent].color,
+    headwearScale: spec.headwearScale,
   };
 }

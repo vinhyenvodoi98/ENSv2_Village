@@ -9,6 +9,8 @@ export const selectAllTiles = (state: WorldState) => state.tileList;
 
 export const selectWeather = (state: WorldState) => state.weather;
 
+export const selectWeatherRender = (state: WorldState) => state.weatherRender;
+
 export const selectHoveredCoord = (state: WorldState) => state.hoveredCoord;
 
 export const selectHoveredTile = (state: WorldState) =>

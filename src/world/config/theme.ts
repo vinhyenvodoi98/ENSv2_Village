@@ -21,6 +21,22 @@ export interface WorldTheme {
     fogColor: string;
     fogNear: number;
     fogFar: number;
+    /**
+     * Target palette `weatherSystem` blends the sky/fog/light toward as
+     * `stormBlend` rises — the only place rain's darkening lives, so a storm
+     * always reads as this theme's colors, never a parallel palette.
+     */
+    rain: {
+      top: string;
+      bottom: string;
+      fogColor: string;
+      fogNear: number;
+      fogFar: number;
+      /** Multiplies `lighting.ambientIntensity` at full storm. */
+      ambientMultiplier: number;
+      /** Multiplies `lighting.directionalIntensity` at full storm. */
+      directionalMultiplier: number;
+    };
   };
   lighting: {
     ambientColor: string;
@@ -37,6 +53,10 @@ export interface WorldTheme {
     stone: MaterialSpec;
     water: MaterialSpec;
     highlight: MaterialSpec;
+    ground: MaterialSpec;
+    treeTrunk: MaterialSpec;
+    pineLower: MaterialSpec;
+    pineUpper: MaterialSpec;
   };
   fortress: {
     keep: MaterialSpec;
@@ -83,6 +103,15 @@ export const medievalTheme: WorldTheme = {
     fogColor: "#cfe9f7",
     fogNear: 40,
     fogFar: 140,
+    rain: {
+      top: "#4d5a63",
+      bottom: "#7c8a92",
+      fogColor: "#7c8a92",
+      fogNear: 20,
+      fogFar: 85,
+      ambientMultiplier: 0.55,
+      directionalMultiplier: 0.45,
+    },
   },
   lighting: {
     ambientColor: "#ffffff",
@@ -95,10 +124,14 @@ export const medievalTheme: WorldTheme = {
   },
   terrain: {
     grass: { color: "#5f9a4c", roughness: 0.95, metalness: 0 },
-    dirt: { color: "#8a6a4a", roughness: 1, metalness: 0 },
-    stone: { color: "#9a978f", roughness: 0.9, metalness: 0.05 },
-    water: { color: "#3d7ea6", roughness: 0.15, metalness: 0.1 },
+    dirt: { color: "#8f7652", roughness: 1, metalness: 0 },
+    stone: { color: "#8f9184", roughness: 0.92, metalness: 0.03 },
+    water: { color: "#285d68", roughness: 0.2, metalness: 0.06 },
     highlight: { color: "#ffd966", roughness: 0.6, metalness: 0 },
+    ground: { color: "#456f3d", roughness: 1, metalness: 0 },
+    treeTrunk: { color: "#5b402c", roughness: 1, metalness: 0, flatShading: true },
+    pineLower: { color: "#244f39", roughness: 0.96, metalness: 0, flatShading: true },
+    pineUpper: { color: "#397052", roughness: 0.94, metalness: 0, flatShading: true },
   },
   fortress: {
     keep: { color: "#c7c1b4", roughness: 0.9, metalness: 0.02, flatShading: true },
@@ -143,11 +176,24 @@ export const winterTheme: WorldTheme = {
     fogColor: "#e6eef2",
     fogNear: 35,
     fogFar: 130,
+    rain: {
+      top: "#5a6670",
+      bottom: "#8b96a0",
+      fogColor: "#8b96a0",
+      fogNear: 18,
+      fogFar: 78,
+      ambientMultiplier: 0.6,
+      directionalMultiplier: 0.5,
+    },
   },
   terrain: {
     ...medievalTheme.terrain,
     grass: { color: "#e8edf0", roughness: 0.9, metalness: 0 },
     dirt: { color: "#b7bfc4", roughness: 1, metalness: 0 },
+    water: { color: "#4f7782", roughness: 0.16, metalness: 0.09 },
+    ground: { color: "#cbd6d9", roughness: 1, metalness: 0 },
+    pineLower: { color: "#38574f", roughness: 0.96, metalness: 0, flatShading: true },
+    pineUpper: { color: "#b9ccca", roughness: 0.94, metalness: 0, flatShading: true },
   },
 };
 

@@ -21,6 +21,8 @@ interface CitizenCrowdProps {
 interface CitizenSnapshot {
   status: CitizenData["status"];
   progress: number;
+  speed: number;
+  pathLength: number;
   path: AxialCoord[];
 }
 
@@ -29,8 +31,8 @@ const RIGHT_AXIS = new Vector3(1, 0, 0);
 const MAX_CATCHUP_TICKS = 5;
 
 /**
- * Renders every citizen through four instanced meshes (legs, torso,
- * waistband, head) — a fixed handful of draw calls regardless of population.
+ * Renders every citizen through seven instanced meshes (limbs, torso,
+ * mantle, belt, head and headwear) — a fixed handful of draw calls regardless of population.
  * Also owns the fixed-tick accumulator that drives `citizenSystem.tickCitizens`
  * via the store, interpolating render position between ticks so frame rate
  * never changes walking speed.
@@ -40,9 +42,12 @@ export function CitizenCrowd({ theme = medievalTheme }: CitizenCrowdProps) {
   const materials = getThemeMaterials(theme).citizens;
 
   const legMeshRef = useRef<InstancedMesh>(null);
+  const armMeshRef = useRef<InstancedMesh>(null);
   const torsoMeshRef = useRef<InstancedMesh>(null);
   const waistMeshRef = useRef<InstancedMesh>(null);
+  const mantleMeshRef = useRef<InstancedMesh>(null);
   const headMeshRef = useRef<InstancedMesh>(null);
+  const headwearMeshRef = useRef<InstancedMesh>(null);
 
   const accumulatorRef = useRef(0);
   const prevSnapshotRef = useRef<Map<string, CitizenSnapshot>>(new Map());
@@ -50,12 +55,15 @@ export function CitizenCrowd({ theme = medievalTheme }: CitizenCrowdProps) {
     new Map()
   );
   const coloredIdsRef = useRef<Set<string>>(new Set());
+  const headwearScalesRef = useRef<Map<string, number>>(new Map());
   const themeRef = useRef(theme);
 
   const dummy = useMemo(() => new Object3D(), []);
   const qHeading = useMemo(() => new Quaternion(), []);
   const qSwing = useMemo(() => new Quaternion(), []);
-  const legOffset = useMemo(() => new Vector3(), []);
+  const qLean = useMemo(() => new Quaternion(), []);
+  const qBody = useMemo(() => new Quaternion(), []);
+  const limbOffset = useMemo(() => new Vector3(), []);
   const poseOut = useMemo(() => ({ position: new Vector3(), headingRad: 0 }), []);
   const scratchColor = useMemo(() => new Color(), []);
 
@@ -74,19 +82,31 @@ export function CitizenCrowd({ theme = medievalTheme }: CitizenCrowdProps) {
       if (state.citizens.size > 0) {
         const snapshot = new Map<string, CitizenSnapshot>();
         for (const [id, citizen] of state.citizens) {
-          snapshot.set(id, { status: citizen.status, progress: citizen.progress, path: citizen.path });
+          snapshot.set(id, {
+            status: citizen.status,
+            progress: citizen.progress,
+            speed: citizen.speed ?? 0,
+            pathLength: citizen.pathLength ?? 0,
+            path: citizen.path,
+          });
         }
         prevSnapshotRef.current = snapshot;
-        state.tickWorld(tickDt);
       }
+      // Always ticks, even with zero citizens — this is also the sole driver
+      // of weatherSystem's auto cycle, which must keep running before any
+      // fortress (and so any citizen) exists.
+      state.tickWorld(tickDt);
       accumulatorRef.current -= tickDt;
     }
 
     const legMesh = legMeshRef.current;
+    const armMesh = armMeshRef.current;
     const torsoMesh = torsoMeshRef.current;
     const waistMesh = waistMeshRef.current;
+    const mantleMesh = mantleMeshRef.current;
     const headMesh = headMeshRef.current;
-    if (!legMesh || !torsoMesh || !waistMesh || !headMesh) return;
+    const headwearMesh = headwearMeshRef.current;
+    if (!legMesh || !armMesh || !torsoMesh || !waistMesh || !mantleMesh || !headMesh || !headwearMesh) return;
 
     const state = useWorldStore.getState();
     const { citizenList, tiles } = state;
@@ -94,17 +114,20 @@ export function CitizenCrowd({ theme = medievalTheme }: CitizenCrowdProps) {
     const alpha = Math.min(1, accumulatorRef.current / tickDt);
 
     let colorsChanged = false;
-    const elapsed = performance.now() * 0.001;
-
     for (let i = 0; i < count; i++) {
       const citizen = citizenList[i];
 
       if (!coloredIdsRef.current.has(citizen.id)) {
         const outfit = resolveOutfit(theme, citizen.outfitId);
         torsoMesh.setColorAt(i, scratchColor.set(outfit.tunic));
+        armMesh.setColorAt(i * 2, scratchColor.set(outfit.tunic));
+        armMesh.setColorAt(i * 2 + 1, scratchColor.set(outfit.tunic));
         waistMesh.setColorAt(i, scratchColor.set(outfit.accent));
+        mantleMesh.setColorAt(i, scratchColor.set(outfit.accent));
+        headwearMesh.setColorAt(i, scratchColor.set(outfit.accent));
         legMesh.setColorAt(i * 2, scratchColor.set(outfit.trouser));
         legMesh.setColorAt(i * 2 + 1, scratchColor.set(outfit.trouser));
+        headwearScalesRef.current.set(citizen.id, outfit.headwearScale);
         coloredIdsRef.current.add(citizen.id);
         colorsChanged = true;
       }
@@ -112,8 +135,10 @@ export function CitizenCrowd({ theme = medievalTheme }: CitizenCrowdProps) {
       const prev = prevSnapshotRef.current.get(citizen.id);
       const isWalking = citizen.status === "walking";
       let renderProgress = citizen.progress;
+      let renderSpeed = citizen.speed ?? 0;
       if (isWalking && prev?.status === "walking" && prev.path === citizen.path) {
         renderProgress = prev.progress + (citizen.progress - prev.progress) * alpha;
+        renderSpeed = prev.speed + ((citizen.speed ?? 0) - prev.speed) * alpha;
       }
 
       let px: number;
@@ -129,7 +154,12 @@ export function CitizenCrowd({ theme = medievalTheme }: CitizenCrowdProps) {
           pathCurveCacheRef.current.set(citizen.id, cached);
         }
         if (cached.curve) {
-          sampleCitizenPose(cached.curve, renderProgress, citizen.lateralSign, poseOut);
+          sampleCitizenPose(
+            cached.curve,
+            renderProgress,
+            citizen.lateralSign * (citizen.lateralOffset ?? CITIZENS.lateralOffsetMin),
+            poseOut
+          );
           px = poseOut.position.x;
           py = poseOut.position.y;
           pz = poseOut.position.z;
@@ -148,56 +178,101 @@ export function CitizenCrowd({ theme = medievalTheme }: CitizenCrowdProps) {
         py = HEX_HEIGHT + (tiles.get(coordKey(citizen.position))?.height ?? 0);
       }
 
-      const phase = citizen.animPhase + elapsed * CITIZENS.strideFrequency;
-      const pose = walkPose(phase, walking ? 1 : 0);
+      const pathLength = citizen.pathLength || prev?.pathLength || 0;
+      const phase = citizen.animPhase + renderProgress * pathLength * CITIZENS.strideCyclesPerUnit * Math.PI * 2;
+      const movement = walking ? Math.min(1, renderSpeed / CITIZENS.walkSpeed) : 0;
+      const pose = walkPose(phase, movement);
       const bobY = pose.bob * CITIZENS.bobHeight;
 
       qHeading.setFromAxisAngle(UP_AXIS, heading);
+      qLean.setFromAxisAngle(RIGHT_AXIS, pose.bodyLean);
+      qBody.copy(qHeading).multiply(qLean);
 
-      dummy.quaternion.copy(qHeading);
       dummy.scale.set(1, 1, 1);
 
+      dummy.quaternion.copy(qBody);
       dummy.position.set(px, py + CITIZEN_LOCAL_Y.torso + bobY, pz);
       dummy.updateMatrix();
       torsoMesh.setMatrixAt(i, dummy.matrix);
 
+      dummy.quaternion.copy(qHeading);
       dummy.position.set(px, py + CITIZEN_LOCAL_Y.waistband + bobY, pz);
       dummy.updateMatrix();
       waistMesh.setMatrixAt(i, dummy.matrix);
+
+      dummy.quaternion.copy(qBody);
+      dummy.position.set(px, py + CITIZEN_LOCAL_Y.mantle + bobY, pz);
+      dummy.updateMatrix();
+      mantleMesh.setMatrixAt(i, dummy.matrix);
 
       dummy.position.set(px, py + CITIZEN_LOCAL_Y.head + bobY, pz);
       dummy.updateMatrix();
       headMesh.setMatrixAt(i, dummy.matrix);
 
-      legOffset.set(-citizenKit.leg.spacing, CITIZEN_LOCAL_Y.leg, 0).applyQuaternion(qHeading);
+      const headwearScale = headwearScalesRef.current.get(citizen.id) ?? 0;
+      const headwearWidthScale = headwearScale === 0 ? 0 : 1;
+      dummy.scale.set(headwearWidthScale, headwearScale, headwearWidthScale);
+      dummy.position.set(
+        px,
+        py + CITIZEN_LOCAL_Y.headwearBase + (citizenKit.headwear.height * headwearScale) / 2 + bobY,
+        pz
+      );
+      dummy.updateMatrix();
+      headwearMesh.setMatrixAt(i, dummy.matrix);
+      dummy.scale.set(1, 1, 1);
+
+      limbOffset.set(-citizenKit.leg.spacing, CITIZEN_LOCAL_Y.leg + bobY, 0).applyQuaternion(qHeading);
       qSwing.setFromAxisAngle(RIGHT_AXIS, pose.legSwingLeft);
-      dummy.position.set(px + legOffset.x, py + legOffset.y, pz + legOffset.z);
+      dummy.position.set(px + limbOffset.x, py + limbOffset.y, pz + limbOffset.z);
       dummy.quaternion.copy(qHeading).multiply(qSwing);
       dummy.updateMatrix();
       legMesh.setMatrixAt(i * 2, dummy.matrix);
 
-      legOffset.set(citizenKit.leg.spacing, CITIZEN_LOCAL_Y.leg, 0).applyQuaternion(qHeading);
+      limbOffset.set(citizenKit.leg.spacing, CITIZEN_LOCAL_Y.leg + bobY, 0).applyQuaternion(qHeading);
       qSwing.setFromAxisAngle(RIGHT_AXIS, pose.legSwingRight);
-      dummy.position.set(px + legOffset.x, py + legOffset.y, pz + legOffset.z);
+      dummy.position.set(px + limbOffset.x, py + limbOffset.y, pz + limbOffset.z);
       dummy.quaternion.copy(qHeading).multiply(qSwing);
       dummy.updateMatrix();
       legMesh.setMatrixAt(i * 2 + 1, dummy.matrix);
+
+      limbOffset.set(-citizenKit.arm.spacing, CITIZEN_LOCAL_Y.arm + bobY, 0).applyQuaternion(qHeading);
+      qSwing.setFromAxisAngle(RIGHT_AXIS, pose.armSwingLeft);
+      dummy.position.set(px + limbOffset.x, py + limbOffset.y, pz + limbOffset.z);
+      dummy.quaternion.copy(qHeading).multiply(qSwing);
+      dummy.updateMatrix();
+      armMesh.setMatrixAt(i * 2, dummy.matrix);
+
+      limbOffset.set(citizenKit.arm.spacing, CITIZEN_LOCAL_Y.arm + bobY, 0).applyQuaternion(qHeading);
+      qSwing.setFromAxisAngle(RIGHT_AXIS, pose.armSwingRight);
+      dummy.position.set(px + limbOffset.x, py + limbOffset.y, pz + limbOffset.z);
+      dummy.quaternion.copy(qHeading).multiply(qSwing);
+      dummy.updateMatrix();
+      armMesh.setMatrixAt(i * 2 + 1, dummy.matrix);
     }
 
     torsoMesh.count = count;
     waistMesh.count = count;
+    mantleMesh.count = count;
     headMesh.count = count;
+    headwearMesh.count = count;
     legMesh.count = count * 2;
+    armMesh.count = count * 2;
 
     torsoMesh.instanceMatrix.needsUpdate = true;
     waistMesh.instanceMatrix.needsUpdate = true;
+    mantleMesh.instanceMatrix.needsUpdate = true;
     headMesh.instanceMatrix.needsUpdate = true;
+    headwearMesh.instanceMatrix.needsUpdate = true;
     legMesh.instanceMatrix.needsUpdate = true;
+    armMesh.instanceMatrix.needsUpdate = true;
 
     if (colorsChanged) {
       if (torsoMesh.instanceColor) torsoMesh.instanceColor.needsUpdate = true;
       if (waistMesh.instanceColor) waistMesh.instanceColor.needsUpdate = true;
+      if (mantleMesh.instanceColor) mantleMesh.instanceColor.needsUpdate = true;
+      if (headwearMesh.instanceColor) headwearMesh.instanceColor.needsUpdate = true;
       if (legMesh.instanceColor) legMesh.instanceColor.needsUpdate = true;
+      if (armMesh.instanceColor) armMesh.instanceColor.needsUpdate = true;
     }
   });
 
@@ -207,7 +282,11 @@ export function CitizenCrowd({ theme = medievalTheme }: CitizenCrowdProps) {
         ref={legMeshRef}
         args={[geometries.leg, materials.clothBase, POPULATION_CAP * 2]}
         frustumCulled={false}
-        castShadow
+      />
+      <instancedMesh
+        ref={armMeshRef}
+        args={[geometries.arm, materials.clothBase, POPULATION_CAP * 2]}
+        frustumCulled={false}
       />
       <instancedMesh
         ref={torsoMeshRef}
@@ -219,13 +298,21 @@ export function CitizenCrowd({ theme = medievalTheme }: CitizenCrowdProps) {
         ref={waistMeshRef}
         args={[geometries.waistband, materials.clothBase, POPULATION_CAP]}
         frustumCulled={false}
-        castShadow
+      />
+      <instancedMesh
+        ref={mantleMeshRef}
+        args={[geometries.mantle, materials.clothBase, POPULATION_CAP]}
+        frustumCulled={false}
       />
       <instancedMesh
         ref={headMeshRef}
         args={[geometries.head, materials.skin, POPULATION_CAP]}
         frustumCulled={false}
-        castShadow
+      />
+      <instancedMesh
+        ref={headwearMeshRef}
+        args={[geometries.headwear, materials.clothBase, POPULATION_CAP]}
+        frustumCulled={false}
       />
     </>
   );

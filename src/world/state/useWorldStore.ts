@@ -1,10 +1,11 @@
 import { create } from "zustand";
 import { coordKey } from "../core/hex";
-import type { AxialCoord, Cart, Citizen, FortressEntity, Road, Tile, Weather } from "../core/types";
+import type { AxialCoord, Cart, Citizen, FortressEntity, Road, Tile, Weather, WeatherRenderState } from "../core/types";
 import { DEFAULT_PRESET, presets } from "../config/presets";
 import { POPULATION, TERRAIN } from "../config/world.config";
 import { buildRoadAdjacency, connectFortress } from "../systems/roadSystem";
 import { spawnCitizensForFortress, tickCitizens } from "../systems/citizenSystem";
+import { randomDwellSeconds, tickWeather } from "../systems/weatherSystem";
 
 export type PresetName = keyof typeof presets;
 
@@ -44,6 +45,10 @@ export interface WorldState {
   citizenList: Citizen[];
   carts: Map<string, Cart>;
   weather: Weather;
+  /** Seconds remaining until `weatherSystem` auto-advances `weather` to the next state in its cycle. */
+  weatherTimer: number;
+  /** Eased sky/fog/light/cloud/rain values `weatherSystem` blends `weather` toward every tick. */
+  weatherRender: WeatherRenderState;
   tick: number;
   /** Hex under the pointer, set by throttled pointer-move raycasts. */
   hoveredCoord: AxialCoord | null;
@@ -81,6 +86,8 @@ export const useWorldStore = create<WorldState>((set) => ({
   citizenList: [],
   carts: new Map(),
   weather: { kind: "clear", intensity: 0 },
+  weatherTimer: randomDwellSeconds("clear", 0),
+  weatherRender: { stormBlend: 0, cloudOpacity: 0.08, rainDensity: 0 },
   tick: 0,
   hoveredCoord: null,
   presetName: DEFAULT_PRESET,
@@ -140,18 +147,26 @@ export const useWorldStore = create<WorldState>((set) => ({
 
   setBuildMessage: (message) => set({ buildMessage: message }),
 
-  setWeather: (weather) => set({ weather }),
+  // Forcing weather from the debug panel also gives it a fresh dwell timer, so
+  // the auto cycle holds the forced state for a while instead of immediately
+  // overwriting it on the next tick.
+  setWeather: (weather) =>
+    set((state) => ({ weather, weatherTimer: randomDwellSeconds(weather.kind, state.tick) })),
 
   advanceTick: () => set((state) => ({ tick: state.tick + 1 })),
 
   tickWorld: (dtSeconds) =>
     set((state) => {
-      const citizens = tickCitizens(state, dtSeconds);
-      if (citizens === state.citizens) return { tick: state.tick + 1 };
+      const citizens = state.citizens.size > 0 ? tickCitizens(state, dtSeconds) : state.citizens;
+      const { weather, weatherTimer, weatherRender } = tickWeather(state, dtSeconds);
       return {
         tick: state.tick + 1,
-        citizens,
-        citizenList: Array.from(citizens.values()),
+        weather,
+        weatherTimer,
+        weatherRender,
+        ...(citizens !== state.citizens
+          ? { citizens, citizenList: Array.from(citizens.values()) }
+          : null),
       };
     }),
 

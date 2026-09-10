@@ -13,6 +13,15 @@ export function buildCitizenPathCurve(path: AxialCoord[], tiles: Map<string, Til
     return new Vector3(x, HEX_HEIGHT + height + ROADS.surfaceOffset + CITIZENS.groundClearance, z);
   });
 
+  // Roads connect fortress centers. Trim both ends toward the first/last
+  // road segment so citizens visually enter and leave at the curtain wall.
+  if (points.length >= 2) {
+    const startDirection = points[1].clone().sub(points[0]).normalize();
+    const endDirection = points[points.length - 2].clone().sub(points[points.length - 1]).normalize();
+    points[0].addScaledVector(startDirection, CITIZENS.fortressClearance);
+    points[points.length - 1].addScaledVector(endDirection, CITIZENS.fortressClearance);
+  }
+
   return new CatmullRomCurve3(points, false, "catmullrom", 0.5);
 }
 
@@ -28,7 +37,7 @@ const scratchSide = new Vector3();
 export function sampleCitizenPose(
   curve: CatmullRomCurve3,
   t: number,
-  lateralSign: 1 | -1,
+  lateralOffset: number,
   out: { position: Vector3; headingRad: number }
 ): void {
   const clamped = Math.min(1, Math.max(0, t));
@@ -36,6 +45,9 @@ export function sampleCitizenPose(
   curve.getTangentAt(clamped, scratchTangent);
 
   scratchSide.crossVectors(scratchTangent, UP).normalize();
-  out.position.addScaledVector(scratchSide, lateralSign * CITIZENS.lateralOffset);
+  const fadeIn = Math.min(1, clamped / CITIZENS.laneFadeRatio);
+  const fadeOut = Math.min(1, (1 - clamped) / CITIZENS.laneFadeRatio);
+  const laneBlend = fadeIn * fadeIn * (3 - 2 * fadeIn) * fadeOut * fadeOut * (3 - 2 * fadeOut);
+  out.position.addScaledVector(scratchSide, lateralOffset * laneBlend);
   out.headingRad = Math.atan2(scratchTangent.x, scratchTangent.z);
 }

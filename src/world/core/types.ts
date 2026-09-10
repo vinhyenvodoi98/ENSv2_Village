@@ -41,11 +41,17 @@ export interface Citizen {
   path: AxialCoord[];
   /** 0..1 fraction walked along `path`. Meaningless while idle. */
   progress: number;
+  /** Current physical speed in world units/second; accelerates and brakes instead of snapping. */
+  speed: number;
+  /** Cached physical route length in world units. */
+  pathLength: number;
   /** Seconds remaining before an idling citizen picks a new destination. */
   idleRemaining: number;
   outfitId: string;
   /** Deterministic left/right bias for the walk's lateral road offset. */
   lateralSign: 1 | -1;
+  /** Stable distance from the road centerline, in world units. */
+  lateralOffset: number;
   /** Deterministic phase offset for the walk-cycle animation, so citizens don't move in lockstep. */
   animPhase: number;
 }
@@ -61,4 +67,18 @@ export type WeatherKind = "clear" | "cloudy" | "rain" | "dusk";
 export interface Weather {
   kind: WeatherKind;
   intensity: number;
+}
+
+/**
+ * Smoothed render-facing weather values `weatherSystem.tickWeather` eases
+ * toward `Weather`'s target every tick, so sky tint, fog, light, cloud
+ * opacity and rain density all transition together instead of cutting.
+ */
+export interface WeatherRenderState {
+  /** 0..1 — how far into "dark and wet" the world is; drives sky/fog/light tint via `theme.sky.rain`. */
+  stormBlend: number;
+  /** 0..1 opacity fed to the drifting cloud volumes. */
+  cloudOpacity: number;
+  /** 0..1 — how heavy the rain particle system renders. */
+  rainDensity: number;
 }

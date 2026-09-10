@@ -40,6 +40,9 @@ export function Citizen({ citizen, theme = medievalTheme, walking }: CitizenProp
   const bodyRef = useRef<Group>(null);
   const legLRef = useRef<Mesh>(null);
   const legRRef = useRef<Mesh>(null);
+  const armLRef = useRef<Mesh>(null);
+  const armRRef = useRef<Mesh>(null);
+  const stridePhaseRef = useRef(0);
 
   const geometries = getCitizenGeometries();
   const skinMaterial = getThemeMaterials(theme).citizens.skin;
@@ -49,15 +52,20 @@ export function Citizen({ citizen, theme = medievalTheme, walking }: CitizenProp
   const trouserMaterial = getClothMaterial(outfit.trouser);
   const accentMaterial = getClothMaterial(outfit.accent);
 
-  const isWalking = walking ?? citizen.status === "walking";
   const legSpacing = citizenKit.leg.spacing;
+  const armSpacing = citizenKit.arm.spacing;
 
-  useFrame(() => {
-    const phase = citizen.animPhase + performance.now() * 0.001 * CITIZENS.strideFrequency;
-    const pose = walkPose(phase, isWalking ? 1 : 0);
+  useFrame((_, delta) => {
+    const motion = walking === undefined ? Math.min(1, citizen.speed / CITIZENS.walkSpeed) : walking ? 1 : 0;
+    const animationSpeed = walking === true ? CITIZENS.walkSpeed : citizen.speed;
+    stridePhaseRef.current += animationSpeed * delta * CITIZENS.strideCyclesPerUnit * Math.PI * 2;
+    const phase = citizen.animPhase + stridePhaseRef.current;
+    const pose = walkPose(phase, motion);
     if (legLRef.current) legLRef.current.rotation.x = pose.legSwingLeft;
     if (legRRef.current) legRRef.current.rotation.x = pose.legSwingRight;
-    if (bodyRef.current) bodyRef.current.position.y = pose.bob * 0.5;
+    if (armLRef.current) armLRef.current.rotation.x = pose.armSwingLeft;
+    if (armRRef.current) armRRef.current.rotation.x = pose.armSwingRight;
+    if (bodyRef.current) bodyRef.current.position.y = pose.bob * CITIZENS.bobHeight;
   });
 
   return (
@@ -75,9 +83,32 @@ export function Citizen({ citizen, theme = medievalTheme, walking }: CitizenProp
           material={trouserMaterial}
           position={[legSpacing, CITIZEN_LOCAL_Y.leg, 0]}
         />
-        <mesh geometry={geometries.torso} material={tunicMaterial} position={[0, CITIZEN_LOCAL_Y.torso, 0]} />
+        <mesh
+          ref={armLRef}
+          geometry={geometries.arm}
+          material={tunicMaterial}
+          position={[-armSpacing, CITIZEN_LOCAL_Y.arm, 0]}
+        />
+        <mesh
+          ref={armRRef}
+          geometry={geometries.arm}
+          material={tunicMaterial}
+          position={[armSpacing, CITIZEN_LOCAL_Y.arm, 0]}
+        />
+        <mesh geometry={geometries.torso} material={tunicMaterial} position={[0, CITIZEN_LOCAL_Y.torso, 0]} castShadow />
         <mesh geometry={geometries.waistband} material={accentMaterial} position={[0, CITIZEN_LOCAL_Y.waistband, 0]} />
+        <mesh geometry={geometries.mantle} material={accentMaterial} position={[0, CITIZEN_LOCAL_Y.mantle, 0]} />
         <mesh geometry={geometries.head} material={skinMaterial} position={[0, CITIZEN_LOCAL_Y.head, 0]} />
+        <mesh
+          geometry={geometries.headwear}
+          material={accentMaterial}
+          position={[
+            0,
+            CITIZEN_LOCAL_Y.headwearBase + (citizenKit.headwear.height * outfit.headwearScale) / 2,
+            0,
+          ]}
+          scale={outfit.headwearScale === 0 ? [0, 0, 0] : [1, outfit.headwearScale, 1]}
+        />
       </group>
     </group>
   );
