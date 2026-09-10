@@ -1,5 +1,20 @@
+import { formatUnits } from "viem";
+
 export function truncateAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
+/// Formats a raw token integer (e.g. MockUSDC base units) as a decimal string using the token's
+/// own `decimals()` — every money figure in the claim-name flow goes through this, never
+/// `Number(...).toFixed()` on a manually-divided value (a bigint total can exceed `Number`'s safe
+/// integer range long before it exceeds what a wallet can actually hold).
+export function formatTokenAmount(amount: bigint, decimals: number, opts?: { maxFractionDigits?: number }): string {
+  const maxFractionDigits = opts?.maxFractionDigits ?? 2;
+  const full = formatUnits(amount, decimals);
+  const [whole, fraction = ""] = full.split(".");
+  if (!fraction || maxFractionDigits <= 0) return whole;
+  const trimmed = fraction.slice(0, maxFractionDigits).replace(/0+$/, "");
+  return trimmed ? `${whole}.${trimmed}` : whole;
 }
 
 /// Formats a duration in seconds as a compact "Xd Yh Zm" (or "Xh Ym", "Xm Ys", "expired") —

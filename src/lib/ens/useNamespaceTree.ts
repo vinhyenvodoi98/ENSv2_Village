@@ -1,5 +1,6 @@
 import { zeroAddress, type PublicClient } from "viem";
 import { usePublicClient } from "wagmi";
+import { ethRegistryAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
 import { fetchAgentTree, type AgentTreeNode } from "./useAgentTree";
 import { useBlockGatedQuery } from "./query";
@@ -120,15 +121,86 @@ export function buildResolverIndex(nodes: NamespaceNode[], out = new Map<string,
   return out;
 }
 
-/// The whole AgentVillage namespace, rooted at the fleet's parent name (`deployments.json`),
+/// The namespace rooted at `kingdomName` (default: the fleet's own `CONTRACTS.parentName`),
 /// recursively including every `Sovereign` sub-registry — this is what task 11's tree view and
 /// task 12's detail panel are both built on, so the two screens never disagree about what's on
 /// chain.
-export function useNamespaceTree() {
+///
+/// Task 31 generalizes this beyond the fleet's own name: any other `<label>.eth` claimed through
+/// `ETHRegistrar` is looked up via `ETHRegistry.getSubregistry(label)` — a freshly claimed name
+/// leaves this at `address(0)` (task 31 deliberately doesn't wire it; task 32 does), which reads
+/// here as "kingdom founded, no agents yet" rather than an error.
+export function useNamespaceTree(kingdomName: string = CONTRACTS.parentName, options?: { enabled?: boolean }) {
   const publicClient = usePublicClient();
 
-  return useBlockGatedQuery<NamespaceNode[]>(["namespaceTree", CONTRACTS.agentRegistry], async () => {
-    if (!publicClient) throw new Error("useNamespaceTree: missing publicClient");
-    return buildNamespace(publicClient, CONTRACTS.agentRegistry, CONTRACTS.parentName, 0);
-  });
+  return useBlockGatedQuery<NamespaceNode[]>(
+    ["namespaceTree", kingdomName],
+    async () => {
+      if (!publicClient) throw new Error("useNamespaceTree: missing publicClient");
+
+      if (kingdomName === CONTRACTS.parentName) {
+        return buildNamespace(publicClient, CONTRACTS.agentRegistry, kingdomName, 0);
+      }
+
+      const label = kingdomName.replace(/\.eth$/, "");
+      const registry = await publicClient.readContract({
+        address: CONTRACTS.ethRegistry,
+        abi: ethRegistryAbi,
+        functionName: "getSubregistry",
+        args: [label],
+      });
+      if (!registry || registry === zeroAddress) return [];
+      return buildNamespace(publicClient, registry, kingdomName, 0);
+    },
+    { enabled: options?.enabled ?? true }
+  );
+}
+
+/// Task 31/32: which `AgentRegistry` a kingdom's *own* root spawns should target — the same
+/// resolution `useNamespaceTree` uses to build the tree, exposed on its own so a spawn form can
+/// target the right contract without walking the (possibly large) whole tree just to find it.
+/// `zeroAddress` means exactly what it means in `ETHRegistrar.register`: this kingdom hasn't had
+/// its own registry wired up yet (task 31 leaves it that way on purpose; task 32 wires it), so
+/// there's nowhere real to `spawn` into until then.
+export function useKingdomRegistry(kingdomName: string | null) {
+  const publicClient = usePublicClient();
+
+  return useBlockGatedQuery<`0x${string}` | null>(
+    ["kingdomRegistry", kingdomName],
+    async () => {
+      if (!publicClient || !kingdomName) return null;
+      if (kingdomName === CONTRACTS.parentName) return CONTRACTS.agentRegistry;
+
+      const label = kingdomName.replace(/\.eth$/, "");
+      return publicClient.readContract({
+        address: CONTRACTS.ethRegistry,
+        abi: ethRegistryAbi,
+        functionName: "getSubregistry",
+        args: [label],
+      });
+    },
+    { enabled: !!publicClient && !!kingdomName }
+  );
+}
+
+/// The wallet a kingdom's `.eth` name currently belongs to — `ETHRegistry.findOwner(label)` works
+/// off the bare label, so unlike a tokenId-keyed read this resolves for *any* kingdom, including
+/// one the connected wallet doesn't own (the `?kingdom=` showcase view, task 31 §5).
+export function useKingdomOwner(kingdomName: string | null) {
+  const publicClient = usePublicClient();
+
+  return useBlockGatedQuery<`0x${string}` | null>(
+    ["kingdomOwner", kingdomName],
+    async () => {
+      if (!publicClient || !kingdomName) return null;
+      const label = kingdomName.replace(/\.eth$/, "");
+      return publicClient.readContract({
+        address: CONTRACTS.ethRegistry,
+        abi: ethRegistryAbi,
+        functionName: "findOwner",
+        args: [label],
+      });
+    },
+    { enabled: !!publicClient && !!kingdomName }
+  );
 }

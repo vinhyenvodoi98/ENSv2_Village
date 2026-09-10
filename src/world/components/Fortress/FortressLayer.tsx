@@ -53,6 +53,7 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
   const mode = useWorldStore(selectMode);
   const selectFortress = useWorldStore((state) => state.selectFortress);
   const setSpawnFormOpen = useWorldStore((state) => state.setSpawnFormOpen);
+  const setFoundKingdomOpen = useWorldStore((state) => state.setFoundKingdomOpen);
 
   const isSandbox = mode === "sandbox";
 
@@ -81,7 +82,9 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
             // A free wildcard label has no `spawn` tx behind it — showing it
             // solid would claim something the chain doesn't say.
             ghost={fortress.isLocalPreview}
-            nameplateNote={fortress.isLocalPreview ? "not on-chain" : undefined}
+            nameplateNote={
+              fortress.isLocalPreview ? "not on-chain" : fortress.unfinished ? "unfinished — found your kingdom" : undefined
+            }
             height={HEX_HEIGHT + (tile?.height ?? 0)}
             kitId={kitId}
             theme={theme}
@@ -90,12 +93,16 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
             // on. Clicking it still does something, though: it's the root's
             // own hex, so it opens the same root-spawn modal as the HUD
             // button and the sidebar's root chip (all three clear selection
-            // first, so none can inherit a stale parent).
+            // first, so none can inherit a stale parent) — unless the
+            // kingdom is `unfinished` (task 32: claimed but no `AgentRegistry`
+            // wired yet), in which case there's nothing to spawn into and
+            // clicking it opens "Found your kingdom" instead.
             onClick={
               fortress.ensKey === ROOT_ENS_KEY
                 ? () => {
                     selectFortress(null);
-                    setSpawnFormOpen(true);
+                    if (fortress.unfinished) setFoundKingdomOpen(true);
+                    else setSpawnFormOpen(true);
                   }
                 : () => selectFortress(fortress.ensKey)
             }

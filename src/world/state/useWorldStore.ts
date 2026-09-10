@@ -101,6 +101,12 @@ export interface WorldState {
    * which is what keeps wagmi out of `src/world/`.
    */
   spawnFormOpen: boolean;
+  /**
+   * Task 32: whether the "Found your kingdom" flow is open. Same reasoning as `spawnFormOpen` —
+   * clicking the root castle when it's `unfinished` (no `AgentRegistry` wired yet) is a request
+   * to found it, and the map can only ask, never mint/deploy anything itself.
+   */
+  foundKingdomOpen: boolean;
 
   setTiles: (tiles: Tile[]) => void;
   placeFortress: (coord: AxialCoord) => void;
@@ -111,6 +117,7 @@ export interface WorldState {
   focusFortress: (ensKey: string) => void;
   setMode: (mode: WorldMode) => void;
   setSpawnFormOpen: (open: boolean) => void;
+  setFoundKingdomOpen: (open: boolean) => void;
   setBuildMessage: (message: string | null) => void;
   setWeather: (weather: Weather) => void;
   advanceTick: () => void;
@@ -227,6 +234,7 @@ export const useWorldStore = create<WorldState>((set) => ({
   buildMessage: null,
   cameraFocus: null,
   spawnFormOpen: false,
+  foundKingdomOpen: false,
 
   setTiles: (tiles) =>
     set((state) => {
@@ -359,10 +367,12 @@ export const useWorldStore = create<WorldState>((set) => ({
             citizenList: [],
             selectedFortressId: null,
             spawnFormOpen: false,
+            foundKingdomOpen: false,
           }
     ),
 
   setSpawnFormOpen: (spawnFormOpen) => set({ spawnFormOpen }),
+  setFoundKingdomOpen: (foundKingdomOpen) => set({ foundKingdomOpen }),
 
   setBuildMessage: (message) => set({ buildMessage: message }),
 

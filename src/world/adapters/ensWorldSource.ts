@@ -98,7 +98,8 @@ function comparePending(a: PendingNode, b: PendingNode): number {
 export function createEnsFortressSource(
   roots: NamespaceNode[],
   rootName: string,
-  nowSeconds: number = Date.now() / 1000
+  nowSeconds: number = Date.now() / 1000,
+  rootUnfinished = false
 ): FortressSource {
   let cache: FortressEntity[] | null = null;
 
@@ -125,6 +126,7 @@ export function createEnsFortressSource(
       tier: Math.max(0, AGENT_TIERS.length - 1),
       parentEnsKey: null,
       derelict: false,
+      unfinished: rootUnfinished,
     };
 
     const fortresses = pending.map(({ node, ensKey, parentEnsKey }) => {

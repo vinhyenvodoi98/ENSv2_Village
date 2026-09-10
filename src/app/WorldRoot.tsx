@@ -1,27 +1,40 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { zeroAddress } from "viem";
+import { useAccount, useConnect, useSwitchChain } from "wagmi";
+import { sepolia } from "wagmi/chains";
 import { WalletHud } from "@/components/wallet/WalletHud";
 import { NamespaceTree } from "@/components/tree/NamespaceTree";
 import type { SelectedAgent } from "@/components/tree/AgentSubtree";
 import { AgentDetailPanel } from "@/components/detail/AgentDetailPanel";
 import { SpawnAgentForm } from "@/components/lifecycle/SpawnAgentForm";
+import { ClaimNameWizard } from "@/components/onboarding/ClaimNameWizard";
+import { FoundKingdomWizard } from "@/components/onboarding/FoundKingdomWizard";
+import { KingdomEmptyPlate, type EmptyStateKind } from "@/components/onboarding/KingdomEmptyPlate";
+import { ReadOnlyBanner } from "@/components/onboarding/ReadOnlyBanner";
 import { CONTRACTS } from "@/lib/contracts/addresses";
 import {
   buildResolverIndex,
   flattenNamespace,
+  hasStoredClaim,
   localWildcardKey,
   localWildcardToNode,
   mergeLocalPreviews,
   namespaceKey,
   useLocalWildcardAgents,
+  useKingdomRegistry,
   useNamespaceTree,
+  useOwnedEthNames,
+  useSelectedKingdom,
   type NamespaceNode,
 } from "@/lib/ens";
 import { createEnsFortressSource } from "@/world/adapters/ensWorldSource";
+import { ROOT_ENS_KEY, WORLD_RADIUS } from "@/world/config/world.config";
 import { useWorldStore } from "@/world/state/useWorldStore";
-import { selectSelectedFortressId, selectSpawnFormOpen } from "@/world/state/selectors";
+import { selectFoundKingdomOpen, selectSelectedFortressId, selectSpawnFormOpen } from "@/world/state/selectors";
 import { WorldHud } from "@/world/ui/WorldHud";
 import { DebugPanel } from "@/world/ui/DebugPanel";
 import { BuildBar } from "@/world/ui/BuildBar";
@@ -43,10 +56,46 @@ const WorldCanvas = dynamic(
  * Selection is likewise single-sourced: the store's `selectedFortressId` holds
  * an `ensKey`, and the map, the sidebar tree and the detail panel all read it.
  * There is no second "selected agent" state to keep in sync.
+ *
+ * Task 31: the namespace this screen renders is no longer always
+ * `CONTRACTS.parentName` — it's derived from (in priority order) the `?kingdom=`
+ * showcase param, then the connected wallet's selected owned name. `parentName`
+ * only survives as the showcase-link default (section 5 of the task).
  */
 export default function WorldRoot() {
-  const { data: tree, isLoading, error, refetch, isFetching } = useNamespaceTree();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const showcaseKingdom = searchParams.get("kingdom");
+  const isReadOnly = !!showcaseKingdom;
+
+  const { address, isConnected, chainId } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const isWrongNetwork = isConnected && chainId !== sepolia.id;
+
+  const { data: ownedNames = [], refetch: refetchOwnedNames } = useOwnedEthNames(address);
+  const { selected: selectedKingdom, select: selectKingdom } = useSelectedKingdom(ownedNames);
+
+  const activeKingdomName = showcaseKingdom ?? (isConnected ? selectedKingdom : null);
+
+  const { data: tree, isLoading, error, refetch, isFetching } = useNamespaceTree(
+    activeKingdomName ?? CONTRACTS.parentName,
+    { enabled: !!activeKingdomName }
+  );
+  // Task 31/32: which `AgentRegistry` the active kingdom's *own* root spawns should target — so
+  // "Spawn Agent" places the first castle in the kingdom the wallet actually owns, not in the
+  // fleet's `agentvillage.eth`.
+  const { data: activeKingdomRegistry, refetch: refetchKingdomRegistry } = useKingdomRegistry(activeKingdomName);
   const { agents: localAgents, add: addLocalAgent, remove: removeLocalAgent } = useLocalWildcardAgents();
+
+  // Task 32: claimed but no `AgentRegistry` wired to it yet — the castle stands, but there's
+  // nowhere for a real `spawn` to go until "Found your kingdom" runs. Never true in read-only
+  // showcase mode (a viewer isn't the one who'd found it).
+  const isKingdomUnfinished = !isReadOnly && !!activeKingdomName && activeKingdomRegistry === zeroAddress;
+  const activeTokenId = useMemo(
+    () => ownedNames.find((n) => n.name === activeKingdomName)?.tokenId ?? null,
+    [ownedNames, activeKingdomName]
+  );
 
   const selectedFortressId = useWorldStore(selectSelectedFortressId);
   const selectFortress = useWorldStore((state) => state.selectFortress);
@@ -57,10 +106,59 @@ export default function WorldRoot() {
   // rather than here — see `WorldState.spawnFormOpen`.
   const spawnOpen = useWorldStore(selectSpawnFormOpen);
   const setSpawnOpen = useWorldStore((state) => state.setSpawnFormOpen);
+  const foundKingdomOpen = useWorldStore(selectFoundKingdomOpen);
+  const setFoundKingdomOpen = useWorldStore((state) => state.setFoundKingdomOpen);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [intentToOpenWizard, setIntentToOpenWizard] = useState(false);
 
   useEffect(() => setMode("ens"), [setMode]);
+
+  // Task 31 acceptance: refreshing mid-flow must resume where the wallet left off, not force a
+  // second click on "Claim land". Fired **during render** (React's "adjusting state when a prop
+  // changes" pattern, guarded by comparing the account key) rather than in a `useEffect`, so it
+  // can't paint a frame of the closed wizard before reopening it.
+  const claimAccountKey = isConnected && address && chainId ? `${chainId}:${address}` : null;
+  const [lastAutoOpenKey, setLastAutoOpenKey] = useState<string | null>(null);
+  if (claimAccountKey && claimAccountKey !== lastAutoOpenKey) {
+    setLastAutoOpenKey(claimAccountKey);
+    if (hasStoredClaim(chainId, address)) setWizardOpen(true);
+  }
+
+  // Pressing "Claim land" while disconnected opens the connector first, then the wizard once
+  // the account actually connects — preserving intent instead of making the user click twice.
+  // Same render-phase pattern: the condition itself (`intentToOpenWizard`) is cleared as part of
+  // the adjustment, so it can't re-fire on a later render.
+  if (isConnected && intentToOpenWizard && !isWrongNetwork) {
+    setWizardOpen(true);
+    setIntentToOpenWizard(false);
+  }
+
+  const handleClaimLand = useCallback(() => {
+    if (isWrongNetwork) return;
+    if (!isConnected) {
+      setIntentToOpenWizard(true);
+      const connector = connectors[0];
+      if (connector) connect({ connector });
+      return;
+    }
+    setWizardOpen(true);
+  }, [isWrongNetwork, isConnected, connectors, connect]);
+
+  const handleClaimed = useCallback(
+    (name: string) => {
+      refetchOwnedNames();
+      selectKingdom(name);
+      focusFortress(ROOT_ENS_KEY);
+    },
+    [refetchOwnedNames, selectKingdom, focusFortress]
+  );
+
+  const handleFounded = useCallback(() => {
+    refetchKingdomRegistry();
+    refetch();
+  }, [refetchKingdomRegistry, refetch]);
 
   // Task 14's reconcile, moved here with the rest of the root screen: once a
   // locally-previewed wildcard label is minted for real it shows up in the
@@ -87,15 +185,25 @@ export default function WorldRoot() {
     [localAgents, mintedKeys]
   );
 
-  const combinedTree = useMemo(() => mergeLocalPreviews(tree ?? [], localNodes), [tree, localNodes]);
+  const combinedTree = useMemo(
+    () => (activeKingdomName ? mergeLocalPreviews(tree ?? [], localNodes) : []),
+    [tree, localNodes, activeKingdomName]
+  );
   const directory = useMemo(() => flattenNamespace(combinedTree), [combinedTree]);
   const resolverIndex = useMemo(() => buildResolverIndex(combinedTree), [combinedTree]);
 
   // Chain data becomes plain map data here and nowhere else.
+  //
+  // `createEnsFortressSource` always plants a root castle labeled with whatever `rootName` it's
+  // given — it has no concept of "no kingdom yet". Falling back to `CONTRACTS.parentName` here
+  // would silently paint the fleet's showcase castle back onto a wallet's own empty map, exactly
+  // the "parentName as everyone's default kingdom" behavior this task removes. With no active
+  // kingdom, the map gets zero fortresses instead — terrain only, per the empty-state contract.
   const fortressPlan = useMemo(() => {
-    const source = createEnsFortressSource(combinedTree, CONTRACTS.parentName);
+    if (!activeKingdomName) return { fortresses: [], worldRadius: WORLD_RADIUS };
+    const source = createEnsFortressSource(combinedTree, activeKingdomName, undefined, isKingdomUnfinished);
     return { fortresses: source.loadFortresses(), worldRadius: source.requiredWorldRadius() };
-  }, [combinedTree]);
+  }, [combinedTree, activeKingdomName, isKingdomUnfinished]);
 
   useEffect(() => {
     syncFortresses(fortressPlan.fortresses, fortressPlan.worldRadius);
@@ -117,21 +225,47 @@ export default function WorldRoot() {
   // tree CTA, and the root chip in the sidebar — goes through this single
   // path, so they can never disagree about what "root" means.
   const openRootSpawn = useCallback(() => {
+    if (isReadOnly) return;
     selectFortress(null);
     setSpawnOpen(true);
-  }, [selectFortress, setSpawnOpen]);
+  }, [isReadOnly, selectFortress, setSpawnOpen]);
+
+  const openFoundKingdom = useCallback(() => {
+    if (isReadOnly) return;
+    selectFortress(null);
+    setFoundKingdomOpen(true);
+  }, [isReadOnly, selectFortress, setFoundKingdomOpen]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (spawnOpen) setSpawnOpen(false);
+      if (wizardOpen) setWizardOpen(false);
+      else if (foundKingdomOpen) setFoundKingdomOpen(false);
+      else if (spawnOpen) setSpawnOpen(false);
       else selectFortress(null);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [spawnOpen, setSpawnOpen, selectFortress]);
+  }, [wizardOpen, foundKingdomOpen, spawnOpen, setSpawnOpen, setFoundKingdomOpen, selectFortress]);
 
-  const isEmpty = !isLoading && !error && combinedTree.length === 0;
+  const emptyStateKind: EmptyStateKind | null =
+    isReadOnly || error
+      ? null
+      : !isConnected
+        ? "not-connected"
+        : ownedNames.length === 0
+          ? "no-name"
+          : !isLoading && combinedTree.length === 0
+            ? "no-agents"
+            : null;
+
+  const spawnDisabledReason = isReadOnly
+    ? "you don't own this kingdom"
+    : !activeKingdomName
+      ? "claim a kingdom first"
+      : isKingdomUnfinished
+        ? "found your kingdom first"
+        : null;
 
   return (
     <div className="fixed inset-0 h-dvh w-dvw overflow-hidden">
@@ -141,14 +275,36 @@ export default function WorldRoot() {
       <WorldHud />
       <BuildBar />
 
+      {isReadOnly && (
+        <ReadOnlyBanner kingdomName={showcaseKingdom} onExit={() => router.push("/")} />
+      )}
+
       {/* Wallet widget stacked above the dev-only debug panel — both anchor
           to the same corner, so they share one positioned container instead
           of two independent `absolute right-4 top-4` divs landing on top of
           each other. */}
       <div className="pointer-events-none absolute right-4 top-4 z-30 flex flex-col items-end gap-3">
-        <WalletHud />
+        <WalletHud ownedNames={ownedNames} selectedKingdom={selectedKingdom} onSelectKingdom={selectKingdom} />
         <DebugPanel className="pointer-events-none" />
       </div>
+
+      {emptyStateKind && (
+        <KingdomEmptyPlate
+          key={emptyStateKind}
+          kind={emptyStateKind}
+          isWrongNetwork={isWrongNetwork}
+          isSwitchingNetwork={isSwitching}
+          isKingdomUnfinished={isKingdomUnfinished}
+          onConnect={() => {
+            const connector = connectors[0];
+            if (connector) connect({ connector });
+          }}
+          onSwitchNetwork={() => switchChain({ chainId: sepolia.id })}
+          onClaimLand={handleClaimLand}
+          onSpawnFirst={openRootSpawn}
+          onFoundKingdom={openFoundKingdom}
+        />
+      )}
 
       {/* Lives directly above where the form itself opens (bottom-right), not
           next to the wallet button — the two are unrelated actions. Styled as
@@ -161,12 +317,14 @@ export default function WorldRoot() {
       <div className="pointer-events-none absolute bottom-6 right-4 z-30">
         <button
           type="button"
+          disabled={!!spawnDisabledReason}
           onClick={() => (spawnOpen ? setSpawnOpen(false) : openRootSpawn())}
-          title={spawnOpen ? undefined : `Spawn a new agent under ${CONTRACTS.parentName}`}
+          title={spawnOpen ? undefined : spawnDisabledReason ?? `Spawn a new agent under ${activeKingdomName}`}
           className={[
             "pointer-events-auto flex h-12 items-center justify-center gap-2 rounded-sm border-2 px-6",
             "font-serif text-sm font-bold uppercase tracking-[0.15em]",
             "transition-transform duration-100 hover:-translate-y-0.5 active:translate-y-[2px]",
+            "disabled:pointer-events-none disabled:opacity-50",
             spawnOpen
               ? "border-zinc-500 bg-gradient-to-b from-zinc-700 to-zinc-900 text-zinc-200 shadow-[0_4px_0_0_#111827,0_8px_14px_rgba(0,0,0,0.4)] active:shadow-[0_1px_0_0_#111827]"
               : "border-[#c9a15a] bg-gradient-to-b from-[#8e1f2b] to-[#4c0f16] text-[#f3e6c8] shadow-[0_4px_0_0_#3d0d13,0_8px_14px_rgba(0,0,0,0.45)] hover:border-[#e0bd7a] active:shadow-[0_1px_0_0_#3d0d13]",
@@ -189,12 +347,12 @@ export default function WorldRoot() {
         isFetching={isFetching}
         error={error}
         onRetry={() => refetch()}
-        isEmpty={isEmpty}
-        onSpawnFirst={openRootSpawn}
         onSpawnRoot={openRootSpawn}
+        kingdomName={activeKingdomName}
+        registry={activeKingdomRegistry ?? undefined}
       />
 
-      {spawnOpen && (
+      {spawnOpen && !isReadOnly && (
         // Centered modal, not a corner popup: this is the "type a name, sign
         // a tx" moment, the one action every other affordance (HUD button,
         // root chip, empty-tree CTA) funnels into — it shouldn't be tucked in
@@ -224,6 +382,8 @@ export default function WorldRoot() {
               // selected earlier. Spawning a *child* lives exclusively in
               // that child's own parent panel below.
               parent={null}
+              rootName={activeKingdomName ?? undefined}
+              rootRegistry={activeKingdomRegistry}
               onSpawnedLocally={(agent) => {
                 addLocalAgent(agent);
                 setSpawnOpen(false);
@@ -233,13 +393,26 @@ export default function WorldRoot() {
         </div>
       )}
 
+      <ClaimNameWizard open={wizardOpen} onClose={() => setWizardOpen(false)} onClaimed={handleClaimed} />
+
+      {activeKingdomName && activeTokenId !== null && (
+        <FoundKingdomWizard
+          open={foundKingdomOpen}
+          onClose={() => setFoundKingdomOpen(false)}
+          kingdomName={activeKingdomName}
+          tokenId={activeTokenId}
+          onFounded={handleFounded}
+        />
+      )}
+
       <AgentDetailPanel
         node={selectedNode}
         directory={directory}
         resolverIndex={resolverIndex}
         onClose={closePanel}
         onSelectChild={selectAgent}
-        onSpawnedLocally={addLocalAgent}
+        onSpawnedLocally={isReadOnly ? undefined : addLocalAgent}
+        readOnly={isReadOnly}
       />
     </div>
   );
@@ -255,9 +428,9 @@ function NamespaceSidebar({
   isFetching,
   error,
   onRetry,
-  isEmpty,
-  onSpawnFirst,
   onSpawnRoot,
+  kingdomName,
+  registry,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -268,9 +441,9 @@ function NamespaceSidebar({
   isFetching: boolean;
   error: Error | null;
   onRetry: () => void;
-  isEmpty: boolean;
-  onSpawnFirst: () => void;
   onSpawnRoot: () => void;
+  kingdomName: string | null;
+  registry?: `0x${string}`;
 }) {
   return (
     <>
@@ -310,25 +483,16 @@ function NamespaceSidebar({
           </div>
         )}
 
-        {isLoading && <p className="mb-4 text-xs text-zinc-400">Reading agent tree from Sepolia…</p>}
+        {isLoading && kingdomName && <p className="mb-4 text-xs text-zinc-400">Reading agent tree from Sepolia…</p>}
 
-        {isEmpty && (
-          <div className="mb-4 flex flex-col items-start gap-2 rounded-lg border border-white/15 bg-white/5 p-3 text-xs">
-            <p>
-              No agents under <span className="font-mono">{CONTRACTS.parentName}</span> yet — the map is empty
-              because the chain is.
-            </p>
-            <button
-              type="button"
-              onClick={onSpawnFirst}
-              className="rounded-md bg-white px-3 py-1 font-semibold text-black hover:bg-zinc-200"
-            >
-              Spawn the first agent
-            </button>
-          </div>
-        )}
-
-        <NamespaceTree nodes={nodes} selected={selected} onSelect={onSelect} onSpawnRoot={onSpawnRoot} />
+        <NamespaceTree
+          nodes={nodes}
+          selected={selected}
+          onSelect={onSelect}
+          onSpawnRoot={onSpawnRoot}
+          kingdomName={kingdomName ?? undefined}
+          registry={registry}
+        />
       </aside>
     </>
   );

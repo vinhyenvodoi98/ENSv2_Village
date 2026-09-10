@@ -46,12 +46,19 @@ export function SpawnAgentForm({
   onSpawnedLocally,
   parent,
   onPromoteParent,
+  rootName,
+  rootRegistry,
 }: {
   onSpawnedLocally: (agent: LocalWildcardAgent) => void;
-  /// Spawn as a child of this agent. Omitted = spawn at the root, on the fleet registry.
+  /// Spawn as a child of this agent. Omitted = spawn at the root, into `rootRegistry`.
   parent?: NamespaceNode | null;
   /// Opens the parent's own detail panel, where `promote` lives — the way out of a blocked spawn.
   onPromoteParent?: () => void;
+  /// Task 31: which kingdom a *root* spawn (`parent` omitted) targets — the caller's currently
+  /// active kingdom, not a hardcoded default. Falls back to the fleet's own name/registry so
+  /// other embeddings that don't pass these keep working unchanged.
+  rootName?: string;
+  rootRegistry?: `0x${string}` | null;
 }) {
   const { address: connected } = useAccount();
   const [label, setLabel] = useState("");
@@ -66,9 +73,19 @@ export function SpawnAgentForm({
     setRevealedPrivateKey(pk);
   }
 
-  const parentBlock = parent ? describeParentBlock(parent) : null;
-  const targetRegistry = parent ? parent.subregistry : CONTRACTS.agentRegistry;
-  const parentName = parent ? parent.fullName : CONTRACTS.parentName;
+  const effectiveRootName = rootName ?? CONTRACTS.parentName;
+  const effectiveRootRegistry = rootRegistry ?? CONTRACTS.agentRegistry;
+
+  // A freshly claimed kingdom (task 31) has no `AgentRegistry` of its own until task 32 wires
+  // one up — `spawn`ing into it (even the free Wildcard tier, which still needs a real registry
+  // address to eventually mint into) has nowhere real to go until then.
+  const parentBlock = parent
+    ? describeParentBlock(parent)
+    : !effectiveRootRegistry || effectiveRootRegistry === zeroAddress
+      ? "this kingdom has no agent registry wired up yet — that's the next step after claiming land."
+      : null;
+  const targetRegistry = parent ? parent.subregistry : effectiveRootRegistry;
+  const parentName = parent ? parent.fullName : effectiveRootName;
 
   const trimmedLabel = label.trim();
   const validAgentKey = tier === "Wildcard" || isAddress(agentKey);
@@ -143,7 +160,7 @@ export function SpawnAgentForm({
         {parentBlock && (
           <div className="flex flex-col items-start gap-2 rounded-sm border border-[#8e1f2b]/50 bg-[#f3d9c4] px-3 py-2 text-xs text-[#6e2333]">
             <p>
-              <strong>Can&apos;t spawn under {parent?.label}</strong> — {parentBlock}
+              <strong>Can&apos;t spawn under {parent ? parent.label : parentName}</strong> — {parentBlock}
             </p>
             {onPromoteParent && parent && !parent.isLocalPreview && (
               <button

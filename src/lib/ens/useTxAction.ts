@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { BaseError, ContractFunctionRevertedError } from "viem";
-import { useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useDeployContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 
 export type TxState = "idle" | "signing" | "confirming" | "confirmed" | "failed";
 
@@ -55,6 +55,63 @@ export function useTxAction() {
   }, [resetWrite]);
 
   return { send, reset, state, txHash, error };
+}
+
+/// Task 32's found-a-kingdom flow deploys its own contracts (`AgentRegistry`,
+/// `WildcardStateStore`, `WildcardResolver`) straight from the connected wallet — `useTxAction`
+/// can't cover that (it's built on `useWriteContract`, which calls an existing address, not
+/// `useDeployContract`). Same status shape as `useTxAction` so `<TxStatus>` and the rest of the
+/// disabled/reason plumbing work unchanged; the one addition is `contractAddress`, read off the
+/// deployment receipt once it confirms.
+export function useDeployAction() {
+  const { deployContractAsync } = useDeployContract();
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [signError, setSignError] = useState<string | null>(null);
+
+  const receipt = useWaitForTransactionReceipt({ hash: txHash });
+
+  const { state, error } = deriveState(phase, signError, {
+    status: receipt.data?.status,
+    isError: receipt.isError,
+    error: receipt.error,
+  });
+
+  const deploy = useCallback(
+    async (config: Parameters<typeof deployContractAsync>[0]) => {
+      setPhase("signing");
+      setSignError(null);
+      try {
+        const hash = await deployContractAsync(config);
+        setTxHash(hash);
+        setPhase("sent");
+        return hash;
+      } catch (err) {
+        setPhase("signFailed");
+        setSignError(describeError(err));
+        throw err;
+      }
+    },
+    [deployContractAsync]
+  );
+
+  const reset = useCallback(() => {
+    setTxHash(undefined);
+    setPhase("idle");
+    setSignError(null);
+  }, []);
+
+  return { deploy, reset, state, txHash, error, contractAddress: receipt.data?.contractAddress ?? null };
+}
+
+/// Recovers a deployed contract's address from a **persisted** tx hash — the piece
+/// `useDeployAction` alone can't do after a reload, since a fresh instance's own `txHash` state
+/// starts at `undefined` and knows nothing about a deploy sent in an earlier session. Mirrors task
+/// 31's commit-recovery pattern: the hash is the durable record, the address is always
+/// re-derived from its receipt rather than cached separately.
+export function useDeployedContractAddress(txHash: `0x${string}` | undefined) {
+  const receipt = useWaitForTransactionReceipt({ hash: txHash });
+  return { address: receipt.data?.contractAddress ?? null, isLoading: receipt.isLoading, isError: receipt.isError };
 }
 
 function deriveState(

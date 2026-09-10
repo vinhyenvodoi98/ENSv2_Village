@@ -26,6 +26,7 @@ export function AgentDetailPanel({
   onClose,
   onSelectChild,
   onSpawnedLocally,
+  readOnly,
 }: {
   node: NamespaceNode | null;
   directory: Map<string, NamespaceNode>;
@@ -35,6 +36,10 @@ export function AgentDetailPanel({
   /// Task 29: spawning a child *from the selected agent* lives in this panel, so the parent is
   /// never ambiguous. Omit to hide the section (e.g. a read-only embedding).
   onSpawnedLocally?: (agent: LocalWildcardAgent) => void;
+  /// Task 31's showcase-kingdom viewer: every write control below (lifecycle actions,
+  /// permissions) is disabled with a visible reason rather than silently missing — a viewer
+  /// must never discover this isn't their kingdom only when a click does nothing.
+  readOnly?: boolean;
 }) {
   return (
     <>
@@ -108,11 +113,19 @@ export function AgentDetailPanel({
               <LadderProgress node={node} />
             </Section>
 
-            <Section title="Lifecycle">
-              <LifecycleActions node={node} />
-            </Section>
+            {readOnly && (
+              <p className="rounded-md border border-red-400/40 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-300">
+                Read-only — you don&apos;t own this kingdom, so nothing below can be changed.
+              </p>
+            )}
 
-            {onSpawnedLocally && (
+            <div className={readOnly ? "pointer-events-none opacity-50" : undefined}>
+              <Section title="Lifecycle">
+                <LifecycleActions node={node} />
+              </Section>
+            </div>
+
+            {onSpawnedLocally && !readOnly && (
               <Section title="Spawn child agent">
                 {/* Sits directly under "Lifecycle" on purpose: when this agent
                     isn't Sovereign yet the form blocks and points at promote,
@@ -126,11 +139,13 @@ export function AgentDetailPanel({
             </Section>
 
             {!node.isLocalPreview && node.resolver !== zeroAddress && (
-              <Section title="Permissions (EACL)">
-                <PermissionMatrix node={node} />
-                <EscalationButton node={node} />
-                <DelegatePanel node={node} />
-              </Section>
+              <div className={readOnly ? "pointer-events-none opacity-50" : undefined}>
+                <Section title="Permissions (EACL)">
+                  <PermissionMatrix node={node} />
+                  <EscalationButton node={node} />
+                  <DelegatePanel node={node} />
+                </Section>
+              </div>
             )}
 
             {node.tier === "Sovereign" && (

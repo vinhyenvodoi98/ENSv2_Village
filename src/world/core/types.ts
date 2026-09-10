@@ -37,6 +37,9 @@ export interface FortressEntity {
   isLocalPreview?: boolean;
   /** Revoked on-chain, or an expired `Leased` node — rendered derelict, never removed. */
   derelict: boolean;
+  /** Task 32: the root castle only — claimed but no `AgentRegistry` wired to it yet, so there's
+   *  nowhere for a real `spawn` to go until "Found your kingdom" runs. */
+  unfinished?: boolean;
 }
 
 export interface Road {
