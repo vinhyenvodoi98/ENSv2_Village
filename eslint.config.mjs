@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored upstream submodule (`.gitmodules`) — not our code, not covered by our lint rules.
+    "contracts/lib/**",
   ]),
 ]);
 

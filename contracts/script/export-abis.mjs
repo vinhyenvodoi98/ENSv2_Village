@@ -23,6 +23,11 @@ const artifacts = {
   // findOwner/findRegistries/etc) — `UniversalResolverV2` implements both.
   universalResolverAbi: "IUniversalResolver.sol/IUniversalResolver.json",
   enhancedAccessControlAbi: "IEnhancedAccessControl.sol/IEnhancedAccessControl.json",
+  // Registration flow against the hackathon `ETHRegistrar` (task 30/31) — includes
+  // MIN_COMMITMENT_AGE/MAX_COMMITMENT_AGE getters so the UI reads them instead of hardcoding.
+  ethRegistrarAbi: "IETHRegistrarWithConstants.sol/IETHRegistrarWithConstants.json",
+  // Minimal mintable-ERC20 surface for the hackathon `MockUSDC` payment token.
+  erc20Abi: "IMockERC20.sol/IMockERC20.json",
 };
 
 let out = [

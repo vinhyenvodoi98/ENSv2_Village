@@ -5,3 +5,8 @@ pragma solidity ^0.8.28;
 // their ABI in `contracts/out/`, for `contracts/script/export-abis.mjs` (task 10) to pick up.
 // Nothing else in this repo happens to import `resolve(bytes,bytes)`'s real interface directly.
 import {IUniversalResolver} from "@ens/contracts/universalResolver/IUniversalResolver.sol";
+
+// Registration-flow interfaces for the frontend (task 30/31) — same reasoning: nothing calls
+// these directly from Solidity, they only need to exist in `contracts/out/` for ABI export.
+import {IETHRegistrarWithConstants} from "../src/IETHRegistrarWithConstants.sol";
+import {IMockERC20} from "../src/IMockERC20.sol";

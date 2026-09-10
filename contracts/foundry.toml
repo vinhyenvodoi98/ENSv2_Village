@@ -16,6 +16,7 @@ remappings = [
 
 fs_permissions = [
     { access = "read-write", path = "../src/lib/contracts" },
+    { access = "read-write", path = "deployments" },
 ]
 
 [rpc_endpoints]
