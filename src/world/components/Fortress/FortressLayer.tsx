@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { coordKey, ring } from "@/world/core/hex";
-import { FORTRESS_BUILD_DISTANCE, HEX_HEIGHT } from "@/world/config/world.config";
+import { FORTRESS_BUILD_DISTANCE, HEX_HEIGHT, ROOT_ENS_KEY } from "@/world/config/world.config";
 import { medievalTheme } from "@/world/config/theme";
 import { useWorldStore } from "@/world/state/useWorldStore";
 import { selectFortressList, selectHoveredCoord, selectHoveredTile, selectMode } from "@/world/state/selectors";
@@ -84,7 +84,9 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
             height={HEX_HEIGHT + (tile?.height ?? 0)}
             kitId={kitId}
             theme={theme}
-            onClick={() => selectFortress(fortress.ensKey)}
+            // The root castle is the fleet's own ENS name, not a namespace
+            // node — there's no agent record for it to open a detail panel on.
+            onClick={fortress.ensKey === ROOT_ENS_KEY ? undefined : () => selectFortress(fortress.ensKey)}
           />
         );
       })}

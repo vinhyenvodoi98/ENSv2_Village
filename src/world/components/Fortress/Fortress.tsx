@@ -163,7 +163,6 @@ export function Fortress({
       ))}
       {displayName ? (
         <FortressNameplate
-          name={displayName}
           fullName={fullName ?? displayName}
           tier={tier}
           derelict={derelict}

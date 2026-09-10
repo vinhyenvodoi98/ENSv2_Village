@@ -93,7 +93,7 @@ export default function WorldRoot() {
 
   // Chain data becomes plain map data here and nowhere else.
   const fortressPlan = useMemo(() => {
-    const source = createEnsFortressSource(combinedTree);
+    const source = createEnsFortressSource(combinedTree, CONTRACTS.parentName);
     return { fortresses: source.loadFortresses(), worldRadius: source.requiredWorldRadius() };
   }, [combinedTree]);
 
@@ -224,7 +224,7 @@ function NamespaceSidebar({
         aria-expanded={open}
         className="pointer-events-auto absolute left-4 top-4 z-30 rounded-full bg-black/60 px-4 py-2 text-sm font-semibold text-white backdrop-blur hover:bg-black/75"
       >
-        {open ? "Hide namespace" : `Namespace (${nodes.length})`}
+        {open ? "Hide agents" : `Agents (${nodes.length})`}
       </button>
 
       {/* The list view is not decoration: it's the way through when the tree
@@ -239,7 +239,7 @@ function NamespaceSidebar({
         {error && (
           <div className="mb-4 flex flex-col items-start gap-2 rounded-lg border border-red-500/40 bg-red-950/50 p-3 text-xs">
             <p>
-              <strong>Couldn&apos;t read the namespace from Sepolia.</strong> The map below shows terrain only —
+              <strong>Couldn&apos;t read the agent tree from Sepolia.</strong> The map below shows terrain only —
               it is <em>not</em> an empty fleet.
             </p>
             <p className="font-mono text-[11px] text-red-300">{error.message}</p>

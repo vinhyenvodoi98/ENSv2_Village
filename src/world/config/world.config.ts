@@ -16,6 +16,15 @@ export const WORLD_RADIUS = 6;
 export const FORTRESS_BUILD_DISTANCE = 2;
 
 /**
+ * `ensKey` of the synthetic castle for the fleet's own ENS name (e.g. `agentvillage.eth`),
+ * seeded at the origin by `ensWorldSource.ts` — not a `NamespaceNode` (nothing was ever
+ * `spawn`ed to create it), but every depth-0 agent roads into it. Lives here rather than in
+ * the adapter so render-loop components (`FortressLayer`) can reference it without importing
+ * `src/world/adapters/ensWorldSource.ts`, which pulls in `@/lib/ens` (wagmi) at module scope.
+ */
+export const ROOT_ENS_KEY = "root";
+
+/**
  * Rules for projecting the ENS namespace onto the hex field (task 29). Every
  * value here feeds a *deterministic* placement keyed by labelhash — nothing in
  * the layout may depend on array order, event order, or wall-clock time, or a
@@ -197,7 +206,9 @@ export const WEATHER = {
   cloudWidthScale: 1.16,
   cloudVerticalScale: 0.64,
   cloudHeight: 7.5,
-  cloudBaseOpacity: 0.22,
+  cloudBaseOpacity: 0.12,
+  /** Prevents overlapping puffs from becoming an opaque screen over the playable map. */
+  cloudMaxOpacity: 0.26,
   /** World units/second the cloud volumes drift, wrapping at the map bounds. */
   windVector: [0.5, 0, 0.2] as [number, number, number],
   /** Horizontal +/- bound clouds wrap at — kept inside every theme's fog-far so the teleport is hidden in haze rather than popping in view. */

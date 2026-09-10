@@ -1,7 +1,7 @@
 import { AGENT_TIERS, type NamespaceNode } from "@/lib/ens";
 import { coordKey, distance, ring } from "../core/hex";
 import { hashString } from "../core/rng";
-import { FORTRESS_BUILD_DISTANCE, LAYOUT, WORLD_RADIUS } from "../config/world.config";
+import { FORTRESS_BUILD_DISTANCE, LAYOUT, ROOT_ENS_KEY, WORLD_RADIUS } from "../config/world.config";
 import type { AxialCoord, FortressEntity } from "../core/types";
 import type { FortressSource } from "./types";
 
@@ -97,6 +97,7 @@ function comparePending(a: PendingNode, b: PendingNode): number {
  */
 export function createEnsFortressSource(
   roots: NamespaceNode[],
+  rootName: string,
   nowSeconds: number = Date.now() / 1000
 ): FortressSource {
   let cache: FortressEntity[] | null = null;
@@ -107,10 +108,29 @@ export function createEnsFortressSource(
     const occupied = new Set<string>();
     const placed: AxialCoord[] = [];
 
-    return pending.map(({ node, ensKey, parentEnsKey }) => {
-      const parentCoord = parentEnsKey ? coordByKey.get(parentEnsKey) : undefined;
+    // The fleet's own name sits at the origin, occupying the hex the ring
+    // layout would otherwise hand to a depth-0 agent — every depth-0 agent
+    // roads into it below.
+    coordByKey.set(ROOT_ENS_KEY, ORIGIN);
+    occupied.add(coordKey(ORIGIN));
+    placed.push(ORIGIN);
+
+    const rootFortress: FortressEntity = {
+      ensKey: ROOT_ENS_KEY,
+      coord: ORIGIN,
+      name: rootName,
+      fullName: rootName,
+      // Grandest preset on the ladder — this castle is the namespace itself,
+      // not a promotable agent, so it has no separate tier of its own.
+      tier: Math.max(0, AGENT_TIERS.length - 1),
+      parentEnsKey: null,
+      derelict: false,
+    };
+
+    const fortresses = pending.map(({ node, ensKey, parentEnsKey }) => {
+      const parentCoord = parentEnsKey ? coordByKey.get(parentEnsKey) : coordByKey.get(ROOT_ENS_KEY);
       const base = parentCoord ?? ORIGIN;
-      const preferredRadius = parentCoord ? LAYOUT.childRingRadius : LAYOUT.rootRingRadius;
+      const preferredRadius = parentEnsKey ? LAYOUT.childRingRadius : LAYOUT.rootRingRadius;
       const coord = probeCoord(base, preferredRadius, node.labelhash, placed, occupied);
 
       coordByKey.set(ensKey, coord);
@@ -123,14 +143,17 @@ export function createEnsFortressSource(
         name: node.label,
         fullName: node.fullName,
         tier: Math.max(0, AGENT_TIERS.indexOf(node.tier)),
-        // A node whose parent was itself dropped (shouldn't happen — the tree
-        // is walked top-down) falls back to a root-ring castle rather than a
+        // Every depth-0 agent roads straight into the root castle; a deeper
+        // node whose parent was itself dropped (shouldn't happen — the tree
+        // is walked top-down) falls back to the root too, rather than a
         // dangling road to nowhere.
-        parentEnsKey: parentCoord ? parentEnsKey : null,
+        parentEnsKey: parentEnsKey ?? ROOT_ENS_KEY,
         isLocalPreview: node.isLocalPreview,
         derelict: isDerelict(node, nowSeconds),
       } satisfies FortressEntity;
     });
+
+    return [rootFortress, ...fortresses];
   }
 
   return {

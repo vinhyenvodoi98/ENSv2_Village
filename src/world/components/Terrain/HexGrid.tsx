@@ -62,7 +62,14 @@ export function HexGrid({ theme = medievalTheme }: HexGridProps) {
 
   return (
     <>
-      <TileInstances tiles={tiles} theme={theme} />
+      {/* Keyed by count: drei's `Instances` sizes its instance buffers once,
+          from `limit`, and doesn't resize them if the tile count changes on a
+          later render (the radius grows once the namespace loads) — writing
+          more instances than that first buffer allocated corrupts the draw
+          silently (a `bufferSubData` GL error, no thrown exception) and the
+          whole hex field vanishes. Forcing a remount on count change throws
+          the stale buffer away instead of writing past its end. */}
+      <TileInstances key={tiles.length} tiles={tiles} theme={theme} />
       <HoveredTileHighlight theme={theme} />
     </>
   );

@@ -5,9 +5,7 @@ import { AGENT_TIER_ORDER, TIER_STYLE } from "@/lib/ens/tierStyles";
 import styles from "./FortressNameplate.module.css";
 
 interface FortressNameplateProps {
-  /** Short ENS label. */
-  name: string;
-  /** Dotted ENS name, surfaced as the hover tooltip. */
+  /** Dotted ENS name — shown in full on the plate (wraps rather than truncates) and in the hover tooltip. */
   fullName: string;
   /** `AGENT_TIERS` index. */
   tier: number;
@@ -23,8 +21,13 @@ interface FortressNameplateProps {
  * shows the whole ownership ladder at once — `TIER_STYLE` is imported (not
  * re-derived) so the map and the sidebar can never drift apart. That module is
  * plain constants; no wagmi/viem reaches the render loop through it.
+ *
+ * Shows the full dotted `fullName`, not just the short label — a `Sovereign`
+ * child's name only means something with its parent chain attached (e.g.
+ * `sentinel-01.agentvillage.eth`), so truncating it would hide the one thing
+ * the plate exists to show. The plate wraps onto a second line instead.
  */
-export function FortressNameplate({ name, fullName, tier, derelict = false, note, positionY }: FortressNameplateProps) {
+export function FortressNameplate({ fullName, tier, derelict = false, note, positionY }: FortressNameplateProps) {
   const tierName = AGENT_TIER_ORDER[Math.min(Math.max(tier, 0), AGENT_TIER_ORDER.length - 1)];
   const style = TIER_STYLE[tierName];
 
@@ -45,7 +48,7 @@ export function FortressNameplate({ name, fullName, tier, derelict = false, note
         <span className={styles.tier} style={{ color: style.pulseColor }} aria-hidden>
           {style.glyph}
         </span>
-        <span className={styles.label}>{name}</span>
+        <span className={styles.label}>{fullName}</span>
         {note ? <div className={styles.note}>{note}</div> : null}
       </div>
     </Html>

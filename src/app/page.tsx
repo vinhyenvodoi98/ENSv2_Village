@@ -3,7 +3,7 @@ import WorldRoot from "./WorldRoot";
 
 export const metadata: Metadata = {
   title: "AgentVillage",
-  description: "The live ENSv2 agent namespace, as a world map read straight off Sepolia.",
+  description: "The live ENSv2 agent tree, as a world map read straight off Sepolia.",
 };
 
 /**

@@ -121,7 +121,10 @@ export function Clouds({ theme = medievalTheme }: CloudsProps) {
     const [windX, , windZ] = WEATHER.windVector;
 
     const meshMaterial = mesh.material as MeshStandardMaterial;
-    meshMaterial.opacity = useWorldStore.getState().weatherRender.cloudOpacity;
+    meshMaterial.opacity = Math.min(
+      useWorldStore.getState().weatherRender.cloudOpacity,
+      WEATHER.cloudMaxOpacity
+    );
 
     for (let i = 0; i < puffs.length; i++) {
       const puff = puffs[i];

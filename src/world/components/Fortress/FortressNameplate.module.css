@@ -6,6 +6,7 @@
 .plate {
   position: relative;
   min-width: 124px;
+  max-width: 200px;
   padding: 8px 16px 9px;
   border: 2px solid #d9bd78;
   border-radius: 7px;
@@ -28,16 +29,15 @@
   white-space: nowrap;
 }
 
-/* A long ENS label truncates inside the plate rather than stretching the
-   billboard into the next castle. The full name lives in the `title` tooltip
-   and the detail panel. */
+/* The full dotted ENS name wraps onto extra lines inside the plate rather
+   than stretching the billboard sideways into the next castle or truncating
+   the one thing the plate exists to show. */
 .label {
   display: inline-block;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 150px;
+  overflow-wrap: break-word;
   vertical-align: middle;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 /* Tier glyph, in the same colour scale `TierBadge` uses in the DOM UI, so a
