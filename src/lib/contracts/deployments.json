@@ -5,6 +5,7 @@
   "deployBlock": 11674973,
   "deployment": "hackathon",
   "ethRegistrar": "0x7d1B7f586a62Ac3F54b9A396849757814283270b",
+  "ethRegistrarFirstBlock": 11635740,
   "ethRegistry": "0x1D78834d97c1D7b1A38c1deDBD1a287cFEd3971e",
   "mockUsdc": "0xcBFD80F74375c54E545AF34788Ff465F96F66F05",
   "parentName": "agentvillage.eth",

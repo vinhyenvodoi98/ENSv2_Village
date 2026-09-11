@@ -4,6 +4,8 @@
   "rootRegistry": "0xe7f0d5724f8337e3aa9a9910540341ff4273fed9",
   "ethRegistry": "0x1d78834d97c1d7b1a38c1dedbd1a287cfed3971e",
   "ethRegistrar": "0x7d1b7f586a62ac3f54b9a396849757814283270b",
+  "_ethRegistrarFirstBlockComment": "Earliest block that can contain a NameRegistered event from ethRegistrar — the floor for any \"which names does this address own\" scan (task 33). Found by scanning the registrar's NameRegistered logs backwards from head in 50k-block windows until six consecutive empty windows; 11635740 is its first registration. NOT the same as deployments.json's deployBlock, which is when AgentVillage's own contracts went up — agentvillage.eth was registered three blocks before that, so a deployBlock floor hid it.",
+  "ethRegistrarFirstBlock": 11635740,
   "managedUniversalResolverProxy": "0x1abed09f1f36383f27cf0b3a5e0ea1738e1fd921",
   "upgradableUniversalResolverProxy": "0xd26f2040d083af1cd2962ba303f4bea0c4faf142",
   "universalResolverV2": "0xfea8d4b7fcce0b8765c793d6695eac384aaa458f",

@@ -9,6 +9,11 @@ export const CONTRACTS = {
   deployBlock: BigInt(deployments.deployBlock),
   ethRegistry: deployments.ethRegistry as `0x${string}`,
   ethRegistrar: deployments.ethRegistrar as `0x${string}`,
+  /// Earliest block that can hold a `NameRegistered` event from `ethRegistrar` — the floor for any
+  /// "which names does this address own" scan. Deliberately *not* `deployBlock`: the registrar
+  /// predates AgentVillage's own contracts, and `agentvillage.eth` was registered three blocks
+  /// before them, so scanning from `deployBlock` hid it.
+  ethRegistrarFirstBlock: BigInt(deployments.ethRegistrarFirstBlock),
   rootRegistry: deployments.rootRegistry as `0x${string}`,
   verifiableFactory: deployments.verifiableFactory as `0x${string}`,
   mockUsdc: deployments.mockUsdc as `0x${string}`,

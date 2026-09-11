@@ -1,6 +1,7 @@
 import { usePublicClient } from "wagmi";
 import { ethRegistrarAbi, ethRegistryAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
+import { fetchContractEventsChunked } from "./logs";
 import { useBlockGatedQuery } from "./query";
 
 export type OwnedEthName = {
@@ -26,12 +27,17 @@ export function useOwnedEthNames(owner: `0x${string}` | undefined) {
     async () => {
       if (!publicClient || !owner) throw new Error("useOwnedEthNames: missing publicClient/owner");
 
-      const logs = await publicClient.getContractEvents({
+      // Scanned from the *registrar's* first block, not AgentVillage's `deployBlock`: the two are
+      // unrelated, and `agentvillage.eth` itself was registered three blocks *before* the fleet was
+      // deployed — so a `deployBlock` floor silently hid the project's own name from its owner. The
+      // range is chunked because it long since outgrew what one `eth_getLogs` call may span.
+      const logs = await fetchContractEventsChunked({
+        publicClient,
         address: CONTRACTS.ethRegistrar,
         abi: ethRegistrarAbi,
         eventName: "NameRegistered",
-        fromBlock: CONTRACTS.deployBlock,
-        toBlock: "latest",
+        fromBlock: CONTRACTS.ethRegistrarFirstBlock,
+        toBlock: await publicClient.getBlockNumber(),
       });
 
       const labelByTokenId = new Map<bigint, string>();

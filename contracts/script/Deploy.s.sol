@@ -73,6 +73,7 @@ contract Deploy is Script {
         address verifiableFactory;
         address mockUsdc;
         address universalResolver;
+        uint256 ethRegistrarFirstBlock;
     }
 
     /// @dev ENS-side hackathon addresses (task 30) live in
@@ -89,7 +90,11 @@ contract Deploy is Script {
             rootRegistry: vm.parseJsonAddress(j, ".rootRegistry"),
             verifiableFactory: vm.parseJsonAddress(j, ".verifiableFactory"),
             mockUsdc: vm.parseJsonAddress(j, ".mockUsdc"),
-            universalResolver: vm.parseJsonAddress(j, ".upgradableUniversalResolverProxy")
+            universalResolver: vm.parseJsonAddress(j, ".upgradableUniversalResolverProxy"),
+            // Not an address, but the same kind of fact: an ENS-side constant this repo must not
+            // hardcode twice. The frontend floors its "names owned by" log scan here, because the
+            // registrar predates our own `deployBlock` (see the comment in hackathon.json).
+            ethRegistrarFirstBlock: vm.parseJsonUint(j, ".ethRegistrarFirstBlock")
         });
     }
 
@@ -110,6 +115,7 @@ contract Deploy is Script {
         vm.serializeUint(json, "deployBlock", block.number);
         vm.serializeAddress(json, "ethRegistry", ens.ethRegistry);
         vm.serializeAddress(json, "ethRegistrar", ens.ethRegistrar);
+        vm.serializeUint(json, "ethRegistrarFirstBlock", ens.ethRegistrarFirstBlock);
         vm.serializeAddress(json, "rootRegistry", ens.rootRegistry);
         vm.serializeAddress(json, "verifiableFactory", ens.verifiableFactory);
         vm.serializeAddress(json, "mockUsdc", ens.mockUsdc);

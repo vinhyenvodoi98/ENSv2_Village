@@ -40,3 +40,54 @@ export {
   type RecordKeyKind,
 } from "./permissions";
 export { useBlockGatedQuery } from "./query";
+export { fetchContractEventsChunked } from "./logs";
+
+// Task 33 — ENSv2 control panel read layer. Deliberately free of AgentVillage's own
+// `AgentRegistry` tier ladder: everything below maps one-to-one onto a function ENSv2 itself
+// exposes (`IRegistry`, `IPermissionedRegistry`, `IEnhancedAccessControl`, `IUniversalResolver`).
+//
+// Re-exported here for discoverability, but the control-panel routes import these from their own
+// modules directly rather than through this barrel: pulling in `@/lib/ens` would drag the whole
+// agent/tier/heartbeat stack into `/ens`'s module graph, which task 33 explicitly rules out.
+export {
+  useEnsName,
+  useEnsNameRoles,
+  NAME_STATUS,
+  type EnsNameState,
+  type EnsNameRoles,
+  type NameStatus,
+  type RegistryHop,
+} from "./useEnsName";
+export {
+  fetchReverseName,
+  useReverseName,
+  ETH_COIN_TYPE,
+  REVERSE_COIN_TYPE,
+  type ReverseName,
+} from "./useReverseName";
+export {
+  addressPath,
+  ensPath,
+  labelhash,
+  leafLabel,
+  nameNode,
+  normalizeName,
+  parentName,
+  parseSearchInput,
+  splitLabels,
+  type SearchTarget,
+} from "./name";
+export {
+  ADMIN_ROLE_SHIFT,
+  REGISTRY_ROLES,
+  RESOLVER_ROLES,
+  ROOT_RESOURCE,
+  decodeRoles,
+  hasRoleBit,
+  heldRoles,
+  resolverResource,
+  roleBit,
+  type DecodedRole,
+  type EnsRoleDef,
+  type EnsRoleScope,
+} from "./registryRoles";

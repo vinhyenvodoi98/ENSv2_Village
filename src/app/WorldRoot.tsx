@@ -7,6 +7,7 @@ import { zeroAddress } from "viem";
 import { useAccount, useConnect, useSwitchChain } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { WalletHud } from "@/components/wallet/WalletHud";
+import { NameSearchBox } from "@/components/control/NameSearchBox";
 import { NamespaceTree } from "@/components/tree/NamespaceTree";
 import type { SelectedAgent } from "@/components/tree/AgentSubtree";
 import { AgentDetailPanel } from "@/components/detail/AgentDetailPanel";
@@ -274,6 +275,17 @@ export default function WorldRoot() {
       <WorldCanvas />
       <WorldHud />
       <BuildBar />
+
+      {/* Task 33's `/ens` + `/address` control panel, reachable from the world map itself: `0x` +
+          40 hex resolves through `UniversalResolver.reverse` and either redirects to the one name
+          it found or falls through to the address's portfolio; anything else is treated as a name
+          and opens `/ens/[name]` directly. Lives here, not in `src/world/ui/` — that tree never
+          imports wagmi/viem (task 29), and this bar reads the chain to resolve the address case. */}
+      <div className="pointer-events-none absolute inset-x-0 top-20 z-20 flex justify-center px-4">
+        <div className="pointer-events-auto w-full max-w-md">
+          <NameSearchBox />
+        </div>
+      </div>
 
       {isReadOnly && (
         <ReadOnlyBanner kingdomName={showcaseKingdom} onExit={() => router.push("/")} />
