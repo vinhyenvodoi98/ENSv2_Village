@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { NameControlPanel } from "@/components/control/NameControlPanel";
+import { NameWorldPanel } from "@/components/control/NameWorldPanel";
 import { normalizeName } from "@/lib/ens/name";
 
 /// The canonical route for one ENSv2 name. Settled in task 33's routing design: **the name is the
@@ -18,5 +18,5 @@ export async function generateMetadata(props: PageProps<"/ens/[name]">): Promise
 
 export default async function EnsNamePage(props: PageProps<"/ens/[name]">) {
   const { name } = await props.params;
-  return <NameControlPanel name={normalizeName(decodeURIComponent(name))} />;
+  return <NameWorldPanel name={normalizeName(decodeURIComponent(name))} />;
 }

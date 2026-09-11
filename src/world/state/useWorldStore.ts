@@ -23,7 +23,12 @@ export type PresetName = keyof typeof presets;
  * The two build paths must never both be live on one screen — that was the
  * "two ways to create a castle" problem task 29 exists to remove.
  */
-export type WorldMode = "ens" | "sandbox";
+/// `"control-panel"` (task 34): `/ens/[name]` and `/address/[addr]` render on the same map/store as
+/// `"ens"` (the `/` root), but read from the ENSv2-only adapter (`ensControlWorldSource.ts`) instead
+/// of the AgentRegistry-tree one, and have no spawn/build flow of their own — a separate mode so
+/// switching into or out of it always wipes the previous page's castles (`setMode` below), and so
+/// `HexGrid`'s empty-ground click message can say something that's actually true here.
+export type WorldMode = "ens" | "sandbox" | "control-panel";
 
 /** Live-tunable knobs exposed by the dev-only debug panel. */
 export interface DebugSettings {

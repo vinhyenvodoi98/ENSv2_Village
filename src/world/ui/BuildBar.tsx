@@ -15,6 +15,9 @@ const SANDBOX_HINT = `Click a glowing hex ${FORTRESS_BUILD_DISTANCE} tiles from 
  * that castle) and the "New root agent" HUD button (spawns at the root).
  */
 const ENS_HINT = "Click a castle to inspect it and spawn children from its panel.";
+/** Task 34: the control panel is read-only — clicking a castle opens its ENSv2 state, never a
+ *  spawn form. */
+const CONTROL_PANEL_HINT = "Click a castle to see its owner, expiry, resolver and roles.";
 
 /** Bottom bar showing build hints, and why a click was rejected. */
 export function BuildBar() {
@@ -35,7 +38,7 @@ export function BuildBar() {
           message ? "bg-red-900/70" : "bg-black/40"
         }`}
       >
-        {message ?? (mode === "sandbox" ? SANDBOX_HINT : ENS_HINT)}
+        {message ?? (mode === "sandbox" ? SANDBOX_HINT : mode === "control-panel" ? CONTROL_PANEL_HINT : ENS_HINT)}
       </div>
     </div>
   );

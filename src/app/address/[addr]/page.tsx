@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AddressPortfolio } from "@/components/control/AddressPortfolio";
+import { AddressWorldPanel } from "@/components/control/AddressWorldPanel";
 
 /// An **index** of the names an address currently owns — deliberately not a detail page for any of
 /// them (task 33: the address is a portfolio). Each row links into `/ens/[name]`, which is where a
@@ -16,5 +16,5 @@ export async function generateMetadata(props: PageProps<"/address/[addr]">): Pro
 export default async function AddressPage(props: PageProps<"/address/[addr]">) {
   const { addr } = await props.params;
   if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) notFound();
-  return <AddressPortfolio address={addr.toLowerCase() as `0x${string}`} />;
+  return <AddressWorldPanel address={addr.toLowerCase() as `0x${string}`} />;
 }

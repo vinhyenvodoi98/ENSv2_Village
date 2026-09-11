@@ -14,6 +14,10 @@ export const CONTRACTS = {
   /// predates AgentVillage's own contracts, and `agentvillage.eth` was registered three blocks
   /// before them, so scanning from `deployBlock` hid it.
   ethRegistrarFirstBlock: BigInt(deployments.ethRegistrarFirstBlock),
+  /// Earliest block any contract in this hackathon ENSv2 deployment could have logged anything —
+  /// the floor for enumerating a name's subnames via `LabelRegistered` on whatever registry
+  /// governs them (task 34). No registry here predates the root registry itself.
+  ensDeploymentFirstBlock: BigInt(deployments.ensDeploymentFirstBlock),
   rootRegistry: deployments.rootRegistry as `0x${string}`,
   verifiableFactory: deployments.verifiableFactory as `0x${string}`,
   mockUsdc: deployments.mockUsdc as `0x${string}`,

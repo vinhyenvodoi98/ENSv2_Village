@@ -74,6 +74,7 @@ contract Deploy is Script {
         address mockUsdc;
         address universalResolver;
         uint256 ethRegistrarFirstBlock;
+        uint256 ensDeploymentFirstBlock;
     }
 
     /// @dev ENS-side hackathon addresses (task 30) live in
@@ -94,7 +95,11 @@ contract Deploy is Script {
             // Not an address, but the same kind of fact: an ENS-side constant this repo must not
             // hardcode twice. The frontend floors its "names owned by" log scan here, because the
             // registrar predates our own `deployBlock` (see the comment in hackathon.json).
-            ethRegistrarFirstBlock: vm.parseJsonUint(j, ".ethRegistrarFirstBlock")
+            ethRegistrarFirstBlock: vm.parseJsonUint(j, ".ethRegistrarFirstBlock"),
+            // Floor for enumerating a name's subnames via `LabelRegistered` on whatever registry
+            // governs them (task 34) — no registry in this deployment predates the root registry
+            // itself. See the comment in hackathon.json for how this was derived.
+            ensDeploymentFirstBlock: vm.parseJsonUint(j, ".ensDeploymentFirstBlock")
         });
     }
 
@@ -116,6 +121,7 @@ contract Deploy is Script {
         vm.serializeAddress(json, "ethRegistry", ens.ethRegistry);
         vm.serializeAddress(json, "ethRegistrar", ens.ethRegistrar);
         vm.serializeUint(json, "ethRegistrarFirstBlock", ens.ethRegistrarFirstBlock);
+        vm.serializeUint(json, "ensDeploymentFirstBlock", ens.ensDeploymentFirstBlock);
         vm.serializeAddress(json, "rootRegistry", ens.rootRegistry);
         vm.serializeAddress(json, "verifiableFactory", ens.verifiableFactory);
         vm.serializeAddress(json, "mockUsdc", ens.mockUsdc);

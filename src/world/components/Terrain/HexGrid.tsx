@@ -137,6 +137,14 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
         return;
       }
 
+      // The control panel (task 34) has no build/spawn flow at all — it only ever reads ENSv2
+      // state, never mints anything — so empty ground has nothing to offer beyond pointing back
+      // at the one thing this map does: select a castle.
+      if (mode === "control-panel") {
+        setBuildMessage("Select a castle to see its ENSv2 state.");
+        return;
+      }
+
       const isAtBuildDistance = fortressList.some(
         (fortress) => distance(fortress.coord, coord) === FORTRESS_BUILD_DISTANCE
       );

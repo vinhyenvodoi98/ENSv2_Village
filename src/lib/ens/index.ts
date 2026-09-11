@@ -41,6 +41,7 @@ export {
 } from "./permissions";
 export { useBlockGatedQuery } from "./query";
 export { fetchContractEventsChunked } from "./logs";
+export { useNameChildren, type EnsChildName, type EnsNameChildren } from "./useNameChildren";
 
 // Task 33 — ENSv2 control panel read layer. Deliberately free of AgentVillage's own
 // `AgentRegistry` tier ladder: everything below maps one-to-one onto a function ENSv2 itself
