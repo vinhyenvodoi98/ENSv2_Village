@@ -9,6 +9,7 @@ import { DelegationPanel } from "./DelegationPanel";
 import { ExpiryCountdown } from "./ExpiryCountdown";
 import { Field, Panel } from "./Panel";
 import { NameOverviewPanel, RegistryPathPanel } from "./NameOverviewPanel";
+import { RecordsPanel } from "./RecordsPanel";
 import { RolesSummary } from "./RolesSummary";
 
 /// The complete read-only truth about one ENSv2 name — task 33's original `/ens/[name]` body,
@@ -37,6 +38,7 @@ export function NameStateDetail({ state, subnames }: { state: EnsNameState; subn
           <NameOverviewPanel state={state} />
           {state.isPermissionedRegistry ? <RolesSummary state={state} /> : null}
           {state.isPermissionedRegistry ? <DelegationPanel state={state} /> : null}
+          {state.isPermissionedRegistry ? <RecordsPanel state={state} /> : null}
           {state.isPermissionedRegistry ? <SubnamesPanel parentName={state.name} subnames={subnames} /> : null}
         </>
       )}
@@ -44,10 +46,10 @@ export function NameStateDetail({ state, subnames }: { state: EnsNameState; subn
       <RegistryPathPanel state={state} />
 
       {/*
-        Tasks 35–38 mount their panels here, in order: the records editor, subname self-service,
-        name lifecycle, activity feed. They each read the same `EnsNameState` this page already
-        resolved, and gate their writes on the roles the summary above shows. Task 34's delegation
-        panel is above, next to the roles summary it reads admin bits from.
+        Tasks 36–38 mount their panels here, in order: subname self-service, name lifecycle,
+        activity feed. They each read the same `EnsNameState` this page already resolved, and gate
+        their writes on the roles the summary above shows. Task 34's delegation panel and task 35's
+        records editor are above, next to the roles summary they read admin bits from.
       */}
     </div>
   );

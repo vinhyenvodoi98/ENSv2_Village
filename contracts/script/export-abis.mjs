@@ -24,6 +24,10 @@ const artifacts = {
   // findOwner/findRegistries/etc) — `UniversalResolverV2` implements both.
   universalResolverAbi: "IUniversalResolver.sol/IUniversalResolver.json",
   enhancedAccessControlAbi: "IEnhancedAccessControl.sol/IEnhancedAccessControl.json",
+  // Task 35's records editor: the concrete resolver contract, not one narrow profile interface —
+  // `setText`/`setAddr`/`setContenthash`/`setData`/`clearRecords`/`multicall` live directly on it.
+  // Compiled via `src/PermissionedResolverArtifact.sol`, which exists only to pull it into `out/`.
+  permissionedResolverAbi: "PermissionedResolver.sol/PermissionedResolver.json",
   // Registration flow against the hackathon `ETHRegistrar` (task 30/31) — includes
   // MIN_COMMITMENT_AGE/MAX_COMMITMENT_AGE getters so the UI reads them instead of hardcoding.
   ethRegistrarAbi: "IETHRegistrarWithConstants.sol/IETHRegistrarWithConstants.json",

@@ -1,5 +1,6 @@
 import type {
   Abi,
+  ContractEventArgs,
   ContractEventName,
   GetContractEventsReturnType,
   PublicClient,
@@ -28,8 +29,11 @@ export async function fetchContractEventsChunked<
   fromBlock: bigint;
   toBlock: bigint;
   maxSpan?: bigint;
+  /// Narrows the scan server-side (e.g. `{ node }` for a `TextChanged` scan on one name) — same
+  /// `args` shape `getContractEvents` itself takes, just threaded through the chunking.
+  args?: ContractEventArgs<TAbi, TEventName>;
 }): Promise<GetContractEventsReturnType<TAbi, TEventName>> {
-  const { publicClient, address, abi, eventName, fromBlock, toBlock } = params;
+  const { publicClient, address, abi, eventName, fromBlock, toBlock, args } = params;
   const maxSpan = params.maxSpan ?? DEFAULT_MAX_SPAN;
   const logs: GetContractEventsReturnType<TAbi, TEventName> = [];
 
@@ -45,6 +49,7 @@ export async function fetchContractEventsChunked<
           eventName,
           fromBlock: cursor,
           toBlock: end,
+          ...(args ? { args } : {}),
         });
         logs.push(...window);
         cursor = end + 1n;
