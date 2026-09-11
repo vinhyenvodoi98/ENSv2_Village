@@ -19,7 +19,7 @@ contract OwnershipLadderTest is Test {
     bytes32 internal constant LABELHASH = keccak256(bytes("agent1"));
 
     function setUp() public {
-        registry = new AgentRegistry(fleetOwner);
+        registry = new AgentRegistry(fleetOwner, makeAddr("defaultResolver"));
 
         vm.prank(fleetOwner);
         registry.spawn("agent1", agentOwner, agentKey, AgentRegistry.Tier.Wildcard, 0, false, false, address(0));
@@ -65,7 +65,7 @@ contract OwnershipLadderTest is Test {
 
         // 2 -> 3 (Sovereign): earn 3 more heartbeats (9 total), attach own sub-registry
         _heartbeat(3);
-        AgentRegistry childRegistry = new AgentRegistry(agentKey);
+        AgentRegistry childRegistry = new AgentRegistry(agentKey, makeAddr("childDefaultResolver"));
 
         vm.prank(fleetOwner);
         registry.promote("agent1", AgentRegistry.Tier.Sovereign, childRegistry);
@@ -86,7 +86,7 @@ contract OwnershipLadderTest is Test {
         _promote(AgentRegistry.Tier.Leased);
         _promote(AgentRegistry.Tier.Owned);
 
-        childRegistry = new AgentRegistry(agentKey);
+        childRegistry = new AgentRegistry(agentKey, makeAddr("childDefaultResolver"));
         vm.prank(fleetOwner);
         registry.promote("agent1", AgentRegistry.Tier.Sovereign, childRegistry);
     }

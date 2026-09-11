@@ -25,7 +25,7 @@ contract AgentResolverTest is Test {
     bytes32 internal node;
 
     function setUp() public {
-        registry = new AgentRegistry(fleetOwner);
+        registry = new AgentRegistry(fleetOwner, makeAddr("defaultResolver"));
         resolver = new AgentResolver(registry);
 
         vm.prank(fleetOwner);

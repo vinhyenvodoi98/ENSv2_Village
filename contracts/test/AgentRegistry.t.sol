@@ -21,7 +21,7 @@ contract AgentRegistryTest is Test {
     bytes32 internal constant LABELHASH = keccak256(bytes("agent1"));
 
     function setUp() public {
-        registry = new AgentRegistry(fleetOwner);
+        registry = new AgentRegistry(fleetOwner, makeAddr("defaultResolver"));
     }
 
     function _spawn(string memory label, bool revocable, bool transferable, uint64 expiry)

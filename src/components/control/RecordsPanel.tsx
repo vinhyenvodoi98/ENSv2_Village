@@ -4,6 +4,7 @@ import { useState } from "react";
 import { encodeFunctionData, isAddress, isHex, zeroAddress, type Address, type Hex } from "viem";
 import { ethRegistryAbi, permissionedResolverAbi } from "@/lib/contracts/abis";
 import { CONTENTHASH_PROTOCOLS, encodeContenthash, type ContenthashProtocol } from "@/lib/ens/contenthash";
+import { useDeployResolver } from "@/lib/ens/useDeployResolver";
 import { useEnsNameRoles, type EnsNameState, type EnsNameRoles } from "@/lib/ens/useEnsName";
 import { useResolverRecords, WELL_KNOWN_TEXT_KEYS, COIN_TYPE_ETH } from "@/lib/ens/useResolverRecords";
 import { useTxAction } from "@/lib/ens/useTxAction";
@@ -47,8 +48,12 @@ export function RecordsPanel({ state }: { state: EnsNameState }) {
 }
 
 /// "A name whose resolver == address(0) cannot hold records. Say so, and link to the flow that sets
-/// one — do not silently render an editor that will revert." Task 37 owns the full re-point flow;
-/// until it exists, a minimal `setResolver` action lives here so this state is never a dead end.
+/// one — do not silently render an editor that will revert." Task 37 owns the full re-point flow
+/// (resolver picker, "records live per resolver" warning) for a name that's *switching* resolvers;
+/// this state is the simpler one — there's nothing to lose yet — so it gets a full self-service
+/// path: deploy a fresh `PermissionedResolver` proxy for this exact name, no separate resolver
+/// operator or backend deploy needed, then point the name at it. A manual address field stays
+/// underneath for anyone who already has a resolver they'd rather reuse.
 function NoResolverPanel({
   state,
   connectedRoles,
@@ -58,18 +63,20 @@ function NoResolverPanel({
 }) {
   const [resolverInput, setResolverInput] = useState("");
   const setResolverAction = useTxAction();
+  const deployResolver = useDeployResolver();
 
   const canSetResolver = !!connectedRoles?.registryRoles.find((r) => r.def.key === "ROLE_SET_RESOLVER")?.held;
   const validAddress = isAddress(resolverInput);
+  const deployedAddress = deployResolver.resolverAddress;
 
-  async function submit() {
-    if (!validAddress || !state.registry || state.tokenId === null) return;
+  async function submit(address: string) {
+    if (!isAddress(address) || !state.registry || state.tokenId === null) return;
     await setResolverAction
       .send({
         address: state.registry as Address,
         abi: ethRegistryAbi,
         functionName: "setResolver",
-        args: [state.tokenId, resolverInput as Address],
+        args: [state.tokenId, address as Address],
       })
       .catch(() => {});
   }
@@ -88,35 +95,81 @@ function NoResolverPanel({
           on-chain way for this panel to set one.
         </p>
       ) : (
-        <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-          <label className="mb-1.5 block text-xs font-medium tracking-wide text-white/50 uppercase">
-            Resolver address (<code>setResolver(tokenId, resolver)</code>)
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <input
-              value={resolverInput}
-              onChange={(e) => setResolverInput(e.target.value)}
-              placeholder="0x…"
-              disabled={!canSetResolver}
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
-            />
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!canSetResolver || !validAddress || setResolverAction.state === "signing" || setResolverAction.state === "confirming"}
-              title={!canSetResolver ? "Requires ROLE_SET_RESOLVER on this name" : undefined}
-              className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              Set resolver
-            </button>
+        <>
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+            <label className="mb-1.5 block text-xs font-medium tracking-wide text-white/50 uppercase">
+              Deploy your own resolver
+            </label>
+            <p className="mb-2 text-xs text-white/50">
+              <code>VerifiableFactory.deployProxy</code> over ENSv2&apos;s verified{" "}
+              <code>PermissionedResolver</code> implementation — your wallet becomes its sole admin,
+              holding every record-setter role, ready to delegate pieces of it away with task 34&apos;s
+              panel above.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => deployResolver.deployFor(state.name)}
+                disabled={
+                  !canSetResolver || deployResolver.state === "signing" || deployResolver.state === "confirming"
+                }
+                title={!canSetResolver ? "Requires ROLE_SET_RESOLVER on this name" : undefined}
+                className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                Deploy resolver
+              </button>
+              <TxStatus state={deployResolver.state} txHash={deployResolver.txHash} error={deployResolver.error} />
+            </div>
+            {deployedAddress ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
+                <span className="font-mono text-xs text-emerald-300">{deployedAddress}</span>
+                <button
+                  type="button"
+                  onClick={() => submit(deployedAddress)}
+                  disabled={setResolverAction.state === "signing" || setResolverAction.state === "confirming"}
+                  className="rounded-lg bg-sky-500/90 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  Use as this name&apos;s resolver
+                </button>
+                <TxStatus state={setResolverAction.state} txHash={setResolverAction.txHash} error={setResolverAction.error} />
+              </div>
+            ) : null}
           </div>
-          {!canSetResolver ? (
-            <p className="mt-1.5 text-xs text-white/40">Requires <code>ROLE_SET_RESOLVER</code>, which this wallet does not hold on this name.</p>
-          ) : null}
-          <div className="mt-2">
-            <TxStatus state={setResolverAction.state} txHash={setResolverAction.txHash} error={setResolverAction.error} />
+
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+            <label className="mb-1.5 block text-xs font-medium tracking-wide text-white/50 uppercase">
+              Or point at an existing resolver (<code>setResolver(tokenId, resolver)</code>)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={resolverInput}
+                onChange={(e) => setResolverInput(e.target.value)}
+                placeholder="0x…"
+                disabled={!canSetResolver}
+                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
+              />
+              <button
+                type="button"
+                onClick={() => submit(resolverInput)}
+                disabled={
+                  !canSetResolver ||
+                  !validAddress ||
+                  setResolverAction.state === "signing" ||
+                  setResolverAction.state === "confirming"
+                }
+                title={!canSetResolver ? "Requires ROLE_SET_RESOLVER on this name" : undefined}
+                className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                Set resolver
+              </button>
+            </div>
+            {!canSetResolver ? (
+              <p className="mt-1.5 text-xs text-white/40">
+                Requires <code>ROLE_SET_RESOLVER</code>, which this wallet does not hold on this name.
+              </p>
+            ) : null}
           </div>
-        </div>
+        </>
       )}
     </Panel>
   );

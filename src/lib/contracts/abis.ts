@@ -9,6 +9,11 @@ export const agentRegistryAbi = [
         "name": "fleetOwner",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "resolver",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
@@ -186,7 +191,7 @@ export const agentRegistryAbi = [
       {
         "name": "",
         "type": "address",
-        "internalType": "contract AgentResolver"
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -8097,6 +8102,99 @@ export const permissionedRegistryAbi = [
       },
       {
         "name": "from",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  }
+] as const;
+
+export const verifiableFactoryAbi = [
+  {
+    "type": "function",
+    "name": "deployProxy",
+    "inputs": [
+      {
+        "name": "implementation",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "salt",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "data",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "verifyContract",
+    "inputs": [
+      {
+        "name": "proxy",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "implementation",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "ProxyDeployed",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "proxyAddress",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "salt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "implementation",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "VerificationFailed",
+    "inputs": [
+      {
+        "name": "proxy",
         "type": "address",
         "internalType": "address"
       }

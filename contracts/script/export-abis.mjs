@@ -32,6 +32,11 @@ const artifacts = {
   // aren't on the `IPermissionedRegistry` interface `ethRegistryAbi` is built from), read to fetch
   // the shared `LABEL_STORE` off an existing registry and to deploy a brand new instance for a name.
   permissionedRegistryAbi: "PermissionedRegistry.sol/PermissionedRegistry.json",
+  // Task 35's "no resolver" self-service flow: `deployProxy(implementation, salt, initData)` lets a
+  // name owner deploy their own `PermissionedResolver` UUPS proxy straight from their wallet — the
+  // implementation (`_disableInitializers()` in its own constructor) can't be `deployContract`'d
+  // directly and initialized the way `PermissionedRegistry` above can.
+  verifiableFactoryAbi: "IVerifiableFactory.sol/IVerifiableFactory.json",
   // Registration flow against the hackathon `ETHRegistrar` (task 30/31) — includes
   // MIN_COMMITMENT_AGE/MAX_COMMITMENT_AGE getters so the UI reads them instead of hardcoding.
   ethRegistrarAbi: "IETHRegistrarWithConstants.sol/IETHRegistrarWithConstants.json",

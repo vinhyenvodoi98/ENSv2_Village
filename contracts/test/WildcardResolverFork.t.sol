@@ -53,7 +53,7 @@ contract WildcardResolverForkTest is Test {
             RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_SET_SUBREGISTRY
                 | RegistryRolesLib.ROLE_SET_RESOLVER | RegistryRolesLib.ROLE_SET_PARENT
         );
-        agentRegistry = new AgentRegistry(admin);
+        agentRegistry = new AgentRegistry(admin, makeAddr("defaultResolver"));
         agentResolver = new AgentResolver(agentRegistry);
         stateStore = new WildcardStateStore(agentRegistry);
 

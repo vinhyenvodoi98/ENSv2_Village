@@ -20,6 +20,10 @@ export const CONTRACTS = {
   ensDeploymentFirstBlock: BigInt(deployments.ensDeploymentFirstBlock),
   rootRegistry: deployments.rootRegistry as `0x${string}`,
   verifiableFactory: deployments.verifiableFactory as `0x${string}`,
+  /// The hackathon ENSv2 deployment's already-verified `PermissionedResolver` UUPS implementation
+  /// (`contracts/deployments/hackathon.json`) — what task 35's self-service "deploy your own
+  /// resolver" flow points `VerifiableFactory.deployProxy` at. Not something this app deploys.
+  permissionedResolverImpl: deployments.permissionedResolverImpl as `0x${string}`,
   mockUsdc: deployments.mockUsdc as `0x${string}`,
   universalResolver: deployments.universalResolver as `0x${string}`,
   agentRegistry: deployments.agentRegistry as `0x${string}`,

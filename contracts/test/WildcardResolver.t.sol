@@ -34,7 +34,7 @@ contract WildcardResolverTest is Test {
     bytes internal constant SCOUT_01_NAME_SUFFIX = "agentvillage.eth";
 
     function setUp() public {
-        registry = new AgentRegistry(fleetOwner);
+        registry = new AgentRegistry(fleetOwner, makeAddr("defaultResolver"));
         agentResolver = new AgentResolver(registry);
         stateStore = new WildcardStateStore(registry);
         wildcard = new WildcardResolver(registry, stateStore, parentNode);

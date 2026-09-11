@@ -29,7 +29,7 @@ contract Seed is Script {
             AgentRegistry(vm.parseJsonAddress(deploymentsJson, ".agentRegistry"));
         WildcardStateStore stateStore =
             WildcardStateStore(vm.parseJsonAddress(deploymentsJson, ".wildcardStateStore"));
-        address agentResolver = vm.parseJsonAddress(deploymentsJson, ".agentResolver");
+        address resolver = vm.parseJsonAddress(deploymentsJson, ".permissionedResolver");
 
         address scoutKey = vm.addr(uint256(keccak256("agentvillage-seed-scout-00-key")));
         address sentinelKey = vm.addr(uint256(keccak256("agentvillage-seed-sentinel-01-key")));
@@ -51,7 +51,7 @@ contract Seed is Script {
             uint64(block.timestamp + 30 days),
             true,
             false,
-            agentResolver
+            resolver
         );
 
         // Tier 2 (Owned): no longer revocable, transferable (task 07's 1->2 terminal state).
@@ -63,7 +63,7 @@ contract Seed is Script {
             uint64(block.timestamp + 365 days),
             false,
             true,
-            agentResolver
+            resolver
         );
 
         vm.stopBroadcast();

@@ -23,7 +23,7 @@ contract AliasingTest is Test {
     bytes32 internal childNode;
 
     function setUp() public {
-        registry = new AgentRegistry(fleetOwner);
+        registry = new AgentRegistry(fleetOwner, makeAddr("defaultResolver"));
         resolver = new AgentResolver(registry);
 
         vm.prank(fleetOwner);
@@ -142,8 +142,8 @@ contract AliasingTest is Test {
         vm.prank(parentOwner);
         resolver.setText(parentNode, "agent.model", "gpt-4o");
 
-        AgentRegistry childRegistry = new AgentRegistry(parentKey);
-        AgentResolver childResolver = childRegistry.defaultResolver();
+        AgentRegistry childRegistry = new AgentRegistry(parentKey, makeAddr("childDefaultResolver"));
+        AgentResolver childResolver = new AgentResolver(childRegistry);
 
         vm.prank(parentKey);
         bytes32 grandchildNode = childRegistry.spawn(

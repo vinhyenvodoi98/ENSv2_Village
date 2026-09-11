@@ -43,7 +43,7 @@ contract AgentRegistryForkTest is Test {
                 RegistryRolesLib.ROLE_SET_RESOLVER |
                 RegistryRolesLib.ROLE_SET_PARENT
         );
-        agentRegistry = new AgentRegistry(admin);
+        agentRegistry = new AgentRegistry(admin, makeAddr("defaultResolver"));
 
         parentRegistry.register(
             PARENT_LABEL, admin, IRegistry(address(0)), address(0), 0, uint64(block.timestamp + 365 days)

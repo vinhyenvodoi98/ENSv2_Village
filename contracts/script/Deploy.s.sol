@@ -4,7 +4,10 @@ pragma solidity ^0.8.28;
 import {Script, console2} from "forge-std/Script.sol";
 
 import {IPermissionedRegistry} from "ensv2/registry/interfaces/IPermissionedRegistry.sol";
+import {IPermissionedResolver} from "ensv2/resolver/interfaces/IPermissionedResolver.sol";
+import {PermissionedResolverLib} from "ensv2/resolver/libraries/PermissionedResolverLib.sol";
 import {IRegistry} from "ensv2/registry/interfaces/IRegistry.sol";
+import {IVerifiableFactory} from "@ensdomains/verifiable-factory/IVerifiableFactory.sol";
 
 import {AgentRegistry} from "../src/AgentRegistry.sol";
 import {WildcardResolver} from "../src/WildcardResolver.sol";
@@ -13,11 +16,20 @@ import {WildcardStateStore} from "../src/WildcardStateStore.sol";
 /// @notice Deploys the AgentVillage contract system to Sepolia and attaches it to the fleet's
 ///         parent ENSv2 name (task 09).
 ///
-/// Deploy order: `AgentRegistry` (which deploys its own `AgentResolver` internally — see
-/// `AgentRegistry.defaultResolver`, task 03/05) -> `WildcardStateStore` -> `WildcardResolver`
-/// -> attach `AgentRegistry` as the parent name's subregistry and `WildcardResolver` as its
-/// resolver on the real ENSv2 `ETHRegistry`. `Roles` (task 04) is a constants-only library with
-/// no external functions, so it has nothing to deploy — its constants are inlined at compile time.
+/// Deploy order: a shared ENSv2 `PermissionedResolver` UUPS proxy (via `VerifiableFactory`,
+/// pointed at the hackathon deployment's already-verified `permissionedResolverImpl`) -> pass its
+/// address into `AgentRegistry`'s constructor as `defaultResolver` -> `WildcardStateStore` ->
+/// `WildcardResolver` -> attach `AgentRegistry` as the parent name's subregistry and
+/// `WildcardResolver` as its resolver on the real ENSv2 `ETHRegistry`. `Roles` (task 04) is a
+/// constants-only library with no external functions, so it has nothing to deploy — its constants
+/// are inlined at compile time.
+///
+/// Every agent gets a *real* ENSv2 resolver from day one now — no more bespoke `AgentResolver`
+/// (removed; see task 39's plan). Per-key write access (`status`/`heartbeat`/`last-output` to the
+/// agent's own key, `agent.endpoint`/`agent.model`/`avatar` to the owner) is granted by whichever
+/// caller spawns/promotes the agent (`authorizeTextRoles`), not by this deploy script — this
+/// script only needs the deployer to hold every `_ADMIN` bit on the shared resolver's
+/// `ROOT_RESOURCE` so it *can* grant those later, which is what `initialize` below sets up.
 ///
 /// Precondition: `PARENT_LABEL` (e.g. `agentvillage`) must already be registered on the
 /// **hackathon** ENSv2 deployment's `ETHRegistry` with `DEPLOYER_PRIVATE_KEY`'s address as owner
@@ -30,6 +42,11 @@ contract Deploy is Script {
     ///      deployment `agentvillage.eth` is registered against.
     bytes32 internal constant PARENT_NODE =
         0x50beecd863f427e95caa987d9dd9c85fe7c8498708329c53022f969be631ec86;
+
+    /// @dev `VerifiableFactory.deployProxy`'s user-supplied salt — this script only ever deploys
+    ///      one shared resolver, so any fixed value works; the factory itself mixes in
+    ///      `msg.sender` before hashing, so this can't collide with another deployer's proxy.
+    uint256 internal constant RESOLVER_SALT = uint256(keccak256("agentvillage-permissioned-resolver"));
 
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -46,7 +63,24 @@ contract Deploy is Script {
 
         vm.startBroadcast(deployerKey);
 
-        AgentRegistry registry = new AgentRegistry(deployer);
+        // The fleet's shared ENSv2 `PermissionedResolver` — a UUPS proxy over the hackathon
+        // deployment's already-verified implementation, `initialize`d with `deployer` holding
+        // every record-setter role *and* its admin bit at `ROOT_RESOURCE`. The admin bits are
+        // what let `deployer` (or anything acting as `FLEET_ADMIN`) call `authorizeTextRoles` for
+        // each newly spawned/promoted agent afterward; the plain bits let `deployer` itself write
+        // records directly (useful for seeding/testing) without a separate per-name grant.
+        uint256 resolverRoleBitmap = PermissionedResolverLib.ROLE_SET_TEXT
+            | PermissionedResolverLib.ROLE_SET_TEXT_ADMIN | PermissionedResolverLib.ROLE_SET_ADDR
+            | PermissionedResolverLib.ROLE_SET_ADDR_ADMIN | PermissionedResolverLib.ROLE_SET_CONTENTHASH
+            | PermissionedResolverLib.ROLE_SET_CONTENTHASH_ADMIN | PermissionedResolverLib.ROLE_SET_DATA
+            | PermissionedResolverLib.ROLE_SET_DATA_ADMIN;
+        address resolverProxy = IVerifiableFactory(ensAddrs.verifiableFactory).deployProxy(
+            ensAddrs.permissionedResolverImpl,
+            RESOLVER_SALT,
+            abi.encodeCall(IPermissionedResolver.initialize, (deployer, resolverRoleBitmap, new bytes[](0)))
+        );
+
+        AgentRegistry registry = new AgentRegistry(deployer, resolverProxy);
         WildcardStateStore stateStore = new WildcardStateStore(registry);
         WildcardResolver wildcardResolver = new WildcardResolver(registry, stateStore, PARENT_NODE);
 
@@ -56,12 +90,12 @@ contract Deploy is Script {
 
         vm.stopBroadcast();
 
+        console2.log("PermissionedResolver:", resolverProxy);
         console2.log("AgentRegistry:      ", address(registry));
-        console2.log("AgentResolver:      ", address(registry.defaultResolver()));
         console2.log("WildcardStateStore: ", address(stateStore));
         console2.log("WildcardResolver:   ", address(wildcardResolver));
 
-        _writeDeployments(registry, stateStore, wildcardResolver, ensAddrs);
+        _writeDeployments(registry, stateStore, wildcardResolver, resolverProxy, ensAddrs);
     }
 
     /// @dev Groups the read-only ENS-side addresses so `_writeDeployments` doesn't need a
@@ -71,6 +105,7 @@ contract Deploy is Script {
         address ethRegistrar;
         address rootRegistry;
         address verifiableFactory;
+        address permissionedResolverImpl;
         address mockUsdc;
         address universalResolver;
         uint256 ethRegistrarFirstBlock;
@@ -90,6 +125,7 @@ contract Deploy is Script {
             ethRegistrar: vm.parseJsonAddress(j, ".ethRegistrar"),
             rootRegistry: vm.parseJsonAddress(j, ".rootRegistry"),
             verifiableFactory: vm.parseJsonAddress(j, ".verifiableFactory"),
+            permissionedResolverImpl: vm.parseJsonAddress(j, ".permissionedResolverImpl"),
             mockUsdc: vm.parseJsonAddress(j, ".mockUsdc"),
             universalResolver: vm.parseJsonAddress(j, ".upgradableUniversalResolverProxy"),
             // Not an address, but the same kind of fact: an ENS-side constant this repo must not
@@ -110,6 +146,7 @@ contract Deploy is Script {
         AgentRegistry registry,
         WildcardStateStore stateStore,
         WildcardResolver wildcardResolver,
+        address resolverProxy,
         HackathonAddresses memory ens
     )
         internal
@@ -124,10 +161,11 @@ contract Deploy is Script {
         vm.serializeUint(json, "ensDeploymentFirstBlock", ens.ensDeploymentFirstBlock);
         vm.serializeAddress(json, "rootRegistry", ens.rootRegistry);
         vm.serializeAddress(json, "verifiableFactory", ens.verifiableFactory);
+        vm.serializeAddress(json, "permissionedResolverImpl", ens.permissionedResolverImpl);
         vm.serializeAddress(json, "mockUsdc", ens.mockUsdc);
         vm.serializeAddress(json, "universalResolver", ens.universalResolver);
         vm.serializeAddress(json, "agentRegistry", address(registry));
-        vm.serializeAddress(json, "agentResolver", address(registry.defaultResolver()));
+        vm.serializeAddress(json, "permissionedResolver", resolverProxy);
         vm.serializeAddress(json, "wildcardStateStore", address(stateStore));
         vm.serializeAddress(json, "wildcardResolver", address(wildcardResolver));
         vm.serializeString(json, "parentName", string.concat(PARENT_LABEL, ".eth"));

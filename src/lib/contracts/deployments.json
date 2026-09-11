@@ -11,6 +11,7 @@
   "mockUsdc": "0xcBFD80F74375c54E545AF34788Ff465F96F66F05",
   "parentName": "agentvillage.eth",
   "parentNode": "0x50beecd863f427e95caa987d9dd9c85fe7c8498708329c53022f969be631ec86",
+  "permissionedResolverImpl": "0xa9d3814AB151BF6E37A427432795371a8361614e",
   "rootRegistry": "0xe7f0D5724f8337e3Aa9A9910540341Ff4273fEd9",
   "universalResolver": "0xd26f2040D083Af1cD2962ba303F4BEa0c4faf142",
   "verifiableFactory": "0x894bc9cC8ff1ad96B8a288C86A8C71D662C07780",
