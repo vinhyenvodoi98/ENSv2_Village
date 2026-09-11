@@ -18,6 +18,11 @@ export type EnsChildName = {
   expiry: bigint;
   resolver: `0x${string}` | null;
   subregistry: `0x${string}` | null;
+  /// `State.resource` — the child's own EACL resource, distinct from `tokenId`
+  /// (`PermissionedRegistry`'s resource/token version counters diverge on role-changing writes).
+  /// Task 36 reads roles against this, the same way `useEnsName`'s own `resource` field does for the
+  /// page's subject name.
+  resource: bigint;
 };
 
 export type EnsNameChildren = {
@@ -146,6 +151,7 @@ async function fetchChildren(publicClient: PublicClient, registry: `0x${string}`
       expiry: chainState.expiry,
       resolver: resolverResult.status === "success" ? (resolverResult.result as `0x${string}`) : null,
       subregistry: subregistryResult.status === "success" ? (subregistryResult.result as `0x${string}`) : null,
+      resource: chainState.resource,
     });
   }
 

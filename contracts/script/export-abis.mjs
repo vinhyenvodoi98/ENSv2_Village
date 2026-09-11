@@ -28,6 +28,10 @@ const artifacts = {
   // `setText`/`setAddr`/`setContenthash`/`setData`/`clearRecords`/`multicall` live directly on it.
   // Compiled via `src/PermissionedResolverArtifact.sol`, which exists only to pull it into `out/`.
   permissionedResolverAbi: "PermissionedResolver.sol/PermissionedResolver.json",
+  // Task 36's subname self-service: the concrete `PermissionedRegistry` (constructor + `LABEL_STORE`
+  // aren't on the `IPermissionedRegistry` interface `ethRegistryAbi` is built from), read to fetch
+  // the shared `LABEL_STORE` off an existing registry and to deploy a brand new instance for a name.
+  permissionedRegistryAbi: "PermissionedRegistry.sol/PermissionedRegistry.json",
   // Registration flow against the hackathon `ETHRegistrar` (task 30/31) — includes
   // MIN_COMMITMENT_AGE/MAX_COMMITMENT_AGE getters so the UI reads them instead of hardcoding.
   ethRegistrarAbi: "IETHRegistrarWithConstants.sol/IETHRegistrarWithConstants.json",
@@ -57,6 +61,16 @@ const deployableArtifacts = {
   agentRegistryBytecode: "AgentRegistry.sol/AgentRegistry.json",
   wildcardStateStoreBytecode: "WildcardStateStore.sol/WildcardStateStore.json",
   wildcardResolverBytecode: "WildcardResolver.sol/WildcardResolver.json",
+  // Task 36: a fresh `PermissionedRegistry` per name that wants to issue its own subnames — same
+  // option (a), "deploy straight from the browser" that `useFoundKingdom.ts` already uses for
+  // `AgentRegistry`/`WildcardStateStore`/`WildcardResolver` (task 32's Result section was never
+  // filled in, but its code is unambiguous: plain `deployContract`, not a `VerifiableFactory`
+  // proxy). `PermissionedRegistry` also can't be deployed as an upgradeable proxy without further
+  // changes anyway — its sibling `PermissionedResolver` calls `_disableInitializers()` in its own
+  // constructor, which is the UUPS tell that these contracts are meant to sit behind a proxy
+  // whose *implementation* is deployed once, not one-per-name; `PermissionedRegistry` itself has
+  // no such guard and a plain constructor, so a direct per-name deploy is the correct fit here.
+  permissionedRegistryBytecode: "PermissionedRegistry.sol/PermissionedRegistry.json",
 };
 
 let bytecodeOut = [

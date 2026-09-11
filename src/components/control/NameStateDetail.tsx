@@ -11,6 +11,7 @@ import { Field, Panel } from "./Panel";
 import { NameOverviewPanel, RegistryPathPanel } from "./NameOverviewPanel";
 import { RecordsPanel } from "./RecordsPanel";
 import { RolesSummary } from "./RolesSummary";
+import { SubnameManagerPanel } from "./SubnameManagerPanel";
 
 /// The complete read-only truth about one ENSv2 name — task 33's original `/ens/[name]` body,
 /// unchanged, now reused as the content of the world view's detail panel (task 34) instead of a
@@ -39,75 +40,19 @@ export function NameStateDetail({ state, subnames }: { state: EnsNameState; subn
           {state.isPermissionedRegistry ? <RolesSummary state={state} /> : null}
           {state.isPermissionedRegistry ? <DelegationPanel state={state} /> : null}
           {state.isPermissionedRegistry ? <RecordsPanel state={state} /> : null}
-          {state.isPermissionedRegistry ? <SubnamesPanel parentName={state.name} subnames={subnames} /> : null}
+          {state.isPermissionedRegistry ? <SubnameManagerPanel state={state} subnames={subnames} /> : null}
         </>
       )}
 
       <RegistryPathPanel state={state} />
 
       {/*
-        Tasks 36–38 mount their panels here, in order: subname self-service, name lifecycle,
-        activity feed. They each read the same `EnsNameState` this page already resolved, and gate
-        their writes on the roles the summary above shows. Task 34's delegation panel and task 35's
-        records editor are above, next to the roles summary they read admin bits from.
+        Tasks 37-38 mount their panels here, in order: name lifecycle, activity feed. They each read
+        the same `EnsNameState` this page already resolved, and gate their writes on the roles the
+        summary above shows. Task 34's delegation panel, task 35's records editor and task 36's
+        subname self-service are above, next to the roles summary they read admin bits from.
       */}
     </div>
-  );
-}
-
-/// Task 34's "also show this name's subnames": every castle already rings the subject on the map,
-/// this is the same data as a scannable list, each entry linking into its own `/ens/[name]` page
-/// rather than trying to show a second name's full state inline.
-function SubnamesPanel({ parentName, subnames }: { parentName: string; subnames?: EnsNameChildren }) {
-  return (
-    <Panel
-      title="Subnames"
-      subtitle={<code>IPermissionedRegistry.LabelRegistered</code>}
-      actions={
-        subnames?.enumerable ? (
-          <span className="rounded-full bg-white/5 px-3 py-1 font-mono text-xs text-white/60">
-            {subnames.children.length}
-          </span>
-        ) : null
-      }
-    >
-      {!subnames ? (
-        <p className="text-sm text-white/40">Reading subnames…</p>
-      ) : !subnames.enumerable ? (
-        <p className="text-sm text-white/50">
-          <span className="font-mono text-white/80">{parentName}</span>&apos;s subregistry does not implement{" "}
-          <code>IPermissionedRegistry</code>, so there is no standard way to list what it holds.
-        </p>
-      ) : subnames.children.length === 0 ? (
-        <p className="text-sm text-white/50">No subnames registered under this name yet.</p>
-      ) : (
-        <ul className="divide-y divide-white/5">
-          {subnames.children.map((child) => (
-            <SubnameRow key={child.ensKey} child={child} />
-          ))}
-        </ul>
-      )}
-    </Panel>
-  );
-}
-
-function SubnameRow({ child }: { child: EnsChildName }) {
-  return (
-    <li className="flex flex-wrap items-baseline justify-between gap-2 py-2">
-      <Link
-        href={ensPath(child.fullName)}
-        className="font-mono text-sm text-white underline decoration-white/20 underline-offset-2 hover:decoration-white"
-      >
-        {child.fullName}
-      </Link>
-      <span className="flex items-baseline gap-3 text-xs">
-        {child.status !== "registered" ? (
-          <span className="text-white/40 italic">lapsed</span>
-        ) : child.expiry > 0n ? (
-          <ExpiryCountdown expiry={child.expiry} />
-        ) : null}
-      </span>
-    </li>
   );
 }
 

@@ -8,7 +8,6 @@ import {IEnhancedAccessControl} from "ensv2/access-control/interfaces/IEnhancedA
 import {IOwnedRegistry} from "ensv2/registry/interfaces/IOwnedRegistry.sol";
 import {IRegistry} from "ensv2/registry/interfaces/IRegistry.sol";
 
-import {AgentResolver} from "./AgentResolver.sol";
 import {Roles} from "./Roles.sol";
 
 /// @notice Sub-registry for the AgentVillage fleet.
@@ -55,12 +54,16 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
     IRegistry private _parentRegistry;
     string private _parentLabel;
 
-    /// @notice The registry's own `AgentResolver` (task 05), attached to an agent the first
-    ///         time it is promoted off the free wildcard tier (task 07, 0->1). One shared
-    ///         instance per registry — each agent's records are already segregated inside it
-    ///         by node (`uint256(labelhash)`, the same value used as this registry's EACL
-    ///         resource), so there is nothing to gain from deploying one per agent.
-    AgentResolver public immutable defaultResolver;
+    /// @notice The fleet's shared ENSv2 `PermissionedResolver` (real `IEnhancedAccessControl`,
+    ///         not a bespoke system), attached to an agent the first time it is promoted off the
+    ///         free wildcard tier (task 07, 0->1) or supplied directly at `spawn`. One shared
+    ///         instance per registry — each agent's records are already segregated inside it by
+    ///         node (`uint256(labelhash)` doubling as the resolver's EACL resource part via
+    ///         `PermissionedResolverLib.resource`), so there is nothing to gain from deploying
+    ///         one per agent. Supplied by the deployer (a pre-initialized UUPS proxy over ENSv2's
+    ///         `PermissionedResolver`, see `Deploy.s.sol`) rather than self-deployed here, since a
+    ///         proxy needs `VerifiableFactory` + `initialize()`, not a plain constructor call.
+    address public immutable defaultResolver;
 
     /// @dev Ladder tuning (task 07): how many of an agent's own heartbeats (`heartbeat`) are
     ///      required, cumulatively, to promote *into* a given tier — `HEARTBEATS_PER_TIER *
@@ -112,7 +115,13 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
     error SovereignAgent(bytes32 labelhash);
     error InvalidSubregistry();
 
-    constructor(address fleetOwner) {
+    /// @param fleetOwner Holds `FLEET_ADMIN`/`AGENT_ADMIN` at `ROOT_RESOURCE` (see below).
+    /// @param resolver The fleet's shared `PermissionedResolver` proxy — already deployed and
+    ///        `initialize`d (with `fleetOwner` holding every record-setter role/admin bit on it)
+    ///        before this constructor runs. Not validated here (no `supportsInterface` check):
+    ///        `spawn`/`promote` only ever store it verbatim in `AgentRecord.resolver`, exactly as
+    ///        `setAgentResolver` already lets an agent's owner point at *any* address post-mint.
+    constructor(address fleetOwner, address resolver) {
         // The fleet owner holds FLEET_ADMIN (spawn/revoke/change tier/renew) and, per the
         // role table, is also an AGENT_ADMIN for every agent (change agentKey/endpoint) —
         // both granted at ROOT_RESOURCE so EnhancedAccessControl's root fallback applies
@@ -123,7 +132,7 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
             fleetOwner,
             false
         );
-        defaultResolver = new AgentResolver(this);
+        defaultResolver = resolver;
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -290,7 +299,7 @@ contract AgentRegistry is IOwnedRegistry, EnhancedAccessControl {
 
         if (toTier == Tier.Leased) {
             // Mint for real: attach the registry's own resolver and a real, renewable lease.
-            agent.resolver = address(defaultResolver);
+            agent.resolver = defaultResolver;
             agent.expiry = uint64(block.timestamp) + PROMOTION_LEASE_DURATION;
             agent.revocable = true;
             emit AgentResolverUpdated(labelhash, agent.resolver);
