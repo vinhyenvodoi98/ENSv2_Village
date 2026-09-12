@@ -1,0 +1,55 @@
+.anchor {
+  pointer-events: none;
+  user-select: none;
+}
+
+.plate {
+  position: relative;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid #d9bd78;
+  background: linear-gradient(145deg, #3e4852, #161d23);
+  box-shadow:
+    0 0 0 2px rgba(45, 31, 16, 0.88),
+    0 5px 12px rgba(0, 0, 0, 0.48),
+    inset 0 0 0 2px rgba(255, 244, 210, 0.16);
+  clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%);
+}
+
+.plate::after {
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(255, 244, 210, 0.34);
+  content: "";
+  clip-path: inherit;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(126, 196, 232, 0.5), transparent 38%),
+    linear-gradient(145deg, #304d64, #172432);
+  color: #fff4d2;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 2px #000;
+}
+
+.derelict {
+  border-color: #7d7d78;
+  filter: grayscale(0.85) brightness(0.72);
+}

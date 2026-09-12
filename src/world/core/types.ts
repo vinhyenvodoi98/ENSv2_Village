@@ -29,6 +29,8 @@ export interface FortressEntity {
   name: string;
   /** Dotted ENS name shown in tooltips / the detail panel. */
   fullName: string;
+  /** Effective ENS `avatar` text record resolved through UniversalResolverV2. */
+  avatar?: string;
   /** `AGENT_TIERS` index: 0 Wildcard … 3 Sovereign. Drives the castle preset. */
   tier: number;
   /** `ensKey` of the parent namespace node, or null at the root ring. */

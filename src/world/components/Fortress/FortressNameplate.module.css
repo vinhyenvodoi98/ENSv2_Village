@@ -1,5 +1,7 @@
 .anchor {
   pointer-events: none;
+  transform: translate(-50%, calc(-100% - 10px));
+  transform-origin: bottom center;
   user-select: none;
 }
 

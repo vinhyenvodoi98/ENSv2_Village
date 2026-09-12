@@ -17,26 +17,23 @@ export function KingdomEmptyPlate({
   onConnect,
   onSwitchNetwork,
   onClaimLand,
-  onSpawnFirst,
   onFoundKingdom,
 }: {
   kind: EmptyStateKind;
   isWrongNetwork: boolean;
   isSwitchingNetwork?: boolean;
   /// Task 32: the owned kingdom has no `AgentRegistry` wired yet — "no-agents" reads as "found
-  /// your kingdom" instead of "spawn the first agent", since there's nowhere to spawn into yet.
+  /// your kingdom" rather than an agent-count message, since there's nowhere for agents to live yet.
   isKingdomUnfinished?: boolean;
   onConnect: () => void;
   onSwitchNetwork: () => void;
   onClaimLand: () => void;
-  onSpawnFirst: () => void;
   onFoundKingdom: () => void;
 }) {
   const showcaseHref = `?kingdom=${CONTRACTS.parentName}`;
   // Dismissible so the castle behind it (which the plate visually sits right on top of, at the
-  // world origin) stays reachable — clicking it opens the same root-spawn form this plate's own
-  // CTA does. Local state, reset by `WorldRoot` remounting this component (via `key={kind}`)
-  // whenever the underlying situation actually changes.
+  // world origin) stays reachable. Local state, reset by `WorldRoot` remounting this component
+  // (via `key={kind}`) whenever the underlying situation actually changes.
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
 
@@ -109,10 +106,7 @@ export function KingdomEmptyPlate({
             <h2 className="font-serif text-lg font-bold uppercase tracking-wide text-[#3a2f22]">
               Kingdom founded, no agents yet
             </h2>
-            <p className="text-sm text-[#5c4b32]">Your castle stands. Spawn your first agent under it.</p>
-            <button type="button" onClick={onSpawnFirst} className={ctaClass}>
-              Spawn the first agent
-            </button>
+            <p className="text-sm text-[#5c4b32]">Your castle stands, with no agents under it yet.</p>
           </>
         )}
 

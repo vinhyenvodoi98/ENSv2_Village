@@ -34,22 +34,22 @@ export function FortressNameplate({ fullName, tier, derelict = false, note, posi
   return (
     <Html
       position={[0, positionY, 0]}
-      center
       distanceFactor={18}
       zIndexRange={[20, 0]}
-      className={styles.anchor}
     >
-      <div
-        className={`${styles.plate}${derelict ? ` ${styles.derelict}` : ""}`}
-        role="note"
-        title={`${fullName} — ${tierName}${derelict ? " (derelict)" : ""}`}
-        aria-label={`${fullName}, tier ${tierName}${derelict ? ", derelict" : ""}`}
-      >
-        <span className={styles.tier} style={{ color: style.pulseColor }} aria-hidden>
-          {style.glyph}
-        </span>
-        <span className={styles.label}>{fullName}</span>
-        {note ? <div className={styles.note}>{note}</div> : null}
+      <div className={styles.anchor}>
+        <div
+          className={`${styles.plate}${derelict ? ` ${styles.derelict}` : ""}`}
+          role="note"
+          title={`${fullName} — ${tierName}${derelict ? " (derelict)" : ""}`}
+          aria-label={`${fullName}, tier ${tierName}${derelict ? ", derelict" : ""}`}
+        >
+          <span className={styles.tier} style={{ color: style.pulseColor }} aria-hidden>
+            {style.glyph}
+          </span>
+          <span className={styles.label}>{fullName}</span>
+          {note ? <div className={styles.note}>{note}</div> : null}
+        </div>
       </div>
     </Html>
   );

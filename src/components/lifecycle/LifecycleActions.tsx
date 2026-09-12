@@ -7,10 +7,8 @@ import { AGENT_TIERS, hasRole, ROLE, useEffectiveRoles, useTxAction, type Namesp
 import { HEARTBEATS_PER_TIER } from "@/lib/ens/tierStyles";
 import { TxStatus } from "@/components/shared/TxStatus";
 
-/// Task 14: the entire agent lifecycle, operable from the UI — spawn lives at the page level
-/// (`SpawnAgentForm`, it creates a *new* agent), everything else that acts on an *existing* one
-/// (promote/renew/revoke, or "register on-chain" for a still-local wildcard preview) lives here,
-/// inside the detail panel.
+/// Task 14: the agent lifecycle actions that act on an *existing* agent — promote/renew/revoke,
+/// or "register on-chain" for a still-local wildcard preview — operable from the detail panel.
 export function LifecycleActions({ node }: { node: NamespaceNode }) {
   const resource = BigInt(node.labelhash);
   const { connected } = useEffectiveRoles(node.registry, resource);

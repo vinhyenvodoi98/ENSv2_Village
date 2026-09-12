@@ -57,6 +57,14 @@ export interface ShapeKit {
     brimOverhang: number;
     /** Portcullis bar thickness, in the gate opening. */
     barThickness: number;
+    /** Vertical air gap between the tallest flag pole and the nameplate anchor. */
+    nameplateClearance: number;
+    /** Height of the ENS avatar plaque on the central keep, as a body-height ratio. */
+    avatarSignHeightRatio: number;
+    /** Pulls the DOM plaque just in front of the keep facade. */
+    avatarSignSurfaceOffset: number;
+    /** Perspective scale for the camera-facing avatar plaque. */
+    avatarSignDistanceFactor: number;
     /** Portion of the gate opening occupied by the hanging grille. */
     portcullisHeightRatio: number;
     portcullisBarCount: number;
@@ -91,6 +99,10 @@ export const medievalShapeKit: ShapeKit = {
     brimThickness: 0.055,
     brimOverhang: 1.18,
     barThickness: 0.018,
+    nameplateClearance: 0.2,
+    avatarSignHeightRatio: 0.63,
+    avatarSignSurfaceOffset: 0.025,
+    avatarSignDistanceFactor: 9,
     portcullisHeightRatio: 0.78,
     portcullisBarCount: 5,
     portcullisCrossbarCount: 2,

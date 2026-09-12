@@ -5,9 +5,11 @@ import { addressPath, ensPath } from "@/lib/ens/name";
 import type { EnsChildName, EnsNameChildren } from "@/lib/ens/useNameChildren";
 import type { EnsNameState } from "@/lib/ens/useEnsName";
 import { AddressValue } from "./AddressValue";
+import { ActivityFeedPanel } from "./ActivityFeedPanel";
 import { DelegationPanel } from "./DelegationPanel";
 import { ExpiryCountdown } from "./ExpiryCountdown";
 import { Field, Panel } from "./Panel";
+import { LifecyclePanel } from "./LifecyclePanel";
 import { NameOverviewPanel, RegistryPathPanel } from "./NameOverviewPanel";
 import { RecordsPanel } from "./RecordsPanel";
 import { RolesSummary } from "./RolesSummary";
@@ -41,17 +43,12 @@ export function NameStateDetail({ state, subnames }: { state: EnsNameState; subn
           {state.isPermissionedRegistry ? <DelegationPanel state={state} /> : null}
           {state.isPermissionedRegistry ? <RecordsPanel state={state} /> : null}
           {state.isPermissionedRegistry ? <SubnameManagerPanel state={state} subnames={subnames} /> : null}
+          {state.isPermissionedRegistry ? <LifecyclePanel state={state} /> : null}
+          {state.isPermissionedRegistry ? <ActivityFeedPanel state={state} /> : null}
         </>
       )}
 
       <RegistryPathPanel state={state} />
-
-      {/*
-        Tasks 37-38 mount their panels here, in order: name lifecycle, activity feed. They each read
-        the same `EnsNameState` this page already resolved, and gate their writes on the roles the
-        summary above shows. Task 34's delegation panel, task 35's records editor and task 36's
-        subname self-service are above, next to the roles summary they read admin bits from.
-      */}
     </div>
   );
 }

@@ -77,12 +77,20 @@ export interface EnsChildInput {
   derelict: boolean;
 }
 
+function avatarFor(avatarsByName: Readonly<Record<string, string>>, name: string): string | undefined {
+  return avatarsByName[name.toLowerCase()];
+}
+
 /**
  * `/ens/[name]`: the name itself at the origin, its direct subnames ringed around it — one level,
  * never recursive (a subname's own children are its own page's concern, reached by navigating
  * there, not by this map growing without bound).
  */
-export function createEnsNameFortressSource(subject: EnsSubjectInput, children: EnsChildInput[]): FortressSource {
+export function createEnsNameFortressSource(
+  subject: EnsSubjectInput,
+  children: EnsChildInput[],
+  avatarsByName: Readonly<Record<string, string>> = {}
+): FortressSource {
   let cache: FortressEntity[] | null = null;
 
   function build(): FortressEntity[] {
@@ -93,6 +101,7 @@ export function createEnsNameFortressSource(subject: EnsSubjectInput, children: 
       coord: ORIGIN,
       name: subject.name,
       fullName: subject.fullName,
+      avatar: avatarFor(avatarsByName, subject.fullName),
       tier: FORTRESS_TIER.subject,
       parentEnsKey: null,
       derelict: false,
@@ -108,6 +117,7 @@ export function createEnsNameFortressSource(subject: EnsSubjectInput, children: 
         coord,
         name: child.label,
         fullName: child.fullName,
+        avatar: avatarFor(avatarsByName, child.fullName),
         tier: child.hasSubregistry ? FORTRESS_TIER.grown : child.hasResolver ? FORTRESS_TIER.active : FORTRESS_TIER.bare,
         parentEnsKey: subject.ensKey,
         derelict: child.derelict,
@@ -142,7 +152,10 @@ export interface EnsPortfolioEntryInput {
  * hierarchy between them — a portfolio, not a namespace (task 33's routing decision: "the address
  * is a portfolio"). No roads connect them, since none of them is any other's parent.
  */
-export function createPortfolioFortressSource(entries: EnsPortfolioEntryInput[]): FortressSource {
+export function createPortfolioFortressSource(
+  entries: EnsPortfolioEntryInput[],
+  avatarsByName: Readonly<Record<string, string>> = {}
+): FortressSource {
   let cache: FortressEntity[] | null = null;
 
   function build(): FortressEntity[] {
@@ -158,6 +171,7 @@ export function createPortfolioFortressSource(entries: EnsPortfolioEntryInput[])
         coord,
         name: entry.label,
         fullName: entry.fullName,
+        avatar: avatarFor(avatarsByName, entry.fullName),
         tier: FORTRESS_TIER.active,
         parentEnsKey: null,
         derelict: entry.derelict,

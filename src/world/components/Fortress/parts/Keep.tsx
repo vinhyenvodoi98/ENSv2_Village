@@ -3,12 +3,16 @@
 import type { MeshStandardMaterial } from "three";
 import type { ShapeKit } from "@/world/config/shapeKit";
 import { getPartGeometries } from "./geometries";
+import { FortressAvatarSign } from "../FortressAvatarSign";
 
 interface KeepProps {
   shapeKit: ShapeKit;
   bodyMaterial: MeshStandardMaterial;
   roofMaterial: MeshStandardMaterial;
   windowMaterial: MeshStandardMaterial;
+  avatar?: string;
+  avatarName?: string;
+  derelict?: boolean;
 }
 
 /**
@@ -17,7 +21,15 @@ interface KeepProps {
  * faces, and a spike finial — the small-scale echo of a grand medieval
  * great hall.
  */
-export function Keep({ shapeKit, bodyMaterial, roofMaterial, windowMaterial }: KeepProps) {
+export function Keep({
+  shapeKit,
+  bodyMaterial,
+  roofMaterial,
+  windowMaterial,
+  avatar,
+  avatarName,
+  derelict = false,
+}: KeepProps) {
   const geometries = getPartGeometries(shapeKit);
   const { width, depth, height, roofHeight } = shapeKit.keep;
   const { finialHeight, brimThickness, windowInset } = shapeKit.detail;
@@ -51,6 +63,9 @@ export function Keep({ shapeKit, bodyMaterial, roofMaterial, windowMaterial }: K
           ))
         )
       )}
+      {avatar && avatarName ? (
+        <FortressAvatarSign avatar={avatar} name={avatarName} shapeKit={shapeKit} derelict={derelict} />
+      ) : null}
       <mesh
         geometry={geometries.keepBrim}
         material={roofMaterial}

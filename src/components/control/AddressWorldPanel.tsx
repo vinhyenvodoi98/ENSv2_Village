@@ -7,6 +7,7 @@ import { useAccount } from "wagmi";
 import { ensPath } from "@/lib/ens/name";
 import { useOwnedEthNames, type OwnedEthName } from "@/lib/ens/useOwnedEthNames";
 import { useReverseName } from "@/lib/ens/useReverseName";
+import { useEnsAvatars } from "@/lib/ens/useEnsAvatars";
 import { explorerAddressUrl } from "@/lib/explorer";
 import { createPortfolioFortressSource } from "@/world/adapters/ensControlWorldSource";
 import { useWorldStore } from "@/world/state/useWorldStore";
@@ -37,6 +38,11 @@ export function AddressWorldPanel({ address }: { address: `0x${string}` }) {
   // worse than a spinner. Every row carries its re-verified `owner`, so the check is exact.
   const isStale = !!names && names.some((owned) => owned.owner.toLowerCase() !== address.toLowerCase());
   const resolvedNames = isStale ? undefined : names;
+  const avatarNames = useMemo(
+    () => resolvedNames?.map((owned) => owned.name) ?? [],
+    [resolvedNames]
+  );
+  const { data: avatarsByName } = useEnsAvatars(avatarNames);
 
   const setMode = useWorldStore((store) => store.setMode);
   const syncFortresses = useWorldStore((store) => store.syncFortressesFromEns);
@@ -56,10 +62,11 @@ export function AddressWorldPanel({ address }: { address: `0x${string}` }) {
         label: owned.label,
         fullName: owned.name,
         derelict: owned.status !== 2, // IPermissionedRegistry.Status.REGISTERED
-      }))
+      })),
+      avatarsByName
     );
     return { fortresses: source.loadFortresses(), worldRadius: source.requiredWorldRadius() };
-  }, [resolvedNames]);
+  }, [resolvedNames, avatarsByName]);
 
   useEffect(() => {
     if (fortressPlan) syncFortresses(fortressPlan.fortresses, fortressPlan.worldRadius);

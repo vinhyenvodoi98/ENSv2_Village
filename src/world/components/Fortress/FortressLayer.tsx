@@ -52,7 +52,6 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
   const hoveredTile = useWorldStore(selectHoveredTile);
   const mode = useWorldStore(selectMode);
   const selectFortress = useWorldStore((state) => state.selectFortress);
-  const setSpawnFormOpen = useWorldStore((state) => state.setSpawnFormOpen);
   const setFoundKingdomOpen = useWorldStore((state) => state.setFoundKingdomOpen);
 
   const isSandbox = mode === "sandbox";
@@ -77,6 +76,7 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
             coord={fortress.coord}
             name={fortress.name}
             fullName={fortress.fullName}
+            avatar={fortress.avatar}
             tier={fortress.tier}
             derelict={fortress.derelict}
             // A free wildcard label has no `spawn` tx behind it — showing it
@@ -90,20 +90,18 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
             theme={theme}
             // The root castle is the fleet's own ENS name, not a namespace
             // node — there's no agent record for it to open a detail panel
-            // on. Clicking it still does something, though: it's the root's
-            // own hex, so it opens the same root-spawn modal as the HUD
-            // button and the sidebar's root chip (all three clear selection
-            // first, so none can inherit a stale parent) — unless the
-            // kingdom is `unfinished` (task 32: claimed but no `AgentRegistry`
-            // wired yet), in which case there's nothing to spawn into and
-            // clicking it opens "Found your kingdom" instead.
+            // on. Clicking it still does something when the kingdom is
+            // `unfinished` (task 32: claimed but no `AgentRegistry` wired
+            // yet): it opens "Found your kingdom", the only action left that
+            // the root hex can request of the page.
             onClick={
               fortress.ensKey === ROOT_ENS_KEY
-                ? () => {
-                    selectFortress(null);
-                    if (fortress.unfinished) setFoundKingdomOpen(true);
-                    else setSpawnFormOpen(true);
-                  }
+                ? fortress.unfinished
+                  ? () => {
+                      selectFortress(null);
+                      setFoundKingdomOpen(true);
+                    }
+                  : undefined
                 : () => selectFortress(fortress.ensKey)
             }
           />

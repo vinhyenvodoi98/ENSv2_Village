@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo } from "react";
 import { zeroAddress } from "viem";
 import { useEnsName } from "@/lib/ens/useEnsName";
+import { useEnsAvatars } from "@/lib/ens/useEnsAvatars";
 import { useNameChildren, type EnsChildName } from "@/lib/ens/useNameChildren";
 import { createEnsNameFortressSource, SUBJECT_ENS_KEY } from "@/world/adapters/ensControlWorldSource";
 import { useWorldStore } from "@/world/state/useWorldStore";
@@ -30,6 +31,13 @@ export function NameWorldPanel({ name }: { name: string }) {
   const resolvedState = isStale ? undefined : state;
 
   const { data: subnames } = useNameChildren(resolvedState);
+  const avatarNames = useMemo(
+    () => resolvedState
+      ? [resolvedState.name, ...(subnames?.children.map((child) => child.fullName) ?? [])]
+      : [],
+    [resolvedState, subnames]
+  );
+  const { data: avatarsByName } = useEnsAvatars(avatarNames);
 
   const setMode = useWorldStore((store) => store.setMode);
   const syncFortresses = useWorldStore((store) => store.syncFortressesFromEns);
@@ -54,10 +62,11 @@ export function NameWorldPanel({ name }: { name: string }) {
             hasSubregistry: !!child.subregistry && child.subregistry !== zeroAddress,
             derelict: child.status !== "registered",
           }))
-        : []
+        : [],
+      avatarsByName
     );
     return { fortresses: source.loadFortresses(), worldRadius: source.requiredWorldRadius() };
-  }, [resolvedState, subnames]);
+  }, [resolvedState, subnames, avatarsByName]);
 
   useEffect(() => {
     if (fortressPlan) syncFortresses(fortressPlan.fortresses, fortressPlan.worldRadius);

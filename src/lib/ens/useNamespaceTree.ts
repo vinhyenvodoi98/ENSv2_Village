@@ -19,10 +19,9 @@ export type NamespaceNode = AgentTreeNode & {
   registry: `0x${string}`;
   children: NamespaceNode[];
   /// Task 14: a `Wildcard`-tier spawn is genuinely free — no `AgentRegistry.spawn` tx, nothing
-  /// written on-chain (task 06's wildcard resolution answers by rule, not by table). Set on the
-  /// browser-local synthetic nodes `useLocalWildcardAgents` builds so the rest of the UI (detail
-  /// panel, lifecycle actions) can tell "not really minted yet" apart from a real `Wildcard`-tier
-  /// registry entry. Always `undefined`/falsy on anything read from the chain.
+  /// written on-chain (task 06's wildcard resolution answers by rule, not by table). Lets the rest
+  /// of the UI (detail panel, lifecycle actions) tell "not really minted yet" apart from a real
+  /// `Wildcard`-tier registry entry. Always `undefined`/falsy on anything read from the chain.
   isLocalPreview?: boolean;
 };
 
@@ -71,40 +70,6 @@ export function flattenNamespace(nodes: NamespaceNode[], out = new Map<string, N
 
 export function namespaceKey(registry: `0x${string}`, labelhash: `0x${string}`) {
   return `${registry.toLowerCase()}:${labelhash.toLowerCase()}`;
-}
-
-/// Grafts browser-local `Wildcard` previews (`useLocalWildcardAgents`) onto the real, chain-read
-/// tree at the right place: a preview whose target registry is some `Sovereign`'s sub-registry
-/// becomes that node's child, so its ghost castle clusters around the right parent instead of
-/// floating at the root. Previews whose registry matches nothing on chain (the parent was
-/// revoked, or the tree hasn't loaded that branch) stay at the root rather than disappearing.
-export function mergeLocalPreviews(tree: NamespaceNode[], localNodes: NamespaceNode[]): NamespaceNode[] {
-  if (localNodes.length === 0) return tree;
-
-  const byRegistry = new Map<string, NamespaceNode[]>();
-  for (const node of localNodes) {
-    const key = node.registry.toLowerCase();
-    byRegistry.set(key, [...(byRegistry.get(key) ?? []), node]);
-  }
-
-  const attached = new Set<string>();
-  const walk = (nodes: NamespaceNode[]): NamespaceNode[] =>
-    nodes.map((node) => {
-      const key = node.subregistry.toLowerCase();
-      const extras = node.subregistry !== zeroAddress ? (byRegistry.get(key) ?? []) : [];
-      if (extras.length > 0) attached.add(key);
-      return { ...node, children: [...walk(node.children), ...extras] };
-    });
-
-  const merged = walk(tree);
-  const rootKey = CONTRACTS.agentRegistry.toLowerCase();
-  attached.add(rootKey);
-  const rootLevel = byRegistry.get(rootKey) ?? [];
-  const orphans = Array.from(byRegistry)
-    .filter(([key]) => !attached.has(key))
-    .flatMap(([, nodes]) => nodes);
-
-  return [...merged, ...rootLevel, ...orphans];
 }
 
 /// Maps a resolver address back to the `AgentRegistry` it belongs to. Every registry deploys

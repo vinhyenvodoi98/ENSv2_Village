@@ -1,13 +1,12 @@
 "use client";
 
 import { zeroAddress } from "viem";
-import type { LocalWildcardAgent, NamespaceNode } from "@/lib/ens";
+import type { NamespaceNode } from "@/lib/ens";
 import { explorerAddressUrl } from "@/lib/explorer";
 import { truncateAddress } from "@/lib/format";
 import { TierBadge } from "@/components/tree/TierBadge";
 import type { SelectedAgent } from "@/components/tree/AgentSubtree";
 import { LifecycleActions } from "@/components/lifecycle/LifecycleActions";
-import { SpawnAgentForm } from "@/components/lifecycle/SpawnAgentForm";
 import { DelegatePanel } from "@/components/permissions/DelegatePanel";
 import { EscalationButton } from "@/components/permissions/EscalationButton";
 import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
@@ -25,7 +24,6 @@ export function AgentDetailPanel({
   resolverIndex,
   onClose,
   onSelectChild,
-  onSpawnedLocally,
   readOnly,
 }: {
   node: NamespaceNode | null;
@@ -33,9 +31,6 @@ export function AgentDetailPanel({
   resolverIndex: Map<string, `0x${string}`>;
   onClose: () => void;
   onSelectChild: (agent: SelectedAgent) => void;
-  /// Task 29: spawning a child *from the selected agent* lives in this panel, so the parent is
-  /// never ambiguous. Omit to hide the section (e.g. a read-only embedding).
-  onSpawnedLocally?: (agent: LocalWildcardAgent) => void;
   /// Task 31's showcase-kingdom viewer: every write control below (lifecycle actions,
   /// permissions) is disabled with a visible reason rather than silently missing — a viewer
   /// must never discover this isn't their kingdom only when a click does nothing.
@@ -124,15 +119,6 @@ export function AgentDetailPanel({
                 <LifecycleActions node={node} />
               </Section>
             </div>
-
-            {onSpawnedLocally && !readOnly && (
-              <Section title="Spawn child agent">
-                {/* Sits directly under "Lifecycle" on purpose: when this agent
-                    isn't Sovereign yet the form blocks and points at promote,
-                    which is the control immediately above. */}
-                <SpawnAgentForm parent={node} onSpawnedLocally={onSpawnedLocally} />
-              </Section>
-            )}
 
             <Section title="Records">
               <RecordTable node={node} directory={directory} resolverIndex={resolverIndex} />

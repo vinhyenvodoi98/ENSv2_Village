@@ -99,7 +99,8 @@ export function createEnsFortressSource(
   roots: NamespaceNode[],
   rootName: string,
   nowSeconds: number = Date.now() / 1000,
-  rootUnfinished = false
+  rootUnfinished = false,
+  avatarsByName: Readonly<Record<string, string>> = {}
 ): FortressSource {
   let cache: FortressEntity[] | null = null;
 
@@ -121,6 +122,7 @@ export function createEnsFortressSource(
       coord: ORIGIN,
       name: rootName,
       fullName: rootName,
+      avatar: avatarsByName[rootName.toLowerCase()],
       // Grandest preset on the ladder — this castle is the namespace itself,
       // not a promotable agent, so it has no separate tier of its own.
       tier: Math.max(0, AGENT_TIERS.length - 1),
@@ -144,6 +146,7 @@ export function createEnsFortressSource(
         coord,
         name: node.label,
         fullName: node.fullName,
+        avatar: avatarsByName[node.fullName.toLowerCase()],
         tier: Math.max(0, AGENT_TIERS.indexOf(node.tier)),
         // Every depth-0 agent roads straight into the root castle; a deeper
         // node whose parent was itself dropped (shouldn't happen — the tree

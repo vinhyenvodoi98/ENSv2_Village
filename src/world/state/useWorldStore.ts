@@ -100,16 +100,9 @@ export interface WorldState {
   /** Latest camera fly-to request, consumed by `CameraRig`. */
   cameraFocus: CameraFocus | null;
   /**
-   * Whether the page's spawn form is open. Lives here, next to `buildMessage`,
-   * because the map is what opens it: clicking empty ground in `ens` mode is a
-   * request to spawn. The world can't mint anything itself — it can only ask —
-   * which is what keeps wagmi out of `src/world/`.
-   */
-  spawnFormOpen: boolean;
-  /**
-   * Task 32: whether the "Found your kingdom" flow is open. Same reasoning as `spawnFormOpen` —
-   * clicking the root castle when it's `unfinished` (no `AgentRegistry` wired yet) is a request
-   * to found it, and the map can only ask, never mint/deploy anything itself.
+   * Task 32: whether the "Found your kingdom" flow is open. Clicking the root castle when it's
+   * `unfinished` (no `AgentRegistry` wired yet) is a request to found it, and the map can only
+   * ask, never mint/deploy anything itself.
    */
   foundKingdomOpen: boolean;
 
@@ -121,7 +114,6 @@ export interface WorldState {
   /** Selects a castle *and* flies the camera to it — what the detail panel's child links do. */
   focusFortress: (ensKey: string) => void;
   setMode: (mode: WorldMode) => void;
-  setSpawnFormOpen: (open: boolean) => void;
   setFoundKingdomOpen: (open: boolean) => void;
   setBuildMessage: (message: string | null) => void;
   setWeather: (weather: Weather) => void;
@@ -146,6 +138,7 @@ function fortressUnchanged(a: FortressEntity, b: FortressEntity): boolean {
     a.tier === b.tier &&
     a.name === b.name &&
     a.fullName === b.fullName &&
+    a.avatar === b.avatar &&
     a.derelict === b.derelict &&
     a.parentEnsKey === b.parentEnsKey &&
     !!a.isLocalPreview === !!b.isLocalPreview
@@ -238,7 +231,6 @@ export const useWorldStore = create<WorldState>((set) => ({
   selectedFortressId: null,
   buildMessage: null,
   cameraFocus: null,
-  spawnFormOpen: false,
   foundKingdomOpen: false,
 
   setTiles: (tiles) =>
@@ -270,6 +262,7 @@ export const useWorldStore = create<WorldState>((set) => ({
         coord,
         name,
         fullName: name,
+        avatar: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232d526e'/%3E%3Ccircle cx='50' cy='38' r='19' fill='%23f0d49b'/%3E%3Cpath d='M17 100c3-28 18-42 33-42s30 14 33 42' fill='%238f2f35'/%3E%3C/svg%3E",
         tier: 1,
         parentEnsKey: null,
         derelict: false,
@@ -371,12 +364,10 @@ export const useWorldStore = create<WorldState>((set) => ({
             citizens: new Map(),
             citizenList: [],
             selectedFortressId: null,
-            spawnFormOpen: false,
             foundKingdomOpen: false,
           }
     ),
 
-  setSpawnFormOpen: (spawnFormOpen) => set({ spawnFormOpen }),
   setFoundKingdomOpen: (foundKingdomOpen) => set({ foundKingdomOpen }),
 
   setBuildMessage: (message) => set({ buildMessage: message }),

@@ -68,7 +68,7 @@ export function useResolve(name: string | undefined, textKeys: readonly string[]
 /// DNS-encodes a dotted name per ENSIP-10 (`resolve(bytes,bytes)`'s `name` argument): each label
 /// prefixed by its length byte, terminated by a zero-length label. Not exported by `viem`'s
 /// public API, so implemented directly rather than reaching into its internals.
-function dnsEncodeName(name: string): Hex {
+export function dnsEncodeName(name: string): Hex {
   const labels = name.split(".").filter(Boolean);
   const parts = labels.flatMap((label) => {
     const bytes = stringToBytes(label);

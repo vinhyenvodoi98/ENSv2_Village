@@ -52,6 +52,4 @@ export const selectWorldRadius = (state: WorldState) => state.worldRadius;
 
 export const selectCameraFocus = (state: WorldState) => state.cameraFocus;
 
-export const selectSpawnFormOpen = (state: WorldState) => state.spawnFormOpen;
-
 export const selectFoundKingdomOpen = (state: WorldState) => state.foundKingdomOpen;

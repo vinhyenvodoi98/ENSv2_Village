@@ -4,7 +4,6 @@ export {
   useKingdomRegistry,
   useKingdomOwner,
   flattenNamespace,
-  mergeLocalPreviews,
   buildResolverIndex,
   namespaceKey,
   type NamespaceNode,
@@ -13,6 +12,7 @@ export { useAgentRecords, type AgentRecord, type AgentRecords } from "./useAgent
 export { useRecordParent, type RecordParentLink } from "./useRecordParent";
 export { useWildcardRecord, type WildcardRecord } from "./useWildcardRecord";
 export { useResolve, type ResolveResult } from "./useResolve";
+export { useEnsAvatars, type EnsAvatarDirectory } from "./useEnsAvatars";
 export { useRoles, type RoleGrant } from "./useRoles";
 export { useLastHeartbeats, type LastHeartbeat } from "./useLastHeartbeats";
 export { useAgentEvents, type AgentEvent } from "./useAgentEvents";
@@ -23,12 +23,6 @@ export { useFoundKingdom } from "./useFoundKingdom";
 export { useKeyWriters, type KeyWriterGrant } from "./useKeyWriters";
 export { useEffectiveRoles } from "./useEffectiveRoles";
 export { useTxAction, useDeployAction, useDeployedContractAddress, describeError, type TxState } from "./useTxAction";
-export {
-  useLocalWildcardAgents,
-  localWildcardToNode,
-  localWildcardKey,
-  type LocalWildcardAgent,
-} from "./useLocalWildcardAgents";
 export {
   ROLE,
   hasRole,

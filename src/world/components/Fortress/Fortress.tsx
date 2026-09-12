@@ -54,6 +54,8 @@ export interface FortressProps {
   name?: string;
   /** Dotted ENS name, shown on nameplate hover. */
   fullName?: string;
+  /** Effective ENS avatar record displayed on the central keep plaque. */
+  avatar?: string;
   /** `AGENT_TIERS` index, 0 Wildcard … 3 Sovereign. Selects the silhouette preset. */
   tier?: number;
   /** World-space y of the tile's top surface this fortress sits on. */
@@ -78,6 +80,7 @@ export function Fortress({
   coord,
   name,
   fullName,
+  avatar,
   tier = 1,
   height = 0,
   kitId = "medieval",
@@ -97,7 +100,11 @@ export function Fortress({
   const shapeKit = useMemo(() => getShapeKit(kitId), [kitId]);
   const materials = useMemo(() => getThemeMaterials(theme), [theme]);
   const displayName = name?.trim() ?? "";
-  const nameplateY = shapeKit.keep.height + shapeKit.keep.roofHeight + shapeKit.banner.poleHeight * 0.78;
+  const nameplateY =
+    shapeKit.keep.height
+    + shapeKit.keep.roofHeight
+    + shapeKit.banner.poleHeight
+    + shapeKit.detail.nameplateClearance;
 
   const jitter = useMemo(() => {
     const rng = createRng(hashCoord(coord));
@@ -159,6 +166,9 @@ export function Fortress({
           roofMaterial={roofMaterial}
           bannerMaterial={bannerMaterial}
           windowMaterial={windowMaterial}
+          avatar={avatar}
+          avatarName={fullName ?? displayName}
+          derelict={derelict}
         />
       ))}
       {displayName ? (
@@ -182,9 +192,23 @@ interface PartInstanceProps {
   roofMaterial: ReturnType<typeof getThemeMaterials>["fortress"]["roof"];
   bannerMaterial: ReturnType<typeof getThemeMaterials>["fortress"]["bannerVariants"][number];
   windowMaterial: ReturnType<typeof getThemeMaterials>["fortress"]["window"];
+  avatar?: string;
+  avatarName: string;
+  derelict: boolean;
 }
 
-function PartInstance({ placement, shapeKit, bodyMaterial, wallMaterial, roofMaterial, bannerMaterial, windowMaterial }: PartInstanceProps) {
+function PartInstance({
+  placement,
+  shapeKit,
+  bodyMaterial,
+  wallMaterial,
+  roofMaterial,
+  bannerMaterial,
+  windowMaterial,
+  avatar,
+  avatarName,
+  derelict,
+}: PartInstanceProps) {
   return (
     <group position={placement.position} rotation={placement.rotation} scale={placement.scale}>
       <FortressPartMesh
@@ -195,6 +219,9 @@ function PartInstance({ placement, shapeKit, bodyMaterial, wallMaterial, roofMat
         roofMaterial={roofMaterial}
         bannerMaterial={bannerMaterial}
         windowMaterial={windowMaterial}
+        avatar={avatar}
+        avatarName={avatarName}
+        derelict={derelict}
       />
     </group>
   );
@@ -208,12 +235,25 @@ function FortressPartMesh({
   roofMaterial,
   bannerMaterial,
   windowMaterial,
+  avatar,
+  avatarName,
+  derelict,
 }: {
   part: FortressPart;
 } & Omit<PartInstanceProps, "placement">) {
   switch (part) {
     case "keep":
-      return <Keep shapeKit={shapeKit} bodyMaterial={bodyMaterial} roofMaterial={roofMaterial} windowMaterial={windowMaterial} />;
+      return (
+        <Keep
+          shapeKit={shapeKit}
+          bodyMaterial={bodyMaterial}
+          roofMaterial={roofMaterial}
+          windowMaterial={windowMaterial}
+          avatar={avatar}
+          avatarName={avatarName}
+          derelict={derelict}
+        />
+      );
     case "wall":
       return <Wall shapeKit={shapeKit} bodyMaterial={wallMaterial} />;
     case "tower":
