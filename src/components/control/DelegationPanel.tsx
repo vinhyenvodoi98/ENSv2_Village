@@ -18,74 +18,21 @@ import { useEnsNameRoles } from "@/lib/ens/useEnsName";
 import { useRoleAssignees, type RoleAssignee } from "@/lib/ens/useRoleAssignees";
 import { truncateAddress } from "@/lib/format";
 import { AddressValue } from "./AddressValue";
+import { Panel } from "./Panel";
 import { TxStatus } from "@/components/shared/TxStatus";
+import { ActionButton } from "./ui/ActionButton";
 
 const REGISTRY_TOKEN_ROLES = REGISTRY_ROLES.filter((role) => role.scope === "token" && !role.adminOnly);
-
-/// A parchment-and-iron scroll, standing apart from the shell's usual dark glass `Panel` on
-/// purpose: this is the one card in the whole control panel where a click moves real power over a
-/// real name to a real address, and it should never be mistaken for a read-only summary.
-function ScrollPanel({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      className="relative overflow-hidden rounded-sm border-2 border-[#5c4326] bg-gradient-to-b from-[#e8d5a8] to-[#d8bd8a] shadow-[0_0_0_1px_#2b1d0e,0_10px_25px_-5px_rgba(0,0,0,0.6)]"
-      style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
-    >
-      <div className="pointer-events-none absolute inset-2 rounded-sm border border-[#8a6a3a]/60" />
-      <header className="relative border-b-2 border-[#5c4326]/70 bg-[#5c4326]/10 px-5 py-4">
-        <h2 className="flex items-center gap-2 text-sm font-bold tracking-wide text-[#3a2812] uppercase">
-          <span aria-hidden>🛡️</span>
-          {title}
-        </h2>
-        {subtitle ? <p className="mt-1 text-xs text-[#5c4326]">{subtitle}</p> : null}
-      </header>
-      <div className="relative px-5 py-4 text-[#2b1d0e]">{children}</div>
-    </section>
-  );
-}
-
-function SealButton({
-  children,
-  onClick,
-  disabled,
-  title,
-  tone = "grant",
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  title?: string;
-  tone?: "grant" | "revoke";
-}) {
-  const palette =
-    tone === "grant"
-      ? "border-[#5c4326] bg-gradient-to-b from-[#8a1f1f] to-[#5c1414] text-[#f2e2c4] hover:from-[#a02525]"
-      : "border-[#5c4326] bg-gradient-to-b from-[#3a2812] to-[#2b1d0e] text-[#e8d5a8] hover:from-[#4a3418]";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`rounded-sm border-2 px-3 py-1.5 text-xs font-bold tracking-wide uppercase shadow-[0_2px_0_#000] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${palette}`}
-      style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
-    >
-      {children}
-    </button>
-  );
-}
 
 /// Task 34: the headline panel of the control panel. Grants and revokes one specific
 /// `IEnhancedAccessControl` role bitmap to one specific address — never more than the sender
 /// intends, never hidden from what it will or won't allow.
+///
+/// Task 39 restyled this onto the shell's usual dark-glass `Panel`/`ActionButton`, the language
+/// every other panel in the drawer already uses — the serif "scroll" this used to render as
+/// belonged to the 3D world layer, not to this instrument, and gave the single most important
+/// panel in Phase 8 a different skin from its eight neighbours. The semantics (held / not-held /
+/// admin, revoke affordance, raw bitmap on screen) are unchanged.
 export function DelegationPanel({ state }: { state: EnsNameState }) {
   const { data: connectedRoles } = useEnsNameRoles(state);
   const { data: assignees, isPending: assigneesPending } = useRoleAssignees(state);
@@ -203,171 +150,163 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
   }
 
   return (
-    <ScrollPanel
-      title="Grants & delegation"
-      subtitle={
-        <>
-          <code>grantRoles(resource, roleBitmap, account)</code> · one role, one address, one bitmap —
-          never one transaction per role.
-        </>
-      }
-    >
-      {!anyAdmin ? (
-        <p className="mb-4 rounded-sm border border-[#8a6a3a]/50 bg-[#5c4326]/10 px-3 py-2 text-xs">
-          Your connected wallet holds no admin bit on this name&apos;s registry or resolver, so the rows below are
-          shown for reference — every grant/revoke control stays inert until an admin address connects.
-        </p>
-      ) : null}
+    <>
+      <Panel
+        title="Grants & delegation"
+        subtitle={
+          <>
+            <code>grantRoles(resource, roleBitmap, account)</code> · one role, one address, one bitmap — never one
+            transaction per role.
+          </>
+        }
+      >
+        {!anyAdmin ? (
+          <p className="mb-4 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/50">
+            Your connected wallet holds no admin bit on this name&apos;s registry or resolver, so the rows below are
+            shown for reference — every grant/revoke control stays inert until an admin address connects.
+          </p>
+        ) : null}
 
-      {/* — Grant a new capability — */}
-      <div className="mb-6 rounded-sm border border-[#8a6a3a]/50 bg-[#f2e2c4]/40 p-3">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span aria-hidden>📜</span>
-          <input
-            value={addressInput}
-            onChange={(e) => {
-              setAddressInput(e.target.value);
-            }}
-            placeholder="0x… address to hire"
-            className="min-w-0 flex-1 rounded-sm border border-[#8a6a3a] bg-[#fbf3e0] px-2 py-1.5 font-mono text-xs text-[#2b1d0e] placeholder:text-[#8a6a3a]"
-          />
-        </div>
-
-        <div className="mb-3 flex flex-wrap gap-2">
-          {EACL_PRESETS.map((preset) => (
-            <button
-              key={preset.key}
-              type="button"
-              onClick={() => applyPreset(preset)}
-              disabled={!preset.roleKeys.every((key) => isAdminOf(preset.target, findDef(preset.target, key)))}
-              title={
-                !preset.roleKeys.every((key) => isAdminOf(preset.target, findDef(preset.target, key)))
-                  ? "Connected wallet lacks the admin bit for one or more roles in this preset"
-                  : undefined
-              }
-              className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
-                activePreset?.key === preset.key
-                  ? "border-[#5c4326] bg-[#5c4326] text-[#f2e2c4]"
-                  : "border-[#8a6a3a] bg-[#fbf3e0] text-[#5c4326] hover:bg-[#e8d5a8]"
-              }`}
-            >
-              {preset.name}
-            </button>
-          ))}
-        </div>
-
-        <details className="mb-3 text-xs">
-          <summary className="cursor-pointer font-semibold tracking-wide text-[#5c4326] uppercase">
-            Or choose exact roles
-          </summary>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            <RoleCheckboxGroup
-              heading="Registry"
-              defs={REGISTRY_TOKEN_ROLES}
-              selected={registrySelected}
-              isAdmin={(def) => isAdminOf("registry", def)}
-              onToggle={(key) => toggleRole("registry", key)}
-            />
-            <RoleCheckboxGroup
-              heading="Resolver"
-              defs={RESOLVER_ROLES}
-              selected={resolverSelected}
-              isAdmin={(def) => isAdminOf("resolver", def)}
-              onToggle={(key) => toggleRole("resolver", key)}
-              disabled={!resolverAddress}
-              disabledReason="No resolver set on this name yet."
+        {/* — Grant a new capability — */}
+        <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <input
+              value={addressInput}
+              onChange={(e) => {
+                setAddressInput(e.target.value);
+              }}
+              placeholder="0x… address to grant to"
+              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30"
             />
           </div>
-        </details>
 
-        {(willList.length > 0 || willNotList.length > 0) && (
-          <div className="mb-3 grid gap-3 rounded-sm border border-[#8a6a3a]/40 bg-[#fbf3e0]/60 p-2.5 text-xs sm:grid-cols-2">
-            <div>
-              <p className="mb-1 font-bold tracking-wide text-emerald-900 uppercase">Will be able to</p>
-              <ul className="list-inside list-disc space-y-0.5">
-                {willList.length > 0 ? willList.map((w) => <li key={w}>{w}</li>) : <li className="italic">Nothing yet — pick a role.</li>}
-              </ul>
-            </div>
-            <div>
-              <p className="mb-1 font-bold tracking-wide text-[#8a1f1f] uppercase">Will NOT be able to</p>
-              <ul className="list-inside list-disc space-y-0.5">
-                {willNotList.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
-            </div>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {EACL_PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                disabled={!preset.roleKeys.every((key) => isAdminOf(preset.target, findDef(preset.target, key)))}
+                title={
+                  !preset.roleKeys.every((key) => isAdminOf(preset.target, findDef(preset.target, key)))
+                    ? "Connected wallet lacks the admin bit for one or more roles in this preset"
+                    : undefined
+                }
+                className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
+                  activePreset?.key === preset.key
+                    ? "border-white/60 bg-white/15 text-white"
+                    : "border-white/10 text-white/60 hover:bg-white/5"
+                }`}
+              >
+                {preset.name}
+              </button>
+            ))}
           </div>
-        )}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <SealButton
-            onClick={submitGrant}
-            disabled={
-              !validAddress ||
-              (registryBitmap === 0n && resolverBitmap === 0n) ||
-              grant.state === "signing" ||
-              grant.state === "confirming"
-            }
-            title={!anyAdmin ? "Connected wallet holds no admin role to grant with" : undefined}
-          >
-            Seal the grant
-          </SealButton>
-          {addressInput.length > 0 && !validAddress ? (
-            <span className="text-xs text-[#8a1f1f]">Not a valid address.</span>
+          <details className="mb-3 text-xs">
+            <summary className="cursor-pointer font-semibold tracking-wide text-white/60 uppercase">
+              Or choose exact roles
+            </summary>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <RoleCheckboxGroup
+                heading="Registry"
+                defs={REGISTRY_TOKEN_ROLES}
+                selected={registrySelected}
+                isAdmin={(def) => isAdminOf("registry", def)}
+                onToggle={(key) => toggleRole("registry", key)}
+              />
+              <RoleCheckboxGroup
+                heading="Resolver"
+                defs={RESOLVER_ROLES}
+                selected={resolverSelected}
+                isAdmin={(def) => isAdminOf("resolver", def)}
+                onToggle={(key) => toggleRole("resolver", key)}
+                disabled={!resolverAddress}
+                disabledReason="No resolver set on this name yet."
+              />
+            </div>
+          </details>
+
+          {willList.length > 0 || willNotList.length > 0 ? (
+            <div className="mb-3 grid gap-3 rounded-lg border border-white/10 bg-black/20 p-2.5 text-xs sm:grid-cols-2">
+              <div>
+                <p className="mb-1 font-semibold tracking-wide text-emerald-300 uppercase">Will be able to</p>
+                <ul className="list-inside list-disc space-y-0.5 text-white/70">
+                  {willList.length > 0 ? willList.map((w) => <li key={w}>{w}</li>) : <li className="italic">Nothing yet — pick a role.</li>}
+                </ul>
+              </div>
+              <div>
+                <p className="mb-1 font-semibold tracking-wide text-red-300 uppercase">Will NOT be able to</p>
+                <ul className="list-inside list-disc space-y-0.5 text-white/70">
+                  {willNotList.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           ) : null}
-          <TxStatus state={grant.state} txHash={grant.txHash} error={grant.error} />
-        </div>
-      </div>
 
-      {/* — The matrix — */}
-      <div className="overflow-x-auto">
-        {assigneesPending ? (
-          <p className="text-xs italic">Reading the rolls of the keep…</p>
-        ) : !assignees || assignees.length === 0 ? (
-          <p className="text-xs italic">No address holds a role on this name yet.</p>
-        ) : (
-          <table className="w-full min-w-max border-collapse text-xs">
-            <thead>
-              <tr>
-                <th className="border-b-2 border-[#5c4326] px-2 py-1.5 text-left">Address</th>
-                {REGISTRY_TOKEN_ROLES.map((def) => (
-                  <ColHeader key={def.key} def={def} />
+          <div className="flex flex-wrap items-center gap-3">
+            <ActionButton
+              label="Grant"
+              tone="primary"
+              enabled={validAddress && (registryBitmap !== 0n || resolverBitmap !== 0n) && anyAdmin}
+              onClick={submitGrant}
+              pending={grant.state === "signing" || grant.state === "confirming"}
+              reason={!anyAdmin ? "Connected wallet holds no admin role to grant with" : undefined}
+            />
+            {addressInput.length > 0 && !validAddress ? (
+              <span className="text-xs text-red-300">Not a valid address.</span>
+            ) : null}
+            <TxStatus state={grant.state} txHash={grant.txHash} error={grant.error} />
+          </div>
+        </div>
+
+        {/* — The matrix — */}
+        <div className="overflow-x-auto">
+          {assigneesPending ? (
+            <p className="text-xs text-white/40 italic">Reading role assignees…</p>
+          ) : !assignees || assignees.length === 0 ? (
+            <p className="text-xs text-white/40 italic">No address holds a role on this name yet.</p>
+          ) : (
+            <table className="w-full min-w-max border-collapse text-xs">
+              <thead>
+                <tr>
+                  <th className="border-b border-white/10 px-2 py-1.5 text-left text-white/60">Address</th>
+                  {REGISTRY_TOKEN_ROLES.map((def) => (
+                    <ColHeader key={def.key} def={def} />
+                  ))}
+                  {resolverAddress
+                    ? RESOLVER_ROLES.map((def) => <ColHeader key={def.key} def={def} />)
+                    : null}
+                </tr>
+              </thead>
+              <tbody>
+                {assignees.map((row) => (
+                  <MatrixRow
+                    key={row.account}
+                    row={row}
+                    hasResolver={!!resolverAddress}
+                    isAdminOf={isAdminOf}
+                    onCellClick={(target, def, held) => {
+                      if (!held || !isAdminOf(target, def)) return;
+                      revoke.reset();
+                      setRevokeTarget({ account: row.account, target, def });
+                    }}
+                  />
                 ))}
-                {resolverAddress
-                  ? RESOLVER_ROLES.map((def) => <ColHeader key={def.key} def={def} />)
-                  : null}
-              </tr>
-            </thead>
-            <tbody>
-              {assignees.map((row) => (
-                <MatrixRow
-                  key={row.account}
-                  row={row}
-                  hasResolver={!!resolverAddress}
-                  isAdminOf={isAdminOf}
-                  onCellClick={(target, def, held) => {
-                    if (!held || !isAdminOf(target, def)) return;
-                    revoke.reset();
-                    setRevokeTarget({ account: row.account, target, def });
-                  }}
-                />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Panel>
 
       {revokeTarget ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div
-            className="w-full max-w-sm rounded-sm border-2 border-[#5c4326] bg-[#e8d5a8] p-4 text-[#2b1d0e] shadow-2xl"
-            style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
-          >
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase">
-              <span aria-hidden>⚔️</span> Strip a capability
-            </h3>
-            <p className="mb-3 text-xs">
-              Revoke <span className="font-semibold">{revokeTarget.def.label}</span> (
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0b1020] p-4 text-white shadow-2xl">
+            <h3 className="mb-2 text-sm font-semibold tracking-wide text-white uppercase">Revoke a role</h3>
+            <p className="mb-3 text-xs text-white/60">
+              Revoke <span className="font-semibold text-white">{revokeTarget.def.label}</span> (
               <code>{revokeTarget.def.key}</code>) from{" "}
               <span className="font-mono">{truncateAddress(revokeTarget.account)}</span>. This calls{" "}
               <code>revokeRoles</code> on the {revokeTarget.target === "registry" ? "registry" : "resolver"}{" "}
@@ -378,18 +317,21 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
               <button
                 type="button"
                 onClick={() => setRevokeTarget(null)}
-                className="rounded-sm border border-[#8a6a3a] px-3 py-1.5 text-xs font-semibold uppercase"
+                className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold tracking-wide text-white/70 uppercase hover:bg-white/10"
               >
-                Stand down
+                Cancel
               </button>
-              <SealButton tone="revoke" onClick={confirmRevoke} disabled={revoke.state === "signing" || revoke.state === "confirming"}>
-                Confirm revoke
-              </SealButton>
+              <ActionButton
+                label="Confirm revoke"
+                tone="danger"
+                enabled={revoke.state !== "signing" && revoke.state !== "confirming"}
+                onClick={confirmRevoke}
+              />
             </div>
           </div>
         </div>
       ) : null}
-    </ScrollPanel>
+    </>
   );
 }
 
@@ -404,7 +346,7 @@ function ColHeader({ def }: { def: EnsRoleDef }) {
   return (
     <th
       title={`${def.key} — ${def.description}`}
-      className="border-b-2 border-[#5c4326] px-2 py-1.5 text-left font-semibold whitespace-nowrap"
+      className="border-b border-white/10 px-2 py-1.5 text-left font-semibold whitespace-nowrap text-white/60"
     >
       {def.label}
     </th>
@@ -430,11 +372,11 @@ function RoleCheckboxGroup({
 }) {
   return (
     <div>
-      <p className="mb-1 font-semibold tracking-wide text-[#5c4326] uppercase">{heading}</p>
+      <p className="mb-1 font-semibold tracking-wide text-white/60 uppercase">{heading}</p>
       {disabled ? (
-        <p className="text-[#8a6a3a] italic">{disabledReason}</p>
+        <p className="text-white/40 italic">{disabledReason}</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="space-y-1 text-white/80">
           {defs.map((def) => {
             const admin = isAdmin(def);
             return (
@@ -475,7 +417,7 @@ function MatrixRow({
   const resolverDecoded = decodeRoles(row.resolverBitmap, RESOLVER_ROLES);
 
   return (
-    <tr className="border-b border-[#8a6a3a]/30">
+    <tr className="border-b border-white/5">
       <td className="px-2 py-1.5 font-mono">
         <AddressValue address={row.account} />
       </td>
@@ -521,9 +463,9 @@ function Cell({ decoded, canRevoke, onClick }: { decoded: DecodedRole; canRevoke
           "inline-flex h-4 w-4 items-center justify-center rounded-full border",
           held
             ? clickable
-              ? "border-[#5c4326] bg-[#8a1f1f] hover:bg-[#a02525] cursor-pointer"
-              : "border-[#5c4326] bg-[#8a1f1f]/50 cursor-default"
-            : "border-[#8a6a3a]/40 bg-transparent cursor-default",
+              ? "border-emerald-400/50 bg-emerald-400/60 hover:bg-emerald-300 cursor-pointer"
+              : "border-emerald-400/30 bg-emerald-400/30 cursor-default"
+            : "border-white/15 bg-transparent cursor-default",
         ].join(" ")}
       />
     </td>

@@ -4,18 +4,22 @@ import { zeroAddress } from "viem";
 import { CONTRACTS } from "@/lib/contracts/addresses";
 import type { EnsNameState } from "@/lib/ens/useEnsName";
 import { AddressValue } from "./AddressValue";
-import { ExpiryCountdown } from "./ExpiryCountdown";
 import { Field, Panel } from "./Panel";
+import { StatusPill, type StatusTone } from "./ui/StatusPill";
 
-const STATUS_STYLES: Record<string, string> = {
-  registered: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  reserved: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-  available: "border-white/15 bg-white/5 text-white/60",
+const STATUS_TONE: Record<string, StatusTone> = {
+  registered: "registered",
+  reserved: "reserved",
+  available: "available",
 };
 
 /// The read-only truth about one name, entirely from `IPermissionedRegistry` on whichever registry
 /// governs it. Every row names the function behind it, and every address links out to the explorer,
 /// so nothing here can be mistaken for a value the frontend made up.
+///
+/// Owner and expiry are deliberately *not* rows here (task 39): the identity header above this tab
+/// already shows both as one of the four facts a user re-checks constantly, and having them appear
+/// a second time here is exactly the "same truth printed twice" defect task 39 set out to remove.
 export function NameOverviewPanel({ state }: { state: EnsNameState }) {
   const status = state.status;
 
@@ -28,45 +32,12 @@ export function NameOverviewPanel({ state }: { state: EnsNameState }) {
           {state.registry ? <AddressValue address={state.registry} /> : "—"}
         </>
       }
-      actions={
-        status ? (
-          <span
-            className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase ${STATUS_STYLES[status]}`}
-          >
-            {status}
-          </span>
-        ) : null
-      }
+      actions={status ? <StatusPill label={status} tone={STATUS_TONE[status]} /> : null}
     >
       <dl>
         <Field label="Name">
           <span className="font-mono text-base text-white">{state.name}</span>
         </Field>
-
-        {state.isPermissionedRegistry ? (
-          <Field label="Owner" hint="getOwner(labelhash)">
-            {state.owner ? (
-              <AddressValue address={state.owner} />
-            ) : state.latestOwner ? (
-              <span className="inline-flex flex-wrap items-baseline justify-end gap-2">
-                <AddressValue address={state.latestOwner} />
-                <span className="text-xs text-white/40">(expired — last holder)</span>
-              </span>
-            ) : (
-              <span className="text-sm text-white/35 italic">nobody</span>
-            )}
-          </Field>
-        ) : null}
-
-        {state.isPermissionedRegistry ? (
-          <Field label="Expiry" hint="getExpiry(labelhash)">
-            {state.expiry && state.expiry > 0n ? (
-              <ExpiryCountdown expiry={state.expiry} />
-            ) : (
-              <span className="text-sm text-white/35 italic">never registered</span>
-            )}
-          </Field>
-        ) : null}
 
         <Field label="Resolver" hint="getResolver(label)">
           <AddressValue address={state.resolver} />

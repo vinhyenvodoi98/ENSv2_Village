@@ -10,15 +10,16 @@ import { useEnsNameRoles, type EnsNameState } from "@/lib/ens/useEnsName";
 import { useTxAction } from "@/lib/ens/useTxAction";
 import { useNowTicker } from "@/lib/useNowTicker";
 import { TxStatus } from "@/components/shared/TxStatus";
-import { AddressValue } from "./AddressValue";
 import { Panel } from "./Panel";
+import { ActionButton } from "./ui/ActionButton";
+import type { NameTab } from "./useNameTab";
 
 const ROLE_CAN_TRANSFER = REGISTRY_ROLES.find((r) => r.key === "ROLE_CAN_TRANSFER")!;
 
 /// Task 37: the unglamorous panel every name manager needs — renew, transfer, re-point — kept
 /// deliberately thin. Every write here is a function `IPermissionedRegistry`/`IEnhancedAccessControl`
 /// already expose; nothing here invents a tier ladder or a lifecycle state ENSv2 doesn't already have.
-export function LifecyclePanel({ state }: { state: EnsNameState }) {
+export function LifecyclePanel({ state, onTabChange }: { state: EnsNameState; onTabChange: (tab: NameTab) => void }) {
   if (!state.isPermissionedRegistry || state.tokenId === null || state.expiry === null) return null;
 
   return (
@@ -26,7 +27,7 @@ export function LifecyclePanel({ state }: { state: EnsNameState }) {
       <ExpiryBanner expiry={state.expiry} />
       <RenewPanel state={state} />
       <TransferPanel state={state} />
-      <RepointPanel state={state} />
+      <RepointPanel state={state} onTabChange={onTabChange} />
     </>
   );
 }
@@ -242,7 +243,7 @@ function TransferPanel({ state }: { state: EnsNameState }) {
   );
 }
 
-function RepointPanel({ state }: { state: EnsNameState }) {
+function RepointPanel({ state, onTabChange }: { state: EnsNameState; onTabChange: (tab: NameTab) => void }) {
   const { data: connectedRoles } = useEnsNameRoles(state);
   const lifecycle = useNameLifecycle(state);
 
@@ -254,14 +255,22 @@ function RepointPanel({ state }: { state: EnsNameState }) {
       title="Re-point"
       subtitle={
         <>
-          <code>setResolver</code> · <code>setSubregistry</code>
+          <code>setResolver</code> · <code>setSubregistry</code> — current values are on the{" "}
+          <button
+            type="button"
+            onClick={() => onTabChange("overview")}
+            className="underline decoration-white/30 underline-offset-2 hover:text-white"
+          >
+            Overview
+          </button>{" "}
+          tab
         </>
       }
     >
       <RepointField
         label="Resolver"
         hint="setResolver(anyId, resolver)"
-        current={state.resolver}
+        hasCurrent={!!state.resolver && state.resolver !== zeroAddress}
         canSet={canSetResolver}
         roleKey="ROLE_SET_RESOLVER"
         warning="Records live per resolver — switching hides this name's existing records rather than moving them. They resolve again if this resolver is set back."
@@ -272,10 +281,10 @@ function RepointPanel({ state }: { state: EnsNameState }) {
       <RepointField
         label="Subregistry"
         hint="setSubregistry(anyId, registry)"
-        current={state.subregistry}
+        hasCurrent={!!state.subregistry && state.subregistry !== zeroAddress}
         canSet={canSetSubregistry}
         roleKey="ROLE_SET_SUBREGISTRY"
-        warning="This decides which registry issues this name's subnames — task 36's self-service panel above shares the same field."
+        warning="This decides which registry issues this name's subnames — the Subnames tab shares the same field."
         onSubmit={lifecycle.setSubregistry.run}
         action={lifecycle.setSubregistry}
       />
@@ -286,7 +295,7 @@ function RepointPanel({ state }: { state: EnsNameState }) {
 function RepointField({
   label,
   hint,
-  current,
+  hasCurrent,
   canSet,
   roleKey,
   warning,
@@ -295,7 +304,7 @@ function RepointField({
 }: {
   label: string;
   hint: string;
-  current: `0x${string}` | null;
+  hasCurrent: boolean;
   canSet: boolean;
   roleKey: string;
   warning: string;
@@ -304,7 +313,6 @@ function RepointField({
 }) {
   const [value, setValue] = useState("");
   const valid = isAddress(value);
-  const hasCurrent = !!current && current !== zeroAddress;
 
   return (
     <div>
@@ -312,9 +320,6 @@ function RepointField({
         <p className="text-xs font-medium tracking-wide text-white/60 uppercase">{label}</p>
         <p className="font-mono text-[11px] text-white/30">{hint}</p>
       </div>
-      <p className="mt-1 text-sm text-white/80">
-        Current: <AddressValue address={current} />
-      </p>
       {hasCurrent ? <p className="mt-1 text-xs text-amber-200/80">{warning}</p> : null}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <input
@@ -334,38 +339,6 @@ function RepointField({
       </div>
       <TxStatus state={action.state} txHash={action.txHash} error={action.error} />
     </div>
-  );
-}
-
-function ActionButton({
-  label,
-  enabled,
-  onClick,
-  pending,
-  reason,
-  tone = "default",
-}: {
-  label: string;
-  enabled: boolean;
-  onClick: () => void;
-  pending?: boolean;
-  reason?: string;
-  tone?: "default" | "danger";
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!enabled || pending}
-      title={enabled ? undefined : (reason ?? "Connected wallet lacks the role this action needs")}
-      className={`rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
-        tone === "danger"
-          ? "border-red-400/40 bg-red-500/10 text-red-200 hover:bg-red-500/20"
-          : "border-white/15 text-white/80 hover:bg-white/10"
-      }`}
-    >
-      {label}
-    </button>
   );
 }
 

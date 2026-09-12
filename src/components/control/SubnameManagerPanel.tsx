@@ -20,6 +20,8 @@ import Link from "next/link";
 import { AddressValue } from "./AddressValue";
 import { ExpiryCountdown } from "./ExpiryCountdown";
 import { Panel } from "./Panel";
+import { ActionButton } from "./ui/ActionButton";
+import { AddressInput } from "./ui/AddressInput";
 
 /// Task 36: "an owner deploys their own `PermissionedRegistry`, points their name at it, and from
 /// then on issues subnames permissionlessly." One screen, three parts, each gated on chain state
@@ -448,10 +450,10 @@ function ChildRow({
       </div>
       {roles.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <ActionButton label="Renew +1y" enabled={held("ROLE_RENEW")} onClick={renew} pending={renewAction.state === "signing" || renewAction.state === "confirming"} />
-          <ActionButton label="Unregister" enabled={held("ROLE_UNREGISTER")} onClick={unregister} pending={unregisterAction.state === "signing" || unregisterAction.state === "confirming"} tone="danger" />
-          <ActionButton label="Set resolver" enabled={held("ROLE_SET_RESOLVER")} onClick={() => setEditing(editing === "resolver" ? null : "resolver")} />
-          <ActionButton label="Set subregistry" enabled={held("ROLE_SET_SUBREGISTRY")} onClick={() => setEditing(editing === "subregistry" ? null : "subregistry")} />
+          <ActionButton size="sm" label="Renew +1y" enabled={held("ROLE_RENEW")} onClick={renew} pending={renewAction.state === "signing" || renewAction.state === "confirming"} />
+          <ActionButton size="sm" label="Unregister" enabled={held("ROLE_UNREGISTER")} onClick={unregister} pending={unregisterAction.state === "signing" || unregisterAction.state === "confirming"} tone="danger" />
+          <ActionButton size="sm" label="Set resolver" enabled={held("ROLE_SET_RESOLVER")} onClick={() => setEditing(editing === "resolver" ? null : "resolver")} />
+          <ActionButton size="sm" label="Set subregistry" enabled={held("ROLE_SET_SUBREGISTRY")} onClick={() => setEditing(editing === "subregistry" ? null : "subregistry")} />
         </div>
       ) : null}
       <TxStatus state={renewAction.state} txHash={renewAction.txHash} error={renewAction.error} />
@@ -468,34 +470,6 @@ function ChildRow({
   );
 }
 
-function ActionButton({
-  label,
-  enabled,
-  onClick,
-  pending,
-  tone = "default",
-}: {
-  label: string;
-  enabled: boolean;
-  onClick: () => void;
-  pending?: boolean;
-  tone?: "default" | "danger";
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!enabled || pending}
-      title={enabled ? undefined : "Connected wallet lacks the role this action needs"}
-      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
-        tone === "danger" ? "border-red-400/30 text-red-300 hover:bg-red-400/10" : "border-white/15 text-white/70 hover:bg-white/10"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
 function InlineAddressAction({
   kind,
   tokenId,
@@ -507,35 +481,23 @@ function InlineAddressAction({
   subregistry: `0x${string}`;
   onDone: () => void;
 }) {
-  const [value, setValue] = useState("");
   const action = useTxAction();
-  const valid = isAddress(value);
   const functionName = kind === "resolver" ? "setResolver" : "setSubregistry";
 
-  async function submit() {
-    if (!valid) return;
+  async function submit(value: Address) {
     await action
-      .send({ address: subregistry, abi: ethRegistryAbi, functionName, args: [tokenId, value as Address] })
+      .send({ address: subregistry, abi: ethRegistryAbi, functionName, args: [tokenId, value] })
       .catch(() => {});
     if (action.state !== "failed") onDone();
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-2">
-      <input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+      <AddressInput
         placeholder={`0x… new ${kind}`}
-        className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2 py-1 font-mono text-xs text-white placeholder:text-white/25"
+        onSubmit={(value) => void submit(value)}
+        pending={action.state === "signing" || action.state === "confirming"}
       />
-      <button
-        type="button"
-        onClick={() => void submit()}
-        disabled={!valid || action.state === "signing" || action.state === "confirming"}
-        className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-white uppercase hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        Set
-      </button>
       <TxStatus state={action.state} txHash={action.txHash} error={action.error} />
     </div>
   );

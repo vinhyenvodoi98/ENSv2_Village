@@ -6,13 +6,20 @@
 /// this one is content-agnostic — the control panel's three castle kinds (the page's own subject, a
 /// subname, a portfolio entry) each render their own content into it, all built from task 33's
 /// existing read-only panels (`NameOverviewPanel`, `RolesSummary`, `RegistryPathPanel`).
+///
+/// The aside itself never scrolls (task 39): it is a fixed-height flex column, and every content
+/// kind rendered inside it — the tabbed subject view as much as a single compact card — owns its
+/// own scroll container. `wide` is the one layout knob task 39 adds: the subject's Permissions tab
+/// needs room for the role matrix that no other tab does, so it alone expands the drawer.
 export function WorldDetailPanel({
   open,
   onClose,
+  wide,
   children,
 }: {
   open: boolean;
   onClose: () => void;
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -28,7 +35,8 @@ export function WorldDetailPanel({
 
       <aside
         className={[
-          "fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col gap-4 overflow-y-auto bg-[#0b1020] p-5 text-white shadow-2xl shadow-black/50 transition-transform duration-200",
+          "fixed inset-y-0 right-0 z-50 flex w-full flex-col overflow-hidden bg-[#0b1020] text-white shadow-2xl shadow-black/50 transition-[transform,max-width] duration-200",
+          wide ? "max-w-3xl" : "max-w-md",
           open ? "translate-x-0" : "translate-x-full",
         ].join(" ")}
       >
@@ -36,7 +44,7 @@ export function WorldDetailPanel({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 rounded-full p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+          className="absolute right-4 top-4 z-10 rounded-full p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
         >
           ✕
         </button>

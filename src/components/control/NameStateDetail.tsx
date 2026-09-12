@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { addressPath, ensPath } from "@/lib/ens/name";
 import type { EnsChildName, EnsNameChildren } from "@/lib/ens/useNameChildren";
-import type { EnsNameState } from "@/lib/ens/useEnsName";
+import { useEnsNameRoles, type EnsNameState } from "@/lib/ens/useEnsName";
 import { AddressValue } from "./AddressValue";
 import { ActivityFeedPanel } from "./ActivityFeedPanel";
 import { DelegationPanel } from "./DelegationPanel";
@@ -12,45 +13,219 @@ import { Field, Panel } from "./Panel";
 import { LifecyclePanel } from "./LifecyclePanel";
 import { NameOverviewPanel, RegistryPathPanel } from "./NameOverviewPanel";
 import { RecordsPanel } from "./RecordsPanel";
-import { RolesSummary } from "./RolesSummary";
+import { useYourRoleVerdict, YourRoleBadges } from "./RolesSummary";
 import { SubnameManagerPanel } from "./SubnameManagerPanel";
+import { StatusPill, type StatusTone } from "./ui/StatusPill";
+import { EmptyState } from "./ui/EmptyState";
+import { NAME_TABS, type NameTab } from "./useNameTab";
 
-/// The complete read-only truth about one ENSv2 name — task 33's original `/ens/[name]` body,
-/// unchanged, now reused as the content of the world view's detail panel (task 34) instead of a
-/// full page in its own right. Every panel here still maps to a function ENSv2 itself exposes; only
-/// the surrounding chrome changed.
-export function NameStateDetail({ state, subnames }: { state: EnsNameState; subnames?: EnsNameChildren }) {
+const TAB_LABEL: Record<NameTab, string> = {
+  overview: "Overview",
+  permissions: "Permissions",
+  records: "Records",
+  subnames: "Subnames",
+  lifecycle: "Lifecycle",
+  activity: "Activity",
+};
+
+/// Whether the leaf-status pill the header shows, and the reason non-Overview tabs are disabled —
+/// task 33's four first-class states, decided once here so every tab and the header agree on them.
+function nameHeaderStatus(state: EnsNameState): { label: string; tone: StatusTone; blocked: string | null } {
+  if (state.registry === null) {
+    return { label: "unreachable", tone: "unreachable", blocked: "No registry governs this name — there is nothing to act on." };
+  }
+  if (!state.isPermissionedRegistry) {
+    return {
+      label: "custom registry",
+      tone: "custom",
+      blocked: "This name's registry doesn't implement IPermissionedRegistry, so it has no roles, records or lifecycle for this tab to act on.",
+    };
+  }
+  if (state.status === "available") {
+    const lapsed = !!state.latestOwner || (state.expiry !== null && state.expiry > 0n);
+    return { label: lapsed ? "lapsed" : "available", tone: lapsed ? "lapsed" : "available", blocked: null };
+  }
+  return { label: state.status ?? "unknown", tone: (state.status as StatusTone) ?? "neutral", blocked: null };
+}
+
+/// The complete read-only-and-writable truth about one ENSv2 name, task 33's original body redrawn
+/// as task 39 asked: a sticky identity header (the facts a user re-checks constantly) above six
+/// tabs, each mounted only once first selected and kept mounted after — so opening the drawer no
+/// longer fires the records/delegation/subname/event-log reads for every panel at once.
+export function NameStateDetail({
+  state,
+  subnames,
+  avatar,
+  tab,
+  onTabChange,
+}: {
+  state: EnsNameState;
+  subnames?: EnsNameChildren;
+  avatar?: string;
+  tab: NameTab;
+  onTabChange: (tab: NameTab) => void;
+}) {
+  const [visited, setVisited] = useState<Set<NameTab>>(() => new Set([tab]));
+  const { data: roles } = useEnsNameRoles(state);
+  const verdict = useYourRoleVerdict(state);
+
+  function selectTab(next: NameTab) {
+    setVisited((prev) => (prev.has(next) ? prev : new Set(prev).add(next)));
+    onTabChange(next);
+  }
+
+  const header = nameHeaderStatus(state);
+  const owner = state.owner ?? state.latestOwner;
+
+  const registryAnyWrite = !!roles && (roles.registryRoles.some((r) => r.held) || roles.registryRootRoles.some((r) => r.held));
+  const registryAnyAdmin = !!roles && (roles.registryRoles.some((r) => r.isAdmin) || roles.registryRootRoles.some((r) => r.isAdmin));
+  const resolverAnyWrite = !!roles && !!roles.resolverRoles?.some((r) => r.held);
+  const resolverAnyAdmin = !!roles && !!roles.resolverRoles?.some((r) => r.isAdmin);
+
+  const locked: Partial<Record<NameTab, boolean>> = {
+    permissions: !!roles && !registryAnyAdmin && !resolverAnyAdmin,
+    records: !!roles && !resolverAnyWrite,
+    lifecycle: !!roles && !registryAnyWrite,
+  };
+
+  const disabledReason: Partial<Record<NameTab, string>> = header.blocked
+    ? { permissions: header.blocked, records: header.blocked, subnames: header.blocked, lifecycle: header.blocked, activity: header.blocked }
+    : {};
+
   return (
-    <div className="space-y-4">
-      {state.registry === null ? (
-        <Panel title="Nothing governs this name" actions={<StatusPill label="unreachable" />}>
-          <p className="text-sm text-white/60">
-            The walk down from the root registry stopped at{" "}
-            <span className="font-mono text-white/80">{state.brokenAt?.label}</span>: its
-            <code className="mx-1">getSubregistry</code> returns <code>address(0)</code>, so no registry issues{" "}
-            <span className="font-mono text-white/80">{state.name}</span> and there is no on-chain state to read.
-          </p>
-        </Panel>
-      ) : (
-        <>
-          {!state.isPermissionedRegistry ? (
-            <CustomRegistryPanel state={state} />
-          ) : state.status === "available" ? (
+    <div className="flex h-full flex-col">
+      {/* Identity header — never scrolls, the four facts re-checked constantly */}
+      <div className="shrink-0 border-b border-white/10 px-5 pt-14 pb-4">
+        <div className="flex items-center gap-3">
+          {avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatar} alt="" className="h-10 w-10 shrink-0 rounded-full border border-white/10 object-cover" />
+          ) : null}
+          <div className="min-w-0">
+            <h1 className="truncate font-mono text-lg text-white">{state.name}</h1>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <StatusPill label={header.label} tone={header.tone} />
+          {state.expiry !== null && state.expiry > 0n ? <ExpiryCountdown expiry={state.expiry} /> : null}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-white/50">
+          <span className="flex items-center gap-1.5">
+            Owner: {owner ? <AddressValue address={owner} /> : <span className="text-white/35 italic">nobody</span>}
+          </span>
+          <span className="text-white/70">{verdict}</span>
+        </div>
+      </div>
+
+      {/* Tab strip — never scrolls */}
+      <div className="shrink-0 flex flex-wrap gap-1 border-b border-white/10 bg-black/10 px-3 py-2">
+        {NAME_TABS.map((key) => {
+          const active = tab === key;
+          const isLocked = locked[key];
+          const blockedReason = disabledReason[key];
+          const count = key === "subnames" && subnames?.enumerable ? subnames.children.length : null;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => selectTab(key)}
+              disabled={!!blockedReason}
+              title={blockedReason ?? (isLocked ? "Connected wallet holds no write role here" : undefined)}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
+                active ? "border-white/60 bg-white/15 text-white" : "border-white/10 text-white/60 hover:bg-white/5"
+              }`}
+            >
+              {TAB_LABEL[key]}
+              {count !== null ? (
+                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-white/60">{count}</span>
+              ) : null}
+              {isLocked && !blockedReason ? <span aria-hidden>🔒</span> : null}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab body — each tab owns its own scroll container, and mounts only once first selected */}
+      <div className="relative min-h-0 flex-1">
+        {NAME_TABS.map((key) => {
+          if (!visited.has(key)) return null;
+          return (
+            <div key={key} hidden={tab !== key} className="h-full overflow-y-auto p-5">
+              <TabBody tabKey={key} state={state} subnames={subnames} onTabChange={selectTab} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TabBody({
+  tabKey,
+  state,
+  subnames,
+  onTabChange,
+}: {
+  tabKey: NameTab;
+  state: EnsNameState;
+  subnames?: EnsNameChildren;
+  onTabChange: (tab: NameTab) => void;
+}) {
+  if (state.registry === null) {
+    if (tabKey !== "overview") return null;
+    return (
+      <Panel title="Nothing governs this name" actions={<StatusPill label="unreachable" tone="unreachable" />}>
+        <p className="text-sm text-white/60">
+          The walk down from the root registry stopped at{" "}
+          <span className="font-mono text-white/80">{state.brokenAt?.label}</span>: its <code>getSubregistry</code>{" "}
+          returns <code>address(0)</code>, so no registry issues <span className="font-mono text-white/80">{state.name}</span>{" "}
+          and there is no on-chain state to read.
+        </p>
+        <div className="mt-4">
+          <RegistryPathPanel state={state} />
+        </div>
+      </Panel>
+    );
+  }
+
+  if (!state.isPermissionedRegistry) {
+    if (tabKey !== "overview") return null;
+    return (
+      <div className="space-y-4">
+        <CustomRegistryPanel state={state} />
+        <NameOverviewPanel state={state} />
+        <RegistryPathPanel state={state} />
+      </div>
+    );
+  }
+
+  switch (tabKey) {
+    case "overview":
+      return (
+        <div className="space-y-4">
+          {state.status === "available" ? (
             <NotRegisteredPanel name={state.name} hadOwner={state.latestOwner} expiry={state.expiry} />
           ) : null}
           <NameOverviewPanel state={state} />
-          {state.isPermissionedRegistry ? <RolesSummary state={state} /> : null}
-          {state.isPermissionedRegistry ? <DelegationPanel state={state} /> : null}
-          {state.isPermissionedRegistry ? <RecordsPanel state={state} /> : null}
-          {state.isPermissionedRegistry ? <SubnameManagerPanel state={state} subnames={subnames} /> : null}
-          {state.isPermissionedRegistry ? <LifecyclePanel state={state} /> : null}
-          {state.isPermissionedRegistry ? <ActivityFeedPanel state={state} /> : null}
+          <RegistryPathPanel state={state} />
+        </div>
+      );
+    case "permissions":
+      return (
+        <>
+          <YourRoleBadges state={state} />
+          <DelegationPanel state={state} />
         </>
-      )}
-
-      <RegistryPathPanel state={state} />
-    </div>
-  );
+      );
+    case "records":
+      return <RecordsPanel state={state} />;
+    case "subnames":
+      return <SubnameManagerPanel state={state} subnames={subnames} />;
+    case "lifecycle":
+      return <LifecyclePanel state={state} onTabChange={onTabChange} />;
+    case "activity":
+      return <ActivityFeedPanel state={state} />;
+  }
 }
 
 /// A parent can point `setSubregistry` at *any* `IRegistry` — which only promises
@@ -60,7 +235,7 @@ export function NameStateDetail({ state, subnames }: { state: EnsNameState; subn
 /// zeroes as if they were read values.
 function CustomRegistryPanel({ state }: { state: EnsNameState }) {
   return (
-    <Panel title="Custom registry" actions={<StatusPill label="non-standard" />}>
+    <Panel title="Custom registry" actions={<StatusPill label="non-standard" tone="custom" />}>
       <p className="text-sm text-white/60">
         <span className="font-mono text-white/80">{state.parent}</span> delegates its subnames to a registry that does not
         implement <code>IPermissionedRegistry</code>: <code>getState</code> reverts there. Its resolver and subregistry
@@ -87,7 +262,7 @@ function NotRegisteredPanel({
   const hasLapsed = !!hadOwner || (expiry !== null && expiry > 0n);
 
   return (
-    <Panel title={hasLapsed ? "Registration lapsed" : "Not registered"} actions={<StatusPill label="available" />}>
+    <Panel title={hasLapsed ? "Registration lapsed" : "Not registered"} actions={<StatusPill label="available" tone="available" />}>
       <p className="text-sm text-white/60">
         {hasLapsed ? (
           <>
@@ -117,44 +292,38 @@ function NotRegisteredPanel({
   );
 }
 
-function StatusPill({ label }: { label: string }) {
-  return (
-    <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold tracking-wide text-white/60 uppercase">
-      {label}
-    </span>
-  );
-}
-
 /// Compact card for a clicked *subname* castle — not the page's own subject. Deliberately doesn't
 /// try to show roles or registry-path for it: those need a fresh registry walk from `useEnsName`,
 /// which is exactly what navigating to the subname's own `/ens/[name]` page does.
 export function NameChildDetail({ child }: { child: EnsChildName }) {
   return (
-    <Panel
-      title={child.fullName}
-      subtitle="One level down from this page's own name"
-      actions={child.status !== "registered" ? <StatusPill label="lapsed" /> : null}
-    >
-      <dl>
-        <Field label="Owner" hint="getState(tokenId).latestOwner">
-          {child.owner ? <AddressValue address={child.owner} /> : <span className="text-sm text-white/35 italic">nobody</span>}
-        </Field>
-        <Field label="Expiry" hint="getState(tokenId).expiry">
-          {child.expiry > 0n ? <ExpiryCountdown expiry={child.expiry} /> : <span className="text-sm text-white/35 italic">—</span>}
-        </Field>
-        <Field label="Resolver" hint="getResolver(label)">
-          <AddressValue address={child.resolver} />
-        </Field>
-        <Field label="Subregistry" hint="getSubregistry(label)">
-          <AddressValue address={child.subregistry} />
-        </Field>
-      </dl>
-      <Link
-        href={ensPath(child.fullName)}
-        className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20"
+    <div className="h-full overflow-y-auto p-5 pt-14">
+      <Panel
+        title={child.fullName}
+        subtitle="One level down from this page's own name"
+        actions={child.status !== "registered" ? <StatusPill label="lapsed" tone="lapsed" /> : null}
       >
-        Open its own control panel →
-      </Link>
-    </Panel>
+        <dl>
+          <Field label="Owner" hint="getState(tokenId).latestOwner">
+            {child.owner ? <AddressValue address={child.owner} /> : <EmptyState className="italic">nobody</EmptyState>}
+          </Field>
+          <Field label="Expiry" hint="getState(tokenId).expiry">
+            {child.expiry > 0n ? <ExpiryCountdown expiry={child.expiry} /> : <span className="text-sm text-white/35 italic">—</span>}
+          </Field>
+          <Field label="Resolver" hint="getResolver(label)">
+            <AddressValue address={child.resolver} />
+          </Field>
+          <Field label="Subregistry" hint="getSubregistry(label)">
+            <AddressValue address={child.subregistry} />
+          </Field>
+        </dl>
+        <Link
+          href={ensPath(child.fullName)}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20"
+        >
+          Open its own control panel →
+        </Link>
+      </Panel>
+    </div>
   );
 }

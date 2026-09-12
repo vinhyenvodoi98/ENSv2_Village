@@ -19,6 +19,7 @@ import { ControlPanelWorldShell } from "./ControlPanelWorldShell";
 import { NameChildDetail, NameStateDetail } from "./NameStateDetail";
 import { ScanLoadingModal } from "@/components/shared/ScanLoadingModal";
 import { Panel } from "./Panel";
+import { useNameTab } from "./useNameTab";
 import { WorldDetailPanel } from "./WorldDetailPanel";
 
 const WorldCanvas = dynamic(() => import("@/world/components/Scene/WorldCanvas").then((mod) => mod.WorldCanvas), {
@@ -56,6 +57,7 @@ export function NameWorldPanel({ name }: { name: string }) {
   const syncFortresses = useWorldStore((store) => store.syncFortressesFromEns);
   const selectFortress = useWorldStore((store) => store.selectFortress);
   const selectedFortressId = useWorldStore(selectSelectedFortressId);
+  const [tab, setTab] = useNameTab();
 
   useEffect(() => {
     setMode("control-panel");
@@ -131,9 +133,19 @@ export function NameWorldPanel({ name }: { name: string }) {
         }}
       />
 
-      <WorldDetailPanel open={isSubjectSelected || !!selectedChild} onClose={closePanel}>
+      <WorldDetailPanel
+        open={isSubjectSelected || !!selectedChild}
+        onClose={closePanel}
+        wide={isSubjectSelected && tab === "permissions"}
+      >
         {isSubjectSelected && resolvedState ? (
-          <NameStateDetail state={resolvedState} subnames={subnames} />
+          <NameStateDetail
+            state={resolvedState}
+            subnames={subnames}
+            avatar={avatarsByName?.[resolvedState.name]}
+            tab={tab}
+            onTabChange={setTab}
+          />
         ) : selectedChild ? (
           <NameChildDetail child={selectedChild} />
         ) : null}
