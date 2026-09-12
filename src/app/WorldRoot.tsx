@@ -35,9 +35,8 @@ const WorldCanvas = dynamic(
 /// convention `AddressWorldPanel` uses.
 const STATUS_REGISTERED = 2;
 
-/// `hasStoredClaim` has nothing to subscribe to — it's a plain synchronous localStorage read, not
-/// an event source — so this tells `useSyncExternalStore` there's no external change to listen
-/// for; the snapshot itself still re-runs on every render, which is all `pendingClaim` needs.
+/// Client-only snapshots used below have nothing to subscribe to, so this tells
+/// `useSyncExternalStore` there is no external event source to register.
 function noopSubscribe(): () => void {
   return () => {};
 }
@@ -57,11 +56,17 @@ function noopSubscribe(): () => void {
  * neither belongs on the screen a wallet owner actually operates their names from.
  */
 export default function WorldRoot() {
-  const { address, isConnected, chainId } = useAccount();
+  const { address, isConnected, chainId, status: connectionStatus } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const hasMounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const isRestoringWallet =
+    !hasMounted || connectionStatus === "connecting" || connectionStatus === "reconnecting";
   const isWrongNetwork = isConnected && chainId !== sepolia.id;
 
+  // With wagmi's SSR-safe mode, the first browser render intentionally matches the server
+  // snapshot. Its mount effect then restores the persisted connector. Keep the world visible
+  // during that short bootstrap instead of flashing a false "Connect your wallet" panel.
   // Same `undefined` = "hasn't answered yet" convention `useOwnedEthNames` establishes everywhere
   // else it's read (task 31) — collapsing that into `[]` is what used to make a wallet's own
   // castle flash away mid-scan.
@@ -197,7 +202,7 @@ export default function WorldRoot() {
       <WorldCanvas registerMountain={{ state: mountainState, onClick: handleMountainClick }} />
       <BuildBar />
 
-      {!isConnected ? (
+      {!isConnected && !isRestoringWallet ? (
         <CenteredMessage>
           <Panel title="Connect your wallet" subtitle="See every .eth name you own as a castle on this map">
             <ActionButton label={isConnecting ? "Connecting…" : "Connect wallet"} enabled={!isConnecting} onClick={handleConnect} tone="primary" />

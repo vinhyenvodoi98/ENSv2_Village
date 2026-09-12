@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { sepolia } from "wagmi/chains";
 
@@ -7,11 +8,17 @@ function truncateAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+function noopSubscribe(): () => void {
+  return () => {};
+}
+
 export function ConnectWallet() {
-  const { address, isConnected, chain, chainId } = useAccount();
+  const { address, isConnected, chain, chainId, status } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const hasMounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const isRestoring = !hasMounted || status === "connecting" || status === "reconnecting";
 
   if (isConnected && address) {
     const networkName = chain?.name ?? (chainId ? `Chain ${chainId}` : "Unknown network");
@@ -54,7 +61,11 @@ export function ConnectWallet() {
   const connector = connectors[0];
 
   return (
-    <button onClick={() => connector && connect({ connector })} disabled={!connector || isPending} className={ctaClass}>
+    <button
+      onClick={() => connector && connect({ connector })}
+      disabled={isRestoring || !connector || isPending}
+      className={ctaClass}
+    >
       <svg
         className="h-4 w-4"
         viewBox="0 0 24 24"
@@ -68,7 +79,7 @@ export function ConnectWallet() {
         <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
         <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
       </svg>
-      {isPending ? "Connecting..." : "Connect Wallet"}
+      {isPending ? "Connecting..." : isRestoring ? "Restoring wallet..." : "Connect Wallet"}
     </button>
   );
 }

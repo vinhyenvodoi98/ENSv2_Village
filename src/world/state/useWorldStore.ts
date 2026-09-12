@@ -135,6 +135,14 @@ export interface WorldState {
    * scenery that isn't a castle (the register mountain) uses this directly.
    */
   focusPosition: (position: [number, number]) => void;
+  /**
+   * Drops any pending camera fly-to. `cameraFocus` is a zustand-store value, not page state, so a
+   * castle clicked on one control-panel page (`/`, `/ens/[name]`, `/address/[addr]`) would
+   * otherwise still be sitting there — and `CameraRig`'s mount effect would immediately act on it —
+   * the moment a *different* one of those pages mounts a fresh `CameraRig`. Pages that want a plain
+   * default framing on entry call this alongside `setMode`.
+   */
+  clearCameraFocus: () => void;
   setMode: (mode: WorldMode) => void;
   setFoundKingdomOpen: (open: boolean) => void;
   celebrateTip: (tip: Omit<TipCelebration, "id">) => void;
@@ -370,6 +378,8 @@ export const useWorldStore = create<WorldState>((set) => ({
 
   focusPosition: (position) =>
     set((state) => ({ cameraFocus: { position, token: state.tick + Date.now() } })),
+
+  clearCameraFocus: () => set({ cameraFocus: null }),
 
   /**
    * Switching modes empties the map. The ENS map and the sandbox are two

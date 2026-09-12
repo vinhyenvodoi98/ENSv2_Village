@@ -45,14 +45,19 @@ export function AddressWorldPanel({ address }: { address: `0x${string}` }) {
   const { data: avatarsByName } = useEnsAvatars(avatarNames);
 
   const setMode = useWorldStore((store) => store.setMode);
+  const clearCameraFocus = useWorldStore((store) => store.clearCameraFocus);
   const syncFortresses = useWorldStore((store) => store.syncFortressesFromEns);
   const selectFortress = useWorldStore((store) => store.selectFortress);
   const selectedFortressId = useWorldStore(selectSelectedFortressId);
 
   useEffect(() => {
     setMode("control-panel");
+    // A castle focused/zoomed-in on `/` or `/ens/[name]` is store state, not page state — drop it
+    // so this page's map opens on the default centered framing instead of inheriting whatever
+    // camera position the last page left behind.
+    clearCameraFocus();
     return () => setMode("ens");
-  }, [setMode]);
+  }, [setMode, clearCameraFocus]);
 
   const fortressPlan = useMemo(() => {
     if (!resolvedNames) return null;

@@ -30,10 +30,16 @@ const hackathonSepolia = {
 
 export const wagmiConfig = createConfig({
   chains: [hackathonSepolia],
-  connectors: [injected()],
+  // Browser wallets inject `window.ethereum` asynchronously on a cold navigation. Without this
+  // grace period wagmi can run its first authorization check before the extension is ready,
+  // conclude that the wallet is disconnected, and only recover after a manual reload.
+  connectors: [injected({ unstable_shimAsyncInject: 3_000 })],
   transports: {
     [sepolia.id]: http(rpcUrl),
   },
+  // This config is rendered by Next on the server. Defer storage hydration and reconnect until
+  // `WagmiProvider` mounts in the browser instead of mutating connection state during SSR.
+  ssr: true,
   // Short block-polling interval so new blocks (and the agent heartbeats they carry) reach the
   // UI quickly — `useBlockNumber({ watch: true })` in `src/lib/ens/query.ts` rides this to
   // auto-refresh every read hook without a manual reload.

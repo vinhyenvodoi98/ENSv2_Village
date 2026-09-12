@@ -41,20 +41,37 @@ export function useTxAction() {
       // the actual revert reason. Catching it here via `publicClient` (the app's own RPC, already
       // relied on everywhere else) turns that into the same decoded `describeError` message every
       // other failure in this hook produces, and never opens the wallet for a tx that can't land.
+      let gas: bigint | undefined;
       if (publicClient && address) {
+        const { address: to, abi, functionName, args, value } = config;
+        const call = { address: to, abi, functionName, args, value, account: address } as Parameters<
+          typeof publicClient.simulateContract
+        >[0];
         try {
-          const { address: to, abi, functionName, args, value } = config;
-          await publicClient.simulateContract({ address: to, abi, functionName, args, value, account: address } as Parameters<
-            typeof publicClient.simulateContract
-          >[0]);
+          await publicClient.simulateContract(call);
         } catch (err) {
           setPhase("signFailed");
           setSignError(describeError(err));
           throw err;
         }
+        // Some wallets (notably Coinbase/Base Wallet) re-run their own gas estimate against their
+        // own RPC before showing the confirm sheet, and for a call to an unfamiliar/unverified
+        // testnet contract that request can 400 and leave the wallet spinning forever with no
+        // error surfaced to the app. Estimating here — against the RPC we already trust because
+        // the simulate above just passed — and handing the wallet a ready-made `gas` value lets it
+        // skip that second, flaky estimate entirely. Best-effort: if this fails, fall through and
+        // let the wallet estimate as before rather than blocking a call we already know simulates.
+        try {
+          const estimated = await publicClient.estimateContractGas(
+            call as Parameters<typeof publicClient.estimateContractGas>[0]
+          );
+          gas = (estimated * 120n) / 100n;
+        } catch {
+          gas = undefined;
+        }
       }
       try {
-        const hash = await writeContractAsync(config);
+        const hash = await writeContractAsync(gas !== undefined && config.gas === undefined ? { ...config, gas } : config);
         setTxHash(hash);
         setPhase("sent");
         return hash;
