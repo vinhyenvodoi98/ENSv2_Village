@@ -262,7 +262,6 @@ export const useWorldStore = create<WorldState>((set) => ({
         coord,
         name,
         fullName: name,
-        avatar: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232d526e'/%3E%3Ccircle cx='50' cy='38' r='19' fill='%23f0d49b'/%3E%3Cpath d='M17 100c3-28 18-42 33-42s30 14 33 42' fill='%238f2f35'/%3E%3C/svg%3E",
         tier: 1,
         parentEnsKey: null,
         derelict: false,

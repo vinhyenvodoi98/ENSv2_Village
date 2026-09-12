@@ -5,7 +5,12 @@ import { useEffect, useMemo } from "react";
 import { zeroAddress } from "viem";
 import { useEnsName } from "@/lib/ens/useEnsName";
 import { useEnsAvatars } from "@/lib/ens/useEnsAvatars";
-import { useNameChildren, type EnsChildName } from "@/lib/ens/useNameChildren";
+import {
+  subnameRegistryOf,
+  useNameChildren,
+  useSubnameScanProgress,
+  type EnsChildName,
+} from "@/lib/ens/useNameChildren";
 import { createEnsNameFortressSource, SUBJECT_ENS_KEY } from "@/world/adapters/ensControlWorldSource";
 import { useWorldStore } from "@/world/state/useWorldStore";
 import { selectSelectedFortressId } from "@/world/state/selectors";
@@ -13,6 +18,7 @@ import { BuildBar } from "@/world/ui/BuildBar";
 import { ControlPanelWorldShell } from "./ControlPanelWorldShell";
 import { NameChildDetail, NameStateDetail } from "./NameStateDetail";
 import { Panel } from "./Panel";
+import { SubnameLoadingModal } from "./SubnameLoadingModal";
 import { WorldDetailPanel } from "./WorldDetailPanel";
 
 const WorldCanvas = dynamic(() => import("@/world/components/Scene/WorldCanvas").then((mod) => mod.WorldCanvas), {
@@ -30,7 +36,14 @@ export function NameWorldPanel({ name }: { name: string }) {
   const isStale = !!state && state.name !== name;
   const resolvedState = isStale ? undefined : state;
 
-  const { data: subnames } = useNameChildren(resolvedState);
+  const { data: subnamesResult } = useNameChildren(resolvedState);
+  // Same staleness guard `resolvedState` applies to the subject name, one level down: React Query
+  // keeps the previous name's children on screen across a navigation (`keepPreviousData`), and
+  // ringing *this* castle with the *last* name's subnames is worse than showing none.
+  const scanTarget = subnameRegistryOf(resolvedState);
+  const subnames = subnamesResult?.registry === scanTarget ? subnamesResult : undefined;
+  const subnamesLoading = !!resolvedState && !!scanTarget && !subnames;
+  const scanProgress = useSubnameScanProgress(resolvedState);
   const avatarNames = useMemo(
     () => resolvedState
       ? [resolvedState.name, ...(subnames?.children.map((child) => child.fullName) ?? [])]
@@ -100,6 +113,8 @@ export function NameWorldPanel({ name }: { name: string }) {
           </Panel>
         </CenteredMessage>
       ) : null}
+
+      <SubnameLoadingModal name={name} active={subnamesLoading} progress={scanProgress} />
 
       <WorldDetailPanel open={isSubjectSelected || !!selectedChild} onClose={closePanel}>
         {isSubjectSelected && resolvedState ? (

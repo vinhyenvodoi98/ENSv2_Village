@@ -63,10 +63,22 @@ export async function fetchContractEventsChunked<
   /// Narrows the scan server-side (e.g. `{ node }` for a `TextChanged` scan on one name) — same
   /// `args` shape `getContractEvents` itself takes, just threaded through the chunking.
   args?: ContractEventArgs<TAbi, TEventName>;
+  /// Fired after every answered window with how far the walk has got. The chunking is the only
+  /// place that knows a "single" history read is really N sequential requests, so it is the only
+  /// place that can report real progress instead of a spinner. `total` is an estimate from the
+  /// requested range and grows if a window has to be retried at a narrower span, so it never
+  /// reports fewer windows than have already completed. `matched` is how many logs the walk has
+  /// collected so far, so a caller can show a count that grows instead of a bar that only creeps.
+  onProgress?: (scanned: number, total: number, matched: number) => void;
 }): Promise<GetContractEventsReturnType<TAbi, TEventName>> {
-  const { publicClient, address, abi, eventName, fromBlock, toBlock, args } = params;
+  const { publicClient, address, abi, eventName, fromBlock, toBlock, args, onProgress } = params;
   const maxSpan = params.maxSpan ?? DEFAULT_MAX_SPAN;
   const logs: GetContractEventsReturnType<TAbi, TEventName> = [];
+
+  const span0 = toBlock >= fromBlock ? toBlock - fromBlock + 1n : 0n;
+  let estimatedWindows = Number((span0 + maxSpan - 1n) / maxSpan);
+  let scanned = 0;
+  onProgress?.(0, estimatedWindows, 0);
 
   let cursor = fromBlock;
   while (cursor <= toBlock) {
@@ -84,6 +96,9 @@ export async function fetchContractEventsChunked<
         });
         logs.push(...window);
         cursor = end + 1n;
+        scanned += 1;
+        if (scanned > estimatedWindows) estimatedWindows = scanned;
+        onProgress?.(scanned, estimatedWindows, logs.length);
         break;
       } catch (error) {
         if (span <= 1_000n) throw error;

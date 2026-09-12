@@ -3,6 +3,7 @@ import { usePublicClient } from "wagmi";
 import { ethRegistryAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
 import { fetchContractEventsChunked, mergeEventCandidates } from "./logs";
+import { reportScanProgress, useScanProgress, type ScanProgress } from "./scanProgress";
 import { NAME_STATUS, type EnsNameState, type NameStatus } from "./useEnsName";
 import { useBlockGatedQuery } from "./query";
 
@@ -26,6 +27,12 @@ export type EnsChildName = {
 };
 
 export type EnsNameChildren = {
+  /// Which subregistry this answer describes. Present because `query.ts` keeps the previous
+  /// query's data on screen while a new one loads (`keepPreviousData`), so navigating from one
+  /// name to another hands consumers the *old* name's children with no other way to tell — the
+  /// loading UI below has to distinguish "still loading this name" from "loaded", and the map must
+  /// not plant the previous name's subnames around this one's castle.
+  registry: `0x${string}` | null;
   /// Whether `registry` answered `getState`/`getResolver`/`getSubregistry` at all — a subregistry
   /// can be any `IRegistry`, and one that isn't an `IPermissionedRegistry` (AgentVillage's own
   /// `AgentRegistry`, notably) has no `LabelRegistered` history to enumerate and no per-name state
@@ -36,6 +43,24 @@ export type EnsNameChildren = {
 
 function childKey(registry: `0x${string}`, labelhash: bigint): string {
   return `${registry.toLowerCase()}:0x${labelhash.toString(16)}`;
+}
+
+/// The registry a name's subnames actually live in, or `null` when there is nothing to enumerate.
+/// Shared by the hook and by `useSubnameScanProgress` so the progress a UI watches is keyed to
+/// exactly the scan the hook runs, with no second derivation to drift.
+export function subnameRegistryOf(state: EnsNameState | null | undefined): `0x${string}` | null {
+  return state?.isPermissionedRegistry && state.subregistry && state.subregistry !== zeroAddress
+    ? state.subregistry
+    : null;
+}
+
+/// Live progress of the subname scan for `state` — `null` when none is running.
+///
+/// Deliberately a *separate* hook rather than another field on the query result: only the loading
+/// UI cares, and the progress ticks several times per second while the walk runs, which nothing
+/// rendering the actual children should be re-rendered by.
+export function useSubnameScanProgress(state: EnsNameState | null | undefined): ScanProgress | null {
+  return useScanProgress(subnameRegistryOf(state));
 }
 
 /// The direct subnames of one ENSv2 name — the names registered *in* its own `subregistry`, read
@@ -58,22 +83,26 @@ function childKey(registry: `0x${string}`, labelhash: bigint): string {
 /// project doesn't have; documented rather than silently assumed away.
 export function useNameChildren(state: EnsNameState | null | undefined) {
   const publicClient = usePublicClient();
-  const subregistry =
-    state?.isPermissionedRegistry && state.subregistry && state.subregistry !== zeroAddress
-      ? state.subregistry
-      : null;
+  const subregistry = subnameRegistryOf(state);
 
   const parentName = state?.name ?? "";
 
   return useBlockGatedQuery<EnsNameChildren>(
     ["ensNameChildren", subregistry],
     async () => {
-      if (!publicClient || !subregistry) return { enumerable: false, children: [] };
-      const result = await fetchChildren(publicClient, subregistry);
-      return {
-        ...result,
-        children: result.children.map((child) => ({ ...child, fullName: `${child.label}.${parentName}` })),
-      };
+      if (!publicClient || !subregistry) return { registry: null, enumerable: false, children: [] };
+      try {
+        const result = await fetchChildren(publicClient, subregistry);
+        return {
+          ...result,
+          registry: subregistry,
+          children: result.children.map((child) => ({ ...child, fullName: `${child.label}.${parentName}` })),
+        };
+      } finally {
+        // Cleared on *every* exit, failure included: a scan that threw must not leave a progress
+        // bar frozen on screen forever.
+        reportScanProgress(subregistry, null);
+      }
     },
     { enabled: !!publicClient && !!subregistry }
   );
@@ -87,6 +116,11 @@ async function fetchChildren(publicClient: PublicClient, registry: `0x${string}`
     eventName: "LabelRegistered",
     fromBlock: CONTRACTS.ensDeploymentFirstBlock,
     toBlock: await publicClient.getBlockNumber(),
+    // `matched` counts raw `LabelRegistered` logs, which is an upper bound on distinct subnames
+    // (a label re-registered after expiring logs twice). Good enough as a "something is arriving"
+    // signal mid-scan; the exact count replaces it the moment the dedupe below runs.
+    onProgress: (scanned, total, matched) =>
+      reportScanProgress(registry, { phase: "scanning", scanned, total, found: matched }),
   });
 
   // Latest event per tokenId wins — a label re-registered after expiring changes its labelhash's
@@ -107,8 +141,10 @@ async function fetchChildren(publicClient: PublicClient, registry: `0x${string}`
       .readContract({ address: registry, abi: ethRegistryAbi, functionName: "getStatus", args: [0n] })
       .then(() => true)
       .catch(() => false);
-    return { enumerable: supports, children: [] };
+    return { registry, enumerable: supports, children: [] };
   }
+
+  reportScanProgress(registry, { phase: "verifying", scanned: 1, total: 1, found: candidates.length });
 
   const contract = { address: registry, abi: ethRegistryAbi } as const;
   const results = await publicClient.multicall({
@@ -127,7 +163,7 @@ async function fetchChildren(publicClient: PublicClient, registry: `0x${string}`
   // actually implement `IPermissionedRegistry` (a `LabelRegistered`-shaped event from an
   // unrelated/custom contract would be indistinguishable from a real one without this check).
   const anyStateOk = candidates.some((_, i) => results[i * 3].status === "success");
-  if (!anyStateOk) return { enumerable: false, children: [] };
+  if (!anyStateOk) return { registry, enumerable: false, children: [] };
 
   const children: EnsChildName[] = [];
   for (let i = 0; i < candidates.length; i++) {
@@ -158,5 +194,5 @@ async function fetchChildren(publicClient: PublicClient, registry: `0x${string}`
     });
   }
 
-  return { enumerable: true, children: children.sort((a, b) => a.label.localeCompare(b.label)) };
+  return { registry, enumerable: true, children: children.sort((a, b) => a.label.localeCompare(b.label)) };
 }
