@@ -145,6 +145,7 @@ export function NameWorldPanel({ name }: { name: string }) {
             avatar={avatarsByName?.[resolvedState.name]}
             tab={tab}
             onTabChange={setTab}
+            targetFortressId={SUBJECT_ENS_KEY}
           />
         ) : selectedChild ? (
           <NameChildDetail child={selectedChild} />

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { BaseError, ContractFunctionRevertedError } from "viem";
-import { useDeployContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useAccount, useDeployContract, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 
 export type TxState = "idle" | "signing" | "confirming" | "confirmed" | "failed";
 
@@ -17,6 +17,8 @@ type Phase = "idle" | "signing" | "sent" | "signFailed";
 /// effect, so there's nothing to keep in sync by hand.
 export function useTxAction() {
   const { writeContractAsync, reset: resetWrite } = useWriteContract();
+  const publicClient = usePublicClient();
+  const { address } = useAccount();
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [phase, setPhase] = useState<Phase>("idle");
   const [signError, setSignError] = useState<string | null>(null);
@@ -33,6 +35,24 @@ export function useTxAction() {
     async (config: Parameters<typeof writeContractAsync>[0]) => {
       setPhase("signing");
       setSignError(null);
+      // Simulate first: a call that would revert on-chain otherwise reaches the wallet, which
+      // asks its own RPC for `eth_estimateGas`/fee data on a doomed call and — depending on
+      // wallet/version — surfaces that as an opaque "Unable to estimate network fee" instead of
+      // the actual revert reason. Catching it here via `publicClient` (the app's own RPC, already
+      // relied on everywhere else) turns that into the same decoded `describeError` message every
+      // other failure in this hook produces, and never opens the wallet for a tx that can't land.
+      if (publicClient && address) {
+        try {
+          const { address: to, abi, functionName, args, value } = config;
+          await publicClient.simulateContract({ address: to, abi, functionName, args, value, account: address } as Parameters<
+            typeof publicClient.simulateContract
+          >[0]);
+        } catch (err) {
+          setPhase("signFailed");
+          setSignError(describeError(err));
+          throw err;
+        }
+      }
       try {
         const hash = await writeContractAsync(config);
         setTxHash(hash);
@@ -44,7 +64,7 @@ export function useTxAction() {
         throw err;
       }
     },
-    [writeContractAsync]
+    [writeContractAsync, publicClient, address]
   );
 
   const reset = useCallback(() => {

@@ -7,6 +7,7 @@ import { CONTENTHASH_PROTOCOLS, encodeContenthash, type ContenthashProtocol } fr
 import { useDeployResolver } from "@/lib/ens/useDeployResolver";
 import { useEnsNameRoles, type EnsNameState, type EnsNameRoles } from "@/lib/ens/useEnsName";
 import { useResolverRecords, WELL_KNOWN_TEXT_KEYS, COIN_TYPE_ETH } from "@/lib/ens/useResolverRecords";
+import { dnsEncodeName } from "@/lib/ens/useResolve";
 import { useTxAction } from "@/lib/ens/useTxAction";
 import { TxStatus } from "@/components/shared/TxStatus";
 import { Panel } from "./Panel";
@@ -14,7 +15,7 @@ import { Panel } from "./Panel";
 /// A handful of ENSIP-11 EVM coin types worth offering as one-click rows — `0x80000000 | chainId`,
 /// not invented — plus a free "custom coin type" row for anything else. Task 35 only implements the
 /// EVM-address encoding (20 bytes, no non-EVM base58/bech32 codecs), which is exactly what
-/// `PermissionedResolver.setAddr`'s own `InvalidEVMAddress` check enforces for these coin types.
+/// `PermissionedResolver.setAddress`'s own `InvalidEVMAddress` check enforces for these coin types.
 const CHAIN_PRESETS: { label: string; coinType: bigint }[] = [
   { label: "Base", coinType: 2147492101n },
   { label: "Optimism", coinType: 2147483658n },
@@ -196,18 +197,18 @@ function RecordsEditor({
   const [contenthashError, setContenthashError] = useState<string | null>(null);
 
   const save = useTxAction();
-  const clear = useTxAction();
-  const [clearConfirmText, setClearConfirmText] = useState("");
+  const setResolverAction = useTxAction();
+  const deployResolver = useDeployResolver();
+  const [resolverInput, setResolverInput] = useState("");
 
   // A resolver without `roles()` (not a `PermissionedResolver`) has nothing this editor can write
   // to safely — read values stay visible, every write control goes inert.
   const isEacl = connectedRoles?.resolverRoles !== null && connectedRoles?.resolverRoles !== undefined;
   const roleHeld = (key: string) => !!connectedRoles?.resolverRoles?.find((r) => r.def.key === key)?.held;
   const canText = isEacl && roleHeld("ROLE_SET_TEXT");
-  const canAddr = isEacl && roleHeld("ROLE_SET_ADDR");
+  const canAddr = isEacl && roleHeld("ROLE_SET_ADDRESS");
   const canContenthash = isEacl && roleHeld("ROLE_SET_CONTENTHASH");
   const canData = isEacl && roleHeld("ROLE_SET_DATA");
-  const canClear = isEacl && roleHeld("ROLE_CLEAR");
 
   // Reset **during render** (this codebase's established "adjusting state when a prop changes"
   // pattern — see `useClaimName`'s `storedCache`/`accountKey` — rather than a `useEffect`+setState)
@@ -293,20 +294,20 @@ function RecordsEditor({
   const dirty = pending.size > 0;
 
   async function submit() {
-    const node = state.node;
+    const dnsName = dnsEncodeName(state.name);
     const calls: Hex[] = [];
     for (const edit of pending.values()) {
       if (edit.kind === "text") {
-        calls.push(encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setText", args: [node, edit.key, edit.value] }));
+        calls.push(encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setText", args: [dnsName, edit.key, edit.value] }));
       } else if (edit.kind === "addr") {
         const bytes: Hex = edit.value === "" ? "0x" : (edit.value as Hex);
-        calls.push(encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setAddr", args: [node, edit.coinType, bytes] }));
+        calls.push(encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setAddress", args: [dnsName, edit.coinType, bytes] }));
       } else if (edit.kind === "contenthash") {
         const bytes: Hex = edit.value === "" ? "0x" : encodeContenthash(edit.protocol, edit.value);
-        calls.push(encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setContenthash", args: [node, bytes] }));
+        calls.push(encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setContenthash", args: [dnsName, bytes] }));
       } else if (edit.kind === "data") {
         const bytes: Hex = edit.value === "" ? "0x" : (edit.value as Hex);
-        calls.push(encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setData", args: [node, edit.key, bytes] }));
+        calls.push(encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setData", args: [dnsName, edit.key, bytes] }));
       }
     }
     if (calls.length === 0) return;
@@ -315,13 +316,20 @@ function RecordsEditor({
       .catch(() => {});
   }
 
-  async function submitClear() {
-    if (clearConfirmText !== state.name) return;
-    clear.reset();
-    await clear
-      .send({ address: resolver, abi: permissionedResolverAbi, functionName: "clearRecords", args: [state.node] })
+  const canSetResolver = !!connectedRoles?.registryRoles.find((r) => r.def.key === "ROLE_SET_RESOLVER")?.held;
+  const deployedAddress = deployResolver.resolverAddress;
+  const validResolverInput = isAddress(resolverInput);
+
+  async function submitSwitchResolver(address: string) {
+    if (!isAddress(address) || !state.registry || state.tokenId === null) return;
+    await setResolverAction
+      .send({
+        address: state.registry as Address,
+        abi: ethRegistryAbi,
+        functionName: "setResolver",
+        args: [state.tokenId, address as Address],
+      })
       .catch(() => {});
-    setClearConfirmText("");
   }
 
   return (
@@ -335,18 +343,115 @@ function RecordsEditor({
       }
     >
       {!isEacl ? (
-        <p className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-200/80">
-          This resolver doesn&apos;t implement <code>IEnhancedAccessControl</code> (<code>roles()</code>{" "}
-          reverts), so this panel can show what it currently returns but can&apos;t safely gate or
-          send writes to it.
-        </p>
+        <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200/80">
+          <p>
+            This resolver doesn&apos;t implement <code>IEnhancedAccessControl</code> (<code>roles()</code>{" "}
+            reverts), so this panel can show what it currently returns but can&apos;t safely gate or
+            send writes to it.
+          </p>
+          {!state.isPermissionedRegistry ? (
+            <p className="mt-2 italic text-amber-200/60">
+              This name&apos;s registry isn&apos;t a <code>PermissionedRegistry</code>, so there is no
+              on-chain way for this panel to switch it to one.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-3 border-t border-amber-500/10 pt-3">
+              <p className="text-amber-200/60">
+                Two ways to point <span className="font-mono">{state.name}</span> at a resolver this
+                panel can gate and write to.{" "}
+                <span className="italic">Records live per resolver — switching hides, but doesn&apos;t move, any existing records.</span>
+              </p>
+
+              <div>
+                <p className="mb-1.5 font-semibold text-amber-200/70">
+                  Option A — deploy your own <code>PermissionedResolver</code>
+                </p>
+                <p className="mb-2 text-amber-200/50">
+                  A fresh proxy, your wallet as sole admin. No coordination with anyone needed.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => deployResolver.deployFor(state.name)}
+                    disabled={!canSetResolver || deployResolver.state === "signing" || deployResolver.state === "confirming"}
+                    title={!canSetResolver ? "Requires ROLE_SET_RESOLVER on this name" : undefined}
+                    className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    Deploy resolver
+                  </button>
+                  <TxStatus state={deployResolver.state} txHash={deployResolver.txHash} error={deployResolver.error} />
+                </div>
+                {deployedAddress ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs text-emerald-300">{deployedAddress}</span>
+                    <button
+                      type="button"
+                      onClick={() => submitSwitchResolver(deployedAddress)}
+                      disabled={setResolverAction.state === "signing" || setResolverAction.state === "confirming"}
+                      className="rounded-lg bg-sky-500/90 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      Use as this name&apos;s resolver
+                    </button>
+                    <TxStatus state={setResolverAction.state} txHash={setResolverAction.txHash} error={setResolverAction.error} />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="border-t border-amber-500/10 pt-3">
+                <p className="mb-1.5 font-semibold text-amber-200/70">
+                  Option B — point at a <code>PermissionedResolver</code> you already control
+                </p>
+                <p className="mb-2 text-amber-200/50">
+                  E.g. one deployed for another name of yours, or one whose admin already granted you{" "}
+                  <code>authorizeNameRoles</code> on this name&apos;s node.{" "}
+                  <span className="italic">
+                    No general-purpose shared resolver ships with this deployment — its implementation
+                    address is UUPS-locked and can&apos;t be initialized directly, and initializing a
+                    fresh proxy grants roles only to whoever calls it first, so it isn&apos;t
+                    self-service for anyone else.
+                  </span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    value={resolverInput}
+                    onChange={(e) => setResolverInput(e.target.value)}
+                    placeholder="0x…"
+                    disabled={!canSetResolver}
+                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => submitSwitchResolver(resolverInput)}
+                    disabled={
+                      !canSetResolver ||
+                      !validResolverInput ||
+                      setResolverAction.state === "signing" ||
+                      setResolverAction.state === "confirming"
+                    }
+                    title={!canSetResolver ? "Requires ROLE_SET_RESOLVER on this name" : undefined}
+                    className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    Set resolver
+                  </button>
+                  <TxStatus state={setResolverAction.state} txHash={setResolverAction.txHash} error={setResolverAction.error} />
+                </div>
+              </div>
+
+              {!canSetResolver ? (
+                <p className="text-amber-200/40">
+                  Requires <code>ROLE_SET_RESOLVER</code>, which this wallet does not hold on this name.
+                </p>
+              ) : null}
+            </div>
+          )}
+        </div>
       ) : null}
 
       {recordsPending ? <p className="text-sm text-white/40">Reading records…</p> : null}
 
       <Section
         title="Text records"
-        hint="setText(node, key, value)"
+        hint="setText(name, key, value)"
         allowed={canText}
         roleKey="ROLE_SET_TEXT"
       >
@@ -380,7 +485,7 @@ function RecordsEditor({
         ) : null}
       </Section>
 
-      <Section title="Addresses" hint="setAddr(node, coinType, addressBytes)" allowed={canAddr} roleKey="ROLE_SET_ADDR">
+      <Section title="Addresses" hint="setAddress(name, coinType, addressBytes)" allowed={canAddr} roleKey="ROLE_SET_ADDRESS">
         <div className="space-y-2">
           {coinTypes.map((coinType) => (
             <AddrRow
@@ -428,7 +533,7 @@ function RecordsEditor({
         ) : null}
       </Section>
 
-      <Section title="Website" hint="setContenthash(node, hash)" allowed={canContenthash} roleKey="ROLE_SET_CONTENTHASH">
+      <Section title="Website" hint="setContenthash(name, hash)" allowed={canContenthash} roleKey="ROLE_SET_CONTENTHASH">
         <div className="flex flex-wrap gap-2">
           <select
             value={contenthashProtocol}
@@ -465,36 +570,6 @@ function RecordsEditor({
           Save changes {dirty ? `(${pending.size})` : ""}
         </button>
         <TxStatus state={save.state} txHash={save.txHash} error={save.error} />
-      </div>
-
-      <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-3">
-        <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-red-300 uppercase">Danger zone — clear all records</h3>
-        <p className="mb-2 text-xs text-white/50">
-          <code>clearRecords(node)</code> bumps the record version, wiping every address/text/contenthash record for{" "}
-          <span className="font-mono text-white/70">{state.name}</span> at once. Not reversible.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            value={clearConfirmText}
-            onChange={(e) => setClearConfirmText(e.target.value)}
-            disabled={!canClear}
-            placeholder={`type "${state.name}" to confirm`}
-            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
-          />
-          <button
-            type="button"
-            onClick={submitClear}
-            disabled={!canClear || clearConfirmText !== state.name || clear.state === "signing" || clear.state === "confirming"}
-            title={!canClear ? "Requires ROLE_CLEAR on the resolver" : undefined}
-            className="rounded-lg bg-red-600/90 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            Clear all records
-          </button>
-        </div>
-        {!canClear ? <p className="mt-1.5 text-xs text-white/40">Requires <code>ROLE_CLEAR</code>, which this wallet does not hold on this resolver.</p> : null}
-        <div className="mt-2">
-          <TxStatus state={clear.state} txHash={clear.txHash} error={clear.error} />
-        </div>
       </div>
     </Panel>
   );
@@ -641,7 +716,7 @@ function DataSection({
   }
 
   return (
-    <Section title="Advanced — data records" hint="setData(node, key, value)" allowed={canData} roleKey="ROLE_SET_DATA">
+    <Section title="Advanced — data records" hint="setData(name, key, value)" allowed={canData} roleKey="ROLE_SET_DATA">
       {pendingEntries.length > 0 ? (
         <ul className="mb-2 space-y-1">
           {pendingEntries.map((edit) => (

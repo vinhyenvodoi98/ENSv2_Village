@@ -18,6 +18,7 @@ import { SubnameManagerPanel } from "./SubnameManagerPanel";
 import { StatusPill, type StatusTone } from "./ui/StatusPill";
 import { EmptyState } from "./ui/EmptyState";
 import { NAME_TABS, type NameTab } from "./useNameTab";
+import { TipExperience } from "@/components/tip/TipExperience";
 
 const TAB_LABEL: Record<NameTab, string> = {
   overview: "Overview",
@@ -58,12 +59,14 @@ export function NameStateDetail({
   avatar,
   tab,
   onTabChange,
+  targetFortressId,
 }: {
   state: EnsNameState;
   subnames?: EnsNameChildren;
   avatar?: string;
   tab: NameTab;
   onTabChange: (tab: NameTab) => void;
+  targetFortressId: string;
 }) {
   const [visited, setVisited] = useState<Set<NameTab>>(() => new Set([tab]));
   const { data: roles } = useEnsNameRoles(state);
@@ -105,9 +108,12 @@ export function NameStateDetail({
             <h1 className="truncate font-mono text-lg text-white">{state.name}</h1>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <StatusPill label={header.label} tone={header.tone} />
-          {state.expiry !== null && state.expiry > 0n ? <ExpiryCountdown expiry={state.expiry} /> : null}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill label={header.label} tone={header.tone} />
+            {state.expiry !== null && state.expiry > 0n ? <ExpiryCountdown expiry={state.expiry} /> : null}
+          </div>
+          <TipExperience state={state} targetFortressId={targetFortressId} />
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-white/50">
           <span className="flex items-center gap-1.5">

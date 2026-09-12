@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CLAIM_DURATION_OPTIONS, useClaimName } from "@/lib/ens";
+import { useState } from "react";
+import type { Address } from "viem";
+import { ethRegistryAbi } from "@/lib/contracts/abis";
+import { CLAIM_DURATION_OPTIONS, useClaimName, useEnsName } from "@/lib/ens";
+import { useDeployResolver } from "@/lib/ens/useDeployResolver";
+import { useTxAction } from "@/lib/ens/useTxAction";
 import { formatTokenAmount } from "@/lib/format";
 import { TxStatus } from "@/components/shared/TxStatus";
 
@@ -12,6 +16,7 @@ const STEP_TITLES = [
   { n: 4, title: "Seal the pledge", mono: "ETHRegistrar.commit(bytes32)" },
   { n: 5, title: "Wait 60 seconds", mono: "ETHRegistrar.commitmentAt(bytes32)" },
   { n: 6, title: "Claim the land", mono: "ETHRegistrar.register(...)" },
+  { n: 7, title: "Set up your resolver", mono: "VerifiableFactory.deployProxy(...)" },
 ] as const;
 
 const continueClass = [
@@ -40,8 +45,11 @@ export function ClaimNameWizard({
   // Resets to step 1 whenever the wizard transitions open — a render-phase adjustment (guarded
   // by comparing `open`), not an effect, so there's no stale frame showing the previous session's
   // step before the reset lands. Irrelevant once `claim.stored` exists: `displayStep` below
-  // ignores `formStep` entirely once a pledge is in flight.
-  const [formStepCache, setFormStepCache] = useState<{ openKey: boolean; step: 1 | 2 | 3 }>({
+  // ignores `formStep` entirely once a pledge is in flight. Step 7 ("set up your resolver") is
+  // reached the same way step 1-3 are — `formStep` set directly — since `claim.step` itself never
+  // goes past 6 (it's derived from the commit/reveal record, which is gone the instant `register`
+  // confirms).
+  const [formStepCache, setFormStepCache] = useState<{ openKey: boolean; step: 1 | 2 | 3 | 7 }>({
     openKey: open,
     step: 1,
   });
@@ -49,14 +57,19 @@ export function ClaimNameWizard({
     setFormStepCache({ openKey: open, step: 1 });
   }
   const formStep = formStepCache.step;
-  const setFormStep = (step: 1 | 2 | 3) => setFormStepCache({ openKey: open, step });
+  const setFormStep = (step: 1 | 2 | 3 | 7) => setFormStepCache({ openKey: open, step });
 
-  useEffect(() => {
-    if (claim.claimedName) {
-      onClaimed(claim.claimedName);
-      onClose();
-    }
-  }, [claim.claimedName, onClaimed, onClose]);
+  // Land on step 7 instead of closing immediately — a freshly registered name always has
+  // `resolver == address(0)` (`useClaimName.ts`'s `commit()` hardcodes it), so this is the one
+  // moment to explain *why* and offer the self-service fix before the wizard disappears. Same
+  // render-phase-adjustment idiom as the `openKey` reset above and `useClaimName`'s own
+  // `storedCache`/`accountKey`: guarded by comparing against the last-seen claimed name so it
+  // fires exactly once per successful claim, not a `useEffect`+setState.
+  const [lastClaimedName, setLastClaimedName] = useState<string | null>(null);
+  if (claim.claimedName && claim.claimedName !== lastClaimedName) {
+    setLastClaimedName(claim.claimedName);
+    setFormStepCache({ openKey: open, step: 7 });
+  }
 
   if (!open) return null;
 
@@ -108,6 +121,15 @@ export function ClaimNameWizard({
           {displayStep === 4 && <StepSeal claim={claim} />}
           {displayStep === 5 && <StepWait claim={claim} />}
           {displayStep === 6 && <StepClaim claim={claim} />}
+          {displayStep === 7 && claim.claimedName && (
+            <StepSetupResolver
+              name={claim.claimedName}
+              onDone={() => {
+                onClaimed(claim.claimedName as string);
+                onClose();
+              }}
+            />
+          )}
 
           {claim.stored && (
             <div className="mt-2 border-t border-[#8f7652]/30 pt-3">
@@ -383,6 +405,111 @@ function StepClaim({ claim }: { claim: ClaimNameState }) {
           />
         </>
       )}
+    </div>
+  );
+}
+
+/// Task 31's registration flow always registers with `resolver = zeroAddress` — see
+/// `useClaimName.ts`'s `commit()`. That's a deliberate split, not an oversight: in ENSv2, "who
+/// owns this name" (the registry, just settled above) and "what this name resolves to — avatar,
+/// addresses, website" (a resolver, a *separate* contract) are two different contracts with two
+/// different permission systems. Owning the name only grants `ROLE_SET_RESOLVER` — the right to
+/// *choose* a resolver — never automatic write access to whatever resolver you pick; a
+/// `PermissionedResolver`'s setters are gated by roles (`ROLE_SET_TEXT`, …) that must be granted
+/// explicitly, independent of registry ownership. So a freshly claimed name is real estate with no
+/// address plaque yet: this step is the one moment to explain that gap and close it in one click,
+/// before the user goes hunting for why `avatar` won't save later.
+function StepSetupResolver({ name, onDone }: { name: string; onDone: () => void }) {
+  const { data: state } = useEnsName(name);
+  const deployResolver = useDeployResolver();
+  const setResolverAction = useTxAction();
+
+  const deployedAddress = deployResolver.resolverAddress;
+
+  async function submitSetResolver(address: Address) {
+    if (!state?.registry || state.tokenId === null || state.tokenId === undefined) return;
+    await setResolverAction
+      .send({
+        address: state.registry as Address,
+        abi: ethRegistryAbi,
+        functionName: "setResolver",
+        args: [state.tokenId, address],
+      })
+      .catch(() => {});
+  }
+
+  const resolverIsSet = setResolverAction.state === "confirmed";
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="font-serif text-base font-bold uppercase tracking-wide text-[#3a2f22]">
+        Set up your resolver
+      </h3>
+      <MonoTag text="VerifiableFactory.deployProxy(PermissionedResolver, salt, initialize(...))" />
+
+      <p className="text-sm text-[#3a2f22]">
+        <span className="font-serif text-lg font-bold">{name}</span> is yours now — but owning a
+        name and having somewhere to store an avatar, addresses or a website are two separate
+        things in ENSv2.
+      </p>
+      <div className="rounded-sm border border-[#8f7652]/30 bg-[#f6efdc] p-3 text-xs text-[#5c4b32]">
+        <p>
+          <span className="font-semibold">Registry</span> (just settled) tracks who owns the name
+          — it granted you the right to <em>choose</em> a resolver, nothing more.
+        </p>
+        <p className="mt-1.5">
+          <span className="font-semibold">Resolver</span> is a separate contract that actually
+          stores records (avatar, addresses, website). Right now this name points at{" "}
+          <code>address(0)</code> — no resolver at all, so nothing can be set yet.
+        </p>
+        <p className="mt-1.5">
+          A resolver checks its own roles before letting anyone write — owning the name does{" "}
+          <span className="font-semibold">not</span> automatically grant write access to whichever
+          resolver you point at. Deploying your own is the self-service way to skip that gap: it
+          grants full control to your wallet the moment it&apos;s created.
+        </p>
+      </div>
+
+      {resolverIsSet ? (
+        <p className="text-sm text-emerald-700">
+          ✓ Resolver set. Avatar, addresses and other records can be edited from the control panel
+          any time.
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => deployResolver.deployFor(name)}
+              disabled={deployResolver.state === "signing" || deployResolver.state === "confirming"}
+              className={continueClass}
+            >
+              Deploy my resolver
+            </button>
+            <TxStatus state={deployResolver.state} txHash={deployResolver.txHash} error={deployResolver.error} />
+          </div>
+          {deployedAddress ? (
+            <div className="flex flex-wrap items-center gap-2 border-t border-[#8f7652]/30 pt-3">
+              <span className="font-mono text-xs text-[#3a2f22]">{deployedAddress}</span>
+              <button
+                type="button"
+                onClick={() => submitSetResolver(deployedAddress)}
+                disabled={setResolverAction.state === "signing" || setResolverAction.state === "confirming"}
+                className={continueClass}
+              >
+                Use as {name}&apos;s resolver
+              </button>
+              <TxStatus state={setResolverAction.state} txHash={setResolverAction.txHash} error={setResolverAction.error} />
+            </div>
+          ) : null}
+        </>
+      )}
+
+      <div className="flex gap-2 border-t border-[#8f7652]/30 pt-3">
+        <button type="button" onClick={onDone} className="text-xs text-[#8f7652] underline">
+          {resolverIsSet ? "Continue" : "Skip for now — I'll set up a resolver later"}
+        </button>
+      </div>
     </div>
   );
 }

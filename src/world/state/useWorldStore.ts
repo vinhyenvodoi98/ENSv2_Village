@@ -9,6 +9,15 @@ import { spawnCitizensForFortress, tickCitizens } from "../systems/citizenSystem
 import { randomDwellSeconds, tickWeather } from "../systems/weatherSystem";
 
 export type PresetName = keyof typeof presets;
+export type TipDeliveryTier = "messenger" | "ballista" | "catapult";
+
+export interface TipCelebration {
+  id: number;
+  targetFortressId: string;
+  tier: TipDeliveryTier;
+  amountEth: string;
+  recipientName: string;
+}
 
 /**
  * Who owns the castles on this map.
@@ -105,6 +114,8 @@ export interface WorldState {
    * ask, never mint/deploy anything itself.
    */
   foundKingdomOpen: boolean;
+  /** A confirmed native-ETH tip currently being celebrated on the map. */
+  tipCelebration: TipCelebration | null;
 
   setTiles: (tiles: Tile[]) => void;
   placeFortress: (coord: AxialCoord) => void;
@@ -115,6 +126,8 @@ export interface WorldState {
   focusFortress: (ensKey: string) => void;
   setMode: (mode: WorldMode) => void;
   setFoundKingdomOpen: (open: boolean) => void;
+  celebrateTip: (tip: Omit<TipCelebration, "id">) => void;
+  finishTipCelebration: (id: number) => void;
   setBuildMessage: (message: string | null) => void;
   setWeather: (weather: Weather) => void;
   advanceTick: () => void;
@@ -232,6 +245,7 @@ export const useWorldStore = create<WorldState>((set) => ({
   buildMessage: null,
   cameraFocus: null,
   foundKingdomOpen: false,
+  tipCelebration: null,
 
   setTiles: (tiles) =>
     set((state) => {
@@ -364,10 +378,15 @@ export const useWorldStore = create<WorldState>((set) => ({
             citizenList: [],
             selectedFortressId: null,
             foundKingdomOpen: false,
+            tipCelebration: null,
           }
     ),
 
   setFoundKingdomOpen: (foundKingdomOpen) => set({ foundKingdomOpen }),
+
+  celebrateTip: (tip) => set({ tipCelebration: { ...tip, id: Date.now() } }),
+  finishTipCelebration: (id) =>
+    set((state) => (state.tipCelebration?.id === id ? { tipCelebration: null } : state)),
 
   setBuildMessage: (message) => set({ buildMessage: message }),
 

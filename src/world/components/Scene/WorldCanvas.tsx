@@ -20,6 +20,7 @@ import { Rain } from "../Weather/Rain";
 import { WebGLContextRecovery } from "./WebGLContextRecovery";
 import { ForestRing } from "../Terrain/ForestRing";
 import { FlowingStream } from "../Terrain/FlowingStream";
+import { TipCelebrationLayer } from "../Tip/TipCelebration";
 
 /**
  * Root of the 3D world. The only place a `<Canvas>` is created — everything
@@ -63,6 +64,7 @@ export function WorldCanvas() {
       <RoadNetwork theme={theme} />
       <FortressLayer theme={theme} kitId={preset.fortressKit} />
       <CitizenCrowd theme={theme} />
+      <TipCelebrationLayer theme={theme} />
     </Canvas>
   );
 }

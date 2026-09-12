@@ -82,7 +82,7 @@ export const SUBNAME_PRESETS: readonly SubnamePreset[] = [
     name: "Records only",
     registryRoleKeys: [],
     registryAdminRoleKeys: [],
-    resolverRoleKeys: ["ROLE_SET_TEXT", "ROLE_SET_ADDR"],
+    resolverRoleKeys: ["ROLE_SET_TEXT", "ROLE_SET_ADDRESS"],
     will: ["Edit this subname's text and address records (if its resolver supports it)"],
     willNot: [
       "Renew this subname",

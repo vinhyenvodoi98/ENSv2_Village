@@ -99,6 +99,15 @@ export interface WorldTheme {
     cloudColor: string;
     rainColor: string;
   };
+  /** Palette for the confirmed-tip celebration rendered in the world. */
+  tip: {
+    wood: MaterialSpec;
+    metal: MaterialSpec;
+    messenger: MaterialSpec;
+    arrow: MaterialSpec;
+    gold: MaterialSpec;
+    glowColor: string;
+  };
 }
 
 export const medievalTheme: WorldTheme = {
@@ -171,6 +180,14 @@ export const medievalTheme: WorldTheme = {
   weather: {
     cloudColor: "#ffffff",
     rainColor: "#9fb8c9",
+  },
+  tip: {
+    wood: { color: "#70472b", roughness: 0.9, metalness: 0.02, flatShading: true },
+    metal: { color: "#454b52", roughness: 0.52, metalness: 0.65, flatShading: true },
+    messenger: { color: "#a72c3a", roughness: 0.78, metalness: 0, flatShading: true },
+    arrow: { color: "#efe2bd", roughness: 0.72, metalness: 0.02, flatShading: true },
+    gold: { color: "#f6c744", roughness: 0.32, metalness: 0.78, flatShading: true },
+    glowColor: "#ffd86a",
   },
 };
 

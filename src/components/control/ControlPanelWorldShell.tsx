@@ -5,6 +5,7 @@ import { ConnectWallet } from "@/components/wallet/connect-wallet";
 import { CONTRACTS } from "@/lib/contracts/addresses";
 import { AddressValue } from "./AddressValue";
 import { NameSearchBox } from "./NameSearchBox";
+import { TipCelebrationToast } from "@/components/tip/TipCelebrationToast";
 
 /**
  * Full-bleed frame for the world-styled control panel (`/ens/[name]`, `/address/[addr]`) —
@@ -13,17 +14,24 @@ import { NameSearchBox } from "./NameSearchBox";
  * shell (`ControlPanelShell.tsx`) floated over it instead of laid out in a scrolling page.
  * `ControlPanelShell` itself stays in place for `/ens` (the no-name landing page), which has no
  * castle to render and is still a normal scrolling page.
+ *
+ * `/` renders this same shell (the connected wallet's own names, as a portfolio of castles) rather
+ * than a fourth bespoke frame — `showBackToWorld` only exists so that root doesn't draw a "Back to
+ * the world" link pointing at itself.
  */
 export function ControlPanelWorldShell({
   searchValue,
+  showBackToWorld = true,
   children,
 }: {
   searchValue?: string;
+  showBackToWorld?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="fixed inset-0 h-dvh w-dvw overflow-hidden bg-[#0b1020] text-white">
       {children}
+      <TipCelebrationToast />
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex flex-wrap items-center gap-3 p-4">
         <Link
@@ -47,9 +55,11 @@ export function ControlPanelWorldShell({
         <span className="pointer-events-auto flex items-center gap-1.5">
           RootRegistry <AddressValue address={CONTRACTS.rootRegistry} />
         </span>
-        <Link href="/" className="pointer-events-auto underline decoration-white/20 underline-offset-2 hover:text-white/70">
-          Back to the world
-        </Link>
+        {showBackToWorld && (
+          <Link href="/" className="pointer-events-auto underline decoration-white/20 underline-offset-2 hover:text-white/70">
+            Back to the world
+          </Link>
+        )}
       </div>
     </div>
   );

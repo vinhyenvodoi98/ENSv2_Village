@@ -36,7 +36,7 @@ export const EACL_PRESETS: readonly EaclPreset[] = [
     key: "content-editor",
     name: "Content editor",
     target: "resolver",
-    roleKeys: ["ROLE_SET_TEXT", "ROLE_SET_ADDR"],
+    roleKeys: ["ROLE_SET_TEXT", "ROLE_SET_ADDRESS"],
     will: ["Change this name's text records (e.g. bio, url)", "Change this name's address records"],
     willNot: ["Transfer this name", "Unregister this name", "Change the resolver or subregistry", "Renew this name"],
   },

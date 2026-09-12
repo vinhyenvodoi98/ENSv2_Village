@@ -115,20 +115,26 @@ export const REGISTRY_ROLES: readonly EnsRoleDef[] = [
   },
 ];
 
-/// `PermissionedResolverLib`, in nybble order — the roles task 35's records editor writes against.
-/// Its `ROLE_CAN_NAME`/`ROLE_UPGRADE` (nybbles 30/31) are omitted for the same reason as the
-/// registry's: they govern the resolver contract itself, not records on one name.
+/// `PermissionedResolverLib`'s real bit layout, in nybble order — matches the hackathon's actually
+/// deployed `PermissionedResolver` implementation (`0xa9d3814...`), which predates the
+/// node-keyed/10-role refactor the `contracts-v2` submodule has since picked up. This contract has
+/// no `setPubkey`, no `setAlias`/`AliasChanged`, and no `clearRecords` — `ROLE_SET_PUBKEY`,
+/// `ROLE_SET_ALIAS` and `ROLE_CLEAR` are gone; `ROLE_LINK` (gates `linkToNode`/`linkToRecord`) is
+/// new. Every setter checks a resource keyed by its own argument value (`coinType`/`key`/
+/// `contentType`/`interfaceId`) — never by node/name — with `ROOT_RESOURCE` roles always
+/// sufficient as a fallback (`EnhancedAccessControl._effectiveRoles` ORs it in); `setContenthash`/
+/// `setName`/`linkToNode`/`linkToRecord` are root-only outright. There is no per-name resolver
+/// resource on this contract, unlike the registry — see `useEnsName.ts`'s `resolverBitmap` read,
+/// which checks `ROOT_RESOURCE` for this reason, not a node-derived resource.
 export const RESOLVER_ROLES: readonly EnsRoleDef[] = [
-  { key: "ROLE_SET_ADDR", label: "Set addresses", bit: roleBit(0), scope: "token", description: "Write `addr(coinType)` records." },
-  { key: "ROLE_SET_TEXT", label: "Set text", bit: roleBit(1), scope: "token", description: "Write `text(key)` records." },
-  { key: "ROLE_SET_CONTENTHASH", label: "Set contenthash", bit: roleBit(2), scope: "token", description: "Write the contenthash record." },
-  { key: "ROLE_SET_PUBKEY", label: "Set pubkey", bit: roleBit(3), scope: "token", description: "Write the pubkey record." },
-  { key: "ROLE_SET_ABI", label: "Set ABI", bit: roleBit(4), scope: "token", description: "Write the ABI record." },
-  { key: "ROLE_SET_INTERFACE", label: "Set interface", bit: roleBit(5), scope: "token", description: "Write interface records." },
-  { key: "ROLE_SET_NAME", label: "Set name", bit: roleBit(6), scope: "token", description: "Write the primary-name record." },
-  { key: "ROLE_SET_ALIAS", label: "Set alias", bit: roleBit(7), scope: "token", description: "Alias this name's records onto another name." },
-  { key: "ROLE_CLEAR", label: "Clear records", bit: roleBit(8), scope: "token", description: "Bump the record version, clearing every record." },
-  { key: "ROLE_SET_DATA", label: "Set data", bit: roleBit(9), scope: "token", description: "Write arbitrary `data(key)` records." },
+  { key: "ROLE_SET_ADDRESS", label: "Set addresses", bit: roleBit(0), scope: "root", description: "Write `addr(coinType)` records." },
+  { key: "ROLE_SET_TEXT", label: "Set text", bit: roleBit(1), scope: "root", description: "Write `text(key)` records." },
+  { key: "ROLE_SET_CONTENTHASH", label: "Set contenthash", bit: roleBit(2), scope: "root", description: "Write the contenthash record (root-only)." },
+  { key: "ROLE_SET_ABI", label: "Set ABI", bit: roleBit(3), scope: "root", description: "Write the ABI record." },
+  { key: "ROLE_SET_INTERFACE", label: "Set interface", bit: roleBit(4), scope: "root", description: "Write interface records." },
+  { key: "ROLE_SET_NAME", label: "Set name", bit: roleBit(5), scope: "root", description: "Write the primary-name record (root-only)." },
+  { key: "ROLE_SET_DATA", label: "Set data", bit: roleBit(6), scope: "root", description: "Write arbitrary `data(key)` records." },
+  { key: "ROLE_LINK", label: "Link records", bit: roleBit(7), scope: "root", description: "Link a name onto another name's record (root-only)." },
 ];
 
 export function hasRoleBit(bitmap: bigint, bit: bigint): boolean {

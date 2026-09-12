@@ -1,11 +1,11 @@
-import { hexToBytes, zeroAddress } from "viem";
+import { zeroAddress } from "viem";
 import { usePublicClient } from "wagmi";
-import { enhancedAccessControlAbi, ethRegistryAbi, permissionedResolverAbi } from "@/lib/contracts/abis";
+import { enhancedAccessControlAbi, ethRegistryAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
 import { truncateAddress, formatAbsoluteTime } from "@/lib/format";
 import { fetchContractEventsChunked } from "./logs";
 import { useBlockGatedQuery } from "./query";
-import { ADMIN_ROLE_SHIFT, REGISTRY_ROLES, RESOLVER_ROLES, hasRoleBit, resolverResource, type EnsRoleDef } from "./registryRoles";
+import { ADMIN_ROLE_SHIFT, REGISTRY_ROLES, RESOLVER_ROLES, ROOT_RESOURCE, hasRoleBit, type EnsRoleDef } from "./registryRoles";
 import type { EnsNameState } from "./useEnsName";
 
 export type ActivityEvent = {
@@ -45,21 +45,6 @@ function describeRoleDiff(defs: readonly EnsRoleDef[], oldBitmap: bigint, newBit
   if (granted.length > 0) parts.push(`granted ${granted.join(", ")} to ${who}`);
   if (revoked.length > 0) parts.push(`revoked ${revoked.join(", ")} from ${who}`);
   return parts.length > 0 ? parts.join("; ") : `role bitmap updated for ${who}`;
-}
-
-/// DNS-wire name (length-prefixed labels, zero-terminated) → dotted string — `AliasChanged`'s
-/// `fromName`/`toName` are packet-encoded, not the plain string every other event here already is.
-function decodeDnsWireName(packet: `0x${string}`): string {
-  const bytes = hexToBytes(packet);
-  const labels: string[] = [];
-  let i = 0;
-  while (i < bytes.length) {
-    const len = bytes[i];
-    if (!len) break;
-    labels.push(new TextDecoder().decode(bytes.slice(i + 1, i + 1 + len)));
-    i += len + 1;
-  }
-  return labels.join(".");
 }
 
 /// The name's full on-chain history, task 38: every registry/EACL/resolver event `IRegistryEvents`,
@@ -122,21 +107,22 @@ export function useActivityFeed(state: EnsNameState | null | undefined) {
         fetchContractEventsChunked({ ...registryContract, abi: enhancedAccessControlAbi, eventName: "EACRolesChanged", args: { resource } }),
       ]);
 
-      const resolverResourceValue = resolver ? resolverResource(node) : null;
-      const [resolverRoleLogs, aliasChangedLogs] = resolver
-        ? await Promise.all([
-            fetchContractEventsChunked({
-              publicClient,
-              address: resolver,
-              fromBlock,
-              toBlock,
-              abi: enhancedAccessControlAbi,
-              eventName: "EACRolesChanged",
-              args: { resource: resolverResourceValue! },
-            }),
-            fetchContractEventsChunked({ publicClient, address: resolver, fromBlock, toBlock, abi: permissionedResolverAbi, eventName: "AliasChanged" }),
-          ])
-        : [[], []];
+      // The hackathon-deployed `PermissionedResolver` has no per-name resolver resource
+      // (`registryRoles.ts`'s `RESOLVER_ROLES` doc comment) — every setter's resource is keyed by
+      // its own argument value or is root-only, never by node. So the only resolver-side
+      // `EACRolesChanged` grants worth showing here are the ones at `ROOT_RESOURCE` (what
+      // `useDeployResolver.ts` grants the deployer at `initialize` time).
+      const resolverRoleLogs = resolver
+        ? await fetchContractEventsChunked({
+            publicClient,
+            address: resolver,
+            fromBlock,
+            toBlock,
+            abi: enhancedAccessControlAbi,
+            eventName: "EACRolesChanged",
+            args: { resource: ROOT_RESOURCE },
+          })
+        : [];
 
       const events: PendingEvent[] = [];
 
@@ -169,13 +155,6 @@ export function useActivityFeed(state: EnsNameState | null | undefined) {
 
       for (const log of resolverRoleLogs) {
         push(events, log, describeRoleDiff(RESOLVER_ROLES, log.args.oldRoleBitmap!, log.args.newRoleBitmap!, log.args.account!));
-      }
-
-      for (const log of aliasChangedLogs) {
-        const fromName = decodeDnsWireName(log.args.fromName!);
-        const toName = decodeDnsWireName(log.args.toName!);
-        if (fromName !== name && toName !== name) continue;
-        push(events, log, toName ? `Records aliased to ${toName}` : `Alias cleared`);
       }
 
       events.sort((a, b) => (a.blockNumber !== b.blockNumber ? (a.blockNumber < b.blockNumber ? -1 : 1) : a.logIndex - b.logIndex));

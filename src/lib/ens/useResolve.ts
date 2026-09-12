@@ -1,4 +1,4 @@
-import { encodeFunctionData, decodeFunctionResult, namehash, stringToBytes, concat, bytesToHex, type Hex } from "viem";
+import { encodeFunctionData, decodeFunctionResult, getAddress, namehash, stringToBytes, concat, bytesToHex, zeroAddress, type Hex } from "viem";
 import { usePublicClient } from "wagmi";
 import { universalResolverAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
@@ -7,6 +7,10 @@ import { useBlockGatedQuery } from "./query";
 const addrAbi = [
   { type: "function", name: "addr", stateMutability: "view", inputs: [{ name: "node", type: "bytes32" }], outputs: [{ name: "", type: "address" }] },
 ] as const;
+const multicoinAddrAbi = [
+  { type: "function", name: "addr", stateMutability: "view", inputs: [{ name: "node", type: "bytes32" }, { name: "coinType", type: "uint256" }], outputs: [{ name: "", type: "bytes" }] },
+] as const;
+const ETH_COIN_TYPE = 60n;
 const textAbi = [
   { type: "function", name: "text", stateMutability: "view", inputs: [{ name: "node", type: "bytes32" }, { name: "key", type: "string" }], outputs: [{ name: "", type: "string" }] },
 ] as const;
@@ -36,22 +40,54 @@ export function useResolve(name: string | undefined, textKeys: readonly string[]
       const node = namehash(name);
       const dnsEncoded = dnsEncodeName(name);
 
-      const addrCalldata = encodeFunctionData({ abi: addrAbi, functionName: "addr", args: [node] });
       const textCalldatas = textKeys.map((key) => encodeFunctionData({ abi: textAbi, functionName: "text", args: [node, key] }));
 
-      const [addrResult, ...textResults] = await Promise.all(
-        [addrCalldata, ...textCalldatas].map((calldata) =>
+      // Prefer the current multi-coin profile. Older app resolvers only implement the legacy
+      // `addr(bytes32)` profile, so fall back to it only when the modern selector is unsupported.
+      const addressPromise = (async () => {
+        const multicoinCalldata = encodeFunctionData({
+          abi: multicoinAddrAbi,
+          functionName: "addr",
+          args: [node, ETH_COIN_TYPE],
+        });
+        try {
+          const [data, resolver] = await publicClient.readContract({
+            address: CONTRACTS.universalResolver,
+            abi: universalResolverAbi,
+            functionName: "resolve",
+            args: [dnsEncoded, multicoinCalldata],
+          }) as [Hex, `0x${string}`];
+          const addressBytes = decodeFunctionResult({
+            abi: multicoinAddrAbi,
+            functionName: "addr",
+            data,
+          }) as Hex;
+          const address = addressBytes.length === 42 ? getAddress(addressBytes) : zeroAddress;
+          return { address, resolver };
+        } catch {
+          const legacyCalldata = encodeFunctionData({ abi: addrAbi, functionName: "addr", args: [node] });
+          const [data, resolver] = await publicClient.readContract({
+            address: CONTRACTS.universalResolver,
+            abi: universalResolverAbi,
+            functionName: "resolve",
+            args: [dnsEncoded, legacyCalldata],
+          }) as [Hex, `0x${string}`];
+          const address = decodeFunctionResult({ abi: addrAbi, functionName: "addr", data }) as `0x${string}`;
+          return { address, resolver };
+        }
+      })();
+
+      const [addressResult, ...textResults] = await Promise.all([
+        addressPromise,
+        ...textCalldatas.map((calldata) =>
           publicClient.readContract({
             address: CONTRACTS.universalResolver,
             abi: universalResolverAbi,
             functionName: "resolve",
             args: [dnsEncoded, calldata],
           })
-        )
-      );
-
-      const [addrData, resolver] = addrResult as [Hex, `0x${string}`];
-      const address = decodeFunctionResult({ abi: addrAbi, functionName: "addr", data: addrData }) as `0x${string}`;
+        ),
+      ]);
 
       const texts: Record<string, string> = {};
       textKeys.forEach((key, i) => {
@@ -59,7 +95,7 @@ export function useResolve(name: string | undefined, textKeys: readonly string[]
         texts[key] = decodeFunctionResult({ abi: textAbi, functionName: "text", data: textData }) as string;
       });
 
-      return { address, texts, resolver };
+      return { address: addressResult.address, texts, resolver: addressResult.resolver };
     },
     { enabled: !!name }
   );

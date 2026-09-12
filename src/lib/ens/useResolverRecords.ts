@@ -1,4 +1,4 @@
-import { zeroAddress } from "viem";
+import { decodeFunctionResult, encodeFunctionData, zeroAddress, type Hex } from "viem";
 import { usePublicClient } from "wagmi";
 import { permissionedResolverAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
@@ -6,7 +6,24 @@ import { decodeContenthash, type DecodedContenthash } from "./contenthash";
 import { fetchContractEventsChunked } from "./logs";
 import { useBlockGatedQuery } from "./query";
 import type { EnsNameState } from "./useEnsName";
+import { dnsEncodeName } from "./useResolve";
 import { ETH_COIN_TYPE as COIN_TYPE_ETH } from "./useReverseName";
+
+/// The hackathon-deployed `PermissionedResolver` (see `registryRoles.ts`'s `RESOLVER_ROLES` doc
+/// comment) has no standalone `addr()`/`text()`/`contenthash()` getters — the only read entrypoint
+/// is `resolve(bytes name, bytes data)` (ENSIP-10), which dispatches on a profile call's selector
+/// exactly like a `UniversalResolver` would forward one. These are that profile calldata's shapes;
+/// `useResolve.ts` already established this exact pattern for `UniversalResolver.resolve()` reads,
+/// this is the same thing called directly against a known resolver instead.
+const addrAbi = [
+  { type: "function", name: "addr", stateMutability: "view", inputs: [{ name: "node", type: "bytes32" }, { name: "coinType", type: "uint256" }], outputs: [{ name: "", type: "bytes" }] },
+] as const;
+const textAbi = [
+  { type: "function", name: "text", stateMutability: "view", inputs: [{ name: "node", type: "bytes32" }, { name: "key", type: "string" }], outputs: [{ name: "", type: "string" }] },
+] as const;
+const contenthashAbi = [
+  { type: "function", name: "contenthash", stateMutability: "view", inputs: [{ name: "node", type: "bytes32" }], outputs: [{ name: "", type: "bytes" }] },
+] as const;
 
 /// Task 35: "the well-known keys first ... plus free-form key/value rows."
 export const WELL_KNOWN_TEXT_KEYS = ["avatar", "description", "url", "com.twitter", "com.github", "email"] as const;
@@ -29,19 +46,34 @@ export type ResolverRecords = {
   contenthash: DecodedContenthash | null;
 };
 
-/// The records editor's read layer: every value `PermissionedResolver` actually holds for one
-/// name's node, read straight off the resolver contract (never through `UniversalResolver`'s
-/// `resolve()` wrapper) so a write made here and a write made by any other standard ENS client
-/// agree the instant both are read the same way.
+/// The records editor's read layer. The hackathon-deployed `PermissionedResolver` keys every
+/// record by an incrementing `recordId` (`getRecordId(node)`), not by `node` directly, and exposes
+/// no standalone `addr()`/`text()`/`contenthash()` getters — only `resolve(bytes name, bytes data)`
+/// (ENSIP-10). Every read below goes through that, straight to the resolver contract (never through
+/// `UniversalResolver`'s own `resolve()` wrapper — the resolver address is already known and
+/// confirmed, no need to re-walk the registry tree), so a write made here and a write made by any
+/// other standard ENS client agree the instant both are read the same way.
 export function useResolverRecords(state: EnsNameState | null | undefined) {
   const publicClient = usePublicClient();
   const resolver = state?.resolver && state.resolver !== zeroAddress ? state.resolver : null;
   const node = state?.node ?? null;
+  const name = state?.name ?? null;
 
   return useBlockGatedQuery<ResolverRecords | null>(
     ["resolverRecords", resolver, node],
     async () => {
-      if (!publicClient || !resolver || !node) return null;
+      if (!publicClient || !resolver || !node || !name) return null;
+
+      const dnsName = dnsEncodeName(name);
+      const resolverContract = { address: resolver, abi: permissionedResolverAbi } as const;
+
+      // `TextUpdated`/`AddressUpdated` are indexed by `recordId`, not `node` — a name that has
+      // never had a setter called on it has `recordId === 0` and, by construction, no logs at all.
+      const recordId = await publicClient.readContract({
+        ...resolverContract,
+        functionName: "getRecordId",
+        args: [node],
+      });
 
       const toBlock = await publicClient.getBlockNumber();
       const [textLogs, addressLogs] = await Promise.all([
@@ -49,19 +81,19 @@ export function useResolverRecords(state: EnsNameState | null | undefined) {
           publicClient,
           address: resolver,
           abi: permissionedResolverAbi,
-          eventName: "TextChanged",
+          eventName: "TextUpdated",
           fromBlock: CONTRACTS.ethRegistrarFirstBlock,
           toBlock,
-          args: { node },
+          args: { recordId },
         }),
         fetchContractEventsChunked({
           publicClient,
           address: resolver,
           abi: permissionedResolverAbi,
-          eventName: "AddressChanged",
+          eventName: "AddressUpdated",
           fromBlock: CONTRACTS.ethRegistrarFirstBlock,
           toBlock,
-          args: { node },
+          args: { recordId },
         }),
       ]);
 
@@ -80,38 +112,49 @@ export function useResolverRecords(state: EnsNameState | null | undefined) {
       }
       const coinTypeList = [...otherCoinTypes];
 
-      const contract = { address: resolver, abi: permissionedResolverAbi } as const;
+      // Every read is a `resolve(dnsName, profileCalldata)` call against the same resolver —
+      // batched with `publicClient.multicall` the same way the old direct-getter version was, just
+      // targeting one function (`resolve`) with different inner calldata per candidate field.
+      const reads = [
+        ...textKeys.map((key) => encodeFunctionData({ abi: textAbi, functionName: "text", args: [node, key] })),
+        encodeFunctionData({ abi: addrAbi, functionName: "addr", args: [node, COIN_TYPE_ETH] }),
+        encodeFunctionData({ abi: contenthashAbi, functionName: "contenthash", args: [node] }),
+        ...coinTypeList.map((coinType) => encodeFunctionData({ abi: addrAbi, functionName: "addr", args: [node, coinType] })),
+      ];
       const results = await publicClient.multicall({
         allowFailure: true,
-        contracts: [
-          ...textKeys.map((key) => ({ ...contract, functionName: "text", args: [node, key] }) as const),
-          { ...contract, functionName: "addr", args: [node, COIN_TYPE_ETH] } as const,
-          { ...contract, functionName: "contenthash", args: [node] } as const,
-          ...coinTypeList.map((coinType) => ({ ...contract, functionName: "addr", args: [node, coinType] }) as const),
-        ],
+        contracts: reads.map(
+          (data) => ({ ...resolverContract, functionName: "resolve", args: [dnsName, data] }) as const
+        ),
       });
 
       const texts: Record<string, string> = {};
       textKeys.forEach((key, i) => {
         const r = results[i];
-        if (r.status === "success" && typeof r.result === "string" && r.result.length > 0) {
-          texts[key] = r.result;
-        }
+        if (r.status !== "success") return;
+        const value = decodeFunctionResult({ abi: textAbi, functionName: "text", data: r.result as Hex }) as string;
+        if (value.length > 0) texts[key] = value;
       });
 
       const ethResult = results[textKeys.length];
-      const ethAddressBytes = ethResult.status === "success" ? (ethResult.result as `0x${string}`) : "0x";
+      const ethAddressBytes =
+        ethResult.status === "success"
+          ? (decodeFunctionResult({ abi: addrAbi, functionName: "addr", data: ethResult.result as Hex }) as Hex)
+          : "0x";
       const ethAddress = ethAddressBytes !== "0x" ? ethAddressBytes : null;
 
       const contenthashResult = results[textKeys.length + 1];
-      const contenthashRaw = contenthashResult.status === "success" ? (contenthashResult.result as `0x${string}`) : "0x";
+      const contenthashRaw =
+        contenthashResult.status === "success"
+          ? (decodeFunctionResult({ abi: contenthashAbi, functionName: "contenthash", data: contenthashResult.result as Hex }) as Hex)
+          : "0x";
 
       const otherAddresses: { coinType: bigint; addressBytes: `0x${string}` }[] = [];
       coinTypeList.forEach((coinType, i) => {
         const r = results[textKeys.length + 2 + i];
-        if (r.status === "success" && typeof r.result === "string" && r.result !== "0x") {
-          otherAddresses.push({ coinType, addressBytes: r.result as `0x${string}` });
-        }
+        if (r.status !== "success") return;
+        const addressBytes = decodeFunctionResult({ abi: addrAbi, functionName: "addr", data: r.result as Hex }) as Hex;
+        if (addressBytes !== "0x") otherAddresses.push({ coinType, addressBytes });
       });
 
       return {
@@ -123,6 +166,6 @@ export function useResolverRecords(state: EnsNameState | null | undefined) {
         contenthash: decodeContenthash(contenthashRaw),
       };
     },
-    { enabled: !!publicClient && !!resolver && !!node }
+    { enabled: !!publicClient && !!resolver && !!node && !!name }
   );
 }

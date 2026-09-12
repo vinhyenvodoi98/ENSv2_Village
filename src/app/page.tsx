@@ -1,25 +1,18 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import WorldRoot from "./WorldRoot";
 
 export const metadata: Metadata = {
   title: "AgentVillage",
-  description: "The live ENSv2 agent tree, as a world map read straight off Sepolia.",
+  description: "Your ENSv2 names, as a world map read straight off Sepolia.",
 };
 
 /**
- * Task 29 merged the two tracks that used to run side by side — the ENSv2 tree
- * at `/` and the 3D world at `/threejs` — into one screen. The world *is* the
- * namespace UI now: one castle per `NamespaceNode`, read from chain.
- *
- * Task 31: `WorldRoot` reads `?kingdom=` via `useSearchParams()`, which the App
- * Router requires a `<Suspense>` boundary for — the canvas already handles its
- * own loading state, so `fallback={null}` introduces no visible flash.
+ * Task 29 merged the ENSv2 tree and the 3D world into one screen; a later redesign then
+ * dropped root's own bespoke chrome in favor of the identical map + drawer `/ens/[name]`
+ * renders (`WorldRoot.tsx`): one castle per name the connected wallet owns, no hierarchy
+ * between them, clicking one opens the same tabbed state any other name's page opens.
+ * `WorldRoot` no longer reads the URL, so no `<Suspense>` boundary is needed here.
  */
 export default function Home() {
-  return (
-    <Suspense fallback={null}>
-      <WorldRoot />
-    </Suspense>
-  );
+  return <WorldRoot />;
 }

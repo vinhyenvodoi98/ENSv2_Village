@@ -130,6 +130,19 @@ export const POPULATION = {
 /** Hard cap on simultaneously-alive citizens, across every fortress. */
 export const POPULATION_CAP = 200;
 
+export const TIP_ANIMATION = {
+  sourceDistance: 16,
+  launchDistance: 4.8,
+  messengerApproachSec: 2.2,
+  ballistaApproachSec: 1.55,
+  catapultApproachSec: 1.85,
+  aimSec: 0.45,
+  flightSec: 0.9,
+  coinBurstSec: 2.1,
+  projectileArcHeight: 5.2,
+  coinCounts: { messenger: 12, ballista: 22, catapult: 38 },
+} as const;
+
 export const CITIZENS = {
   /** Target walking speed in world units per second. */
   walkSpeed: 0.9,

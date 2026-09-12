@@ -4,14 +4,7 @@ import { enhancedAccessControlAbi, ethRegistryAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
 import { labelhash, leafLabel, nameNode, normalizeName, parentName, splitLabels } from "./name";
 import { useBlockGatedQuery } from "./query";
-import {
-  RESOLVER_ROLES,
-  REGISTRY_ROLES,
-  ROOT_RESOURCE,
-  decodeRoles,
-  resolverResource,
-  type DecodedRole,
-} from "./registryRoles";
+import { RESOLVER_ROLES, REGISTRY_ROLES, ROOT_RESOURCE, decodeRoles, type DecodedRole } from "./registryRoles";
 
 /// `IPermissionedRegistry.Status` — mirrored, not guessed (`PermissionedRegistry._constructStatus`:
 /// an expired entry reads back as `AVAILABLE`, an unexpired one with no token owner as `RESERVED`).
@@ -220,7 +213,6 @@ export function useEnsNameRoles(state: EnsNameState | null | undefined) {
   const registry = state?.registry ?? null;
   const resource = state?.resource ?? null;
   const resolver = state?.resolver && state.resolver !== zeroAddress ? state.resolver : null;
-  const node = state?.node ?? null;
 
   return useBlockGatedQuery<EnsNameRoles | null>(
     ["ensNameRoles", state?.name, registry, resource?.toString(), resolver, address],
@@ -240,14 +232,19 @@ export function useEnsNameRoles(state: EnsNameState | null | undefined) {
       // `WildcardResolver` is one, and the call reverts outright. That's a fact about the resolver,
       // not a failed read, so it degrades to "no resolver roles to report" instead of taking the
       // whole summary down with it.
+      //
+      // Checked at `ROOT_RESOURCE`, not a node-derived resource: the hackathon's actually deployed
+      // `PermissionedResolver` (`registryRoles.ts`'s `RESOLVER_ROLES` doc comment) has no per-name
+      // resolver resource at all — every setter's resource is keyed by its own argument value
+      // (`coinType`/`key`/...), not by node, with `ROOT_RESOURCE` always sufficient as a fallback.
       let resolverBitmap: bigint | null = null;
-      if (resolver && node) {
+      if (resolver) {
         try {
           resolverBitmap = await publicClient.readContract({
             address: resolver,
             abi: enhancedAccessControlAbi,
             functionName: "roles",
-            args: [resolverResource(node), address],
+            args: [ROOT_RESOURCE, address],
           });
         } catch {
           resolverBitmap = null;
