@@ -35,6 +35,21 @@ export interface ShapeKit {
     width: number;
     height: number;
     poleHeight: number;
+    poleRadius: number;
+    /** Height multiplier used only by the central avatar mast. */
+    avatarPoleHeightScale: number;
+    /** The avatar mast is heavier than secondary banner poles. */
+    avatarPoleRadiusScale: number;
+    /** Length embedded below the roof apex so the mast never appears to float. */
+    avatarPoleSocketDepth: number;
+    avatarPoleBaseRadius: number;
+    avatarPoleBaseHeight: number;
+    avatarPoleCapRadius: number;
+    avatarPoleCapHeight: number;
+    avatarFlagWidth: number;
+    avatarFlagHeight: number;
+    /** Physical inset keeping the avatar centered away from the flag edge. */
+    avatarFlagPadding: number;
   };
   /** Crenellation block lining wall and tower tops. */
   merlon: {
@@ -59,12 +74,6 @@ export interface ShapeKit {
     barThickness: number;
     /** Vertical air gap between the tallest flag pole and the nameplate anchor. */
     nameplateClearance: number;
-    /** Height of the ENS avatar plaque on the central keep, as a body-height ratio. */
-    avatarSignHeightRatio: number;
-    /** Pulls the DOM plaque just in front of the keep facade. */
-    avatarSignSurfaceOffset: number;
-    /** Perspective scale for the camera-facing avatar plaque. */
-    avatarSignDistanceFactor: number;
     /** Portion of the gate opening occupied by the hanging grille. */
     portcullisHeightRatio: number;
     portcullisBarCount: number;
@@ -88,7 +97,22 @@ export const medievalShapeKit: ShapeKit = {
   wall: { length: 0.92, height: 0.57, thickness: 0.16 },
   tower: { radius: 0.27, height: 0.98, taper: 0.9, roofHeight: 0.48 },
   gate: { width: 0.58, height: 0.62, depth: 0.2 },
-  banner: { width: 0.24, height: 0.3, poleHeight: 0.62 },
+  banner: {
+    width: 0.24,
+    height: 0.3,
+    poleHeight: 0.62,
+    poleRadius: 0.03,
+    avatarPoleHeightScale: 2,
+    avatarPoleRadiusScale: 3.3,
+    avatarPoleSocketDepth: 0.2,
+    avatarPoleBaseRadius: 0.15,
+    avatarPoleBaseHeight: 0.15,
+    avatarPoleCapRadius: 0.11,
+    avatarPoleCapHeight: 0.18,
+    avatarFlagWidth: 2.24,
+    avatarFlagHeight: 1.32,
+    avatarFlagPadding: 0.14,
+  },
   merlon: { width: 0.11, height: 0.15, depth: 0.14 },
   detail: {
     windowWidth: 0.085,
@@ -100,9 +124,6 @@ export const medievalShapeKit: ShapeKit = {
     brimOverhang: 1.18,
     barThickness: 0.018,
     nameplateClearance: 0.2,
-    avatarSignHeightRatio: 0.63,
-    avatarSignSurfaceOffset: 0.025,
-    avatarSignDistanceFactor: 9,
     portcullisHeightRatio: 0.78,
     portcullisBarCount: 5,
     portcullisCrossbarCount: 2,

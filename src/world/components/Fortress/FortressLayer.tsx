@@ -52,6 +52,7 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
   const hoveredTile = useWorldStore(selectHoveredTile);
   const mode = useWorldStore(selectMode);
   const selectFortress = useWorldStore((state) => state.selectFortress);
+  const focusFortress = useWorldStore((state) => state.focusFortress);
   const setFoundKingdomOpen = useWorldStore((state) => state.setFoundKingdomOpen);
 
   const isSandbox = mode === "sandbox";
@@ -94,6 +95,11 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
             // `unfinished` (task 32: claimed but no `AgentRegistry` wired
             // yet): it opens "Found your kingdom", the only action left that
             // the root hex can request of the page.
+            //
+            // Every other castle uses `focusFortress` (task 41), not plain
+            // `selectFortress` — clicking one both opens its detail panel and
+            // re-centers the camera's orbit on it, so the map itself answers
+            // "where is this" instead of only the panel.
             onClick={
               fortress.ensKey === ROOT_ENS_KEY
                 ? fortress.unfinished
@@ -102,7 +108,7 @@ export function FortressLayer({ theme = medievalTheme, kitId }: FortressLayerPro
                       setFoundKingdomOpen(true);
                     }
                   : undefined
-                : () => selectFortress(fortress.ensKey)
+                : () => focusFortress(fortress.ensKey)
             }
           />
         );

@@ -1,11 +1,12 @@
 "use client";
 
-/// The slide-in panel every clicked castle opens into, styled the same way `AgentDetailPanel`
-/// (task 12) slides over the root map: a translucent backdrop plus a fixed right-hand aside, so
-/// clicking a castle never disturbs the camera or the map underneath it. Unlike `AgentDetailPanel`
-/// this one is content-agnostic — the control panel's three castle kinds (the page's own subject, a
-/// subname, a portfolio entry) each render their own content into it, all built from task 33's
-/// existing read-only panels (`NameOverviewPanel`, `RolesSummary`, `RegistryPathPanel`).
+/// The slide-in panel every clicked castle opens into: a fixed right-hand aside plus an invisible
+/// click-outside-to-close catcher — no dimming/blur over the map (task 41), since the castle it
+/// describes is the same thing `CameraRig` just orbited/zoomed the camera onto; darkening it would
+/// fight that same click's own camera move. Unlike `AgentDetailPanel` (task 12), the panel this
+/// replaced, this one is content-agnostic — the control panel's three castle kinds (the page's own
+/// subject, a subname, a portfolio entry) each render their own content into it, all built from
+/// task 33's existing read-only panels (`NameOverviewPanel`, `RolesSummary`, `RegistryPathPanel`).
 ///
 /// The aside itself never scrolls (task 39): it is a fixed-height flex column, and every content
 /// kind rendered inside it — the tabbed subject view as much as a single compact card — owns its
@@ -24,12 +25,15 @@ export function WorldDetailPanel({
 }) {
   return (
     <>
+      {/* Click-outside-to-close only — no dim/blur over the map. A castle's own detail panel
+          shouldn't darken the map it's describing; the drawer sliding in over it is enough of a
+          visual cue on its own. */}
       {open && (
         <button
           type="button"
           aria-label="Close castle detail panel"
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]"
+          className="fixed inset-0 z-40"
         />
       )}
 

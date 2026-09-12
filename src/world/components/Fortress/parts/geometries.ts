@@ -11,6 +11,11 @@ export interface PartGeometries {
   gateLintel: BoxGeometry;
   bannerCloth: PlaneGeometry;
   bannerPole: CylinderGeometry;
+  bannerPoleBase: CylinderGeometry;
+  bannerPoleCap: ConeGeometry;
+  avatarFlagFrame: ShapeGeometry;
+  avatarFlagFace: ShapeGeometry;
+  avatarImagePlane: PlaneGeometry;
   merlon: BoxGeometry;
   window: ShapeGeometry;
   finial: ConeGeometry;
@@ -22,6 +27,33 @@ export interface PartGeometries {
 }
 
 const cache = new Map<string, PartGeometries>();
+
+/** Left-anchored flag silhouette with UVs normalized across its full face. */
+function createFlagGeometry(width: number, height: number, offsetX = 0): ShapeGeometry {
+  const halfHeight = height / 2;
+  const flag = new Shape();
+  flag.moveTo(offsetX, halfHeight);
+  flag.lineTo(offsetX + width * 0.86, halfHeight * 0.97);
+  flag.lineTo(offsetX + width, halfHeight * 0.7);
+  flag.lineTo(offsetX + width * 0.93, 0);
+  flag.lineTo(offsetX + width, -halfHeight * 0.7);
+  flag.lineTo(offsetX + width * 0.86, -halfHeight * 0.97);
+  flag.lineTo(offsetX, -halfHeight);
+  flag.closePath();
+
+  const geometry = new ShapeGeometry(flag, 6);
+  const positions = geometry.attributes.position;
+  const uvs = geometry.attributes.uv;
+  for (let index = 0; index < positions.count; index += 1) {
+    uvs.setXY(
+      index,
+      (positions.getX(index) - offsetX) / width,
+      positions.getY(index) / height + 0.5
+    );
+  }
+  uvs.needsUpdate = true;
+  return geometry;
+}
 
 /**
  * One set of primitive geometries per shape kit, built once and shared by
@@ -54,6 +86,11 @@ export function getPartGeometries(kit: ShapeKit): PartGeometries {
   const portcullisHeight = kit.gate.height * kit.detail.portcullisHeightRatio;
   const portcullisOpeningWidth = kit.gate.width - kit.gate.depth * 2;
 
+  const bannerCloth = new PlaneGeometry(kit.banner.width, kit.banner.height);
+  bannerCloth.translate(kit.banner.width / 2, 0, 0);
+  const avatarFaceWidth = kit.banner.avatarFlagWidth - kit.banner.avatarFlagPadding * 2;
+  const avatarFaceHeight = kit.banner.avatarFlagHeight - kit.banner.avatarFlagPadding * 2;
+
   const built: PartGeometries = {
     keepBody: new BoxGeometry(kit.keep.width, kit.keep.height, kit.keep.depth),
     keepRoof: new ConeGeometry(Math.max(kit.keep.width, kit.keep.depth) * 0.82, kit.keep.roofHeight, 4),
@@ -62,8 +99,31 @@ export function getPartGeometries(kit: ShapeKit): PartGeometries {
     towerRoof: new ConeGeometry(kit.tower.radius * 1.16, kit.tower.roofHeight, 8),
     gatePost: new BoxGeometry(kit.gate.depth, kit.gate.height, kit.gate.depth),
     gateLintel: new BoxGeometry(kit.gate.width, kit.gate.depth * 0.6, kit.gate.depth),
-    bannerCloth: new PlaneGeometry(kit.banner.width, kit.banner.height),
-    bannerPole: new CylinderGeometry(0.03, 0.03, kit.banner.poleHeight, 6),
+    bannerCloth,
+    bannerPole: new CylinderGeometry(
+      kit.banner.poleRadius,
+      kit.banner.poleRadius,
+      kit.banner.poleHeight,
+      8
+    ),
+    bannerPoleBase: new CylinderGeometry(
+      kit.banner.avatarPoleBaseRadius,
+      kit.banner.avatarPoleBaseRadius * 0.82,
+      kit.banner.avatarPoleBaseHeight,
+      8
+    ),
+    bannerPoleCap: new ConeGeometry(
+      kit.banner.avatarPoleCapRadius,
+      kit.banner.avatarPoleCapHeight,
+      8
+    ),
+    avatarFlagFrame: createFlagGeometry(kit.banner.avatarFlagWidth, kit.banner.avatarFlagHeight),
+    avatarFlagFace: createFlagGeometry(
+      avatarFaceWidth,
+      avatarFaceHeight,
+      kit.banner.avatarFlagPadding
+    ),
+    avatarImagePlane: new PlaneGeometry(1, 1),
     merlon: new BoxGeometry(kit.merlon.width, kit.merlon.height, kit.merlon.depth),
     window: new ShapeGeometry(window, 6),
     finial: new ConeGeometry(kit.detail.finialRadius, kit.detail.finialHeight, 8),

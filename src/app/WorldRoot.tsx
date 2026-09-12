@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useAccount, useConnect, useSwitchChain } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { ControlPanelWorldShell } from "@/components/control/ControlPanelWorldShell";
@@ -12,12 +12,14 @@ import { useNameTab } from "@/components/control/useNameTab";
 import { WorldDetailPanel } from "@/components/control/WorldDetailPanel";
 import { ClaimNameWizard } from "@/components/onboarding/ClaimNameWizard";
 import { ScanLoadingModal } from "@/components/shared/ScanLoadingModal";
+import { hasStoredClaim } from "@/lib/ens/useClaimName";
 import { useEnsAvatars } from "@/lib/ens/useEnsAvatars";
 import { useEnsName } from "@/lib/ens/useEnsName";
 import { subnameRegistryOf, useNameChildren } from "@/lib/ens/useNameChildren";
 import { useOwnedEthNames, useOwnedNamesScanProgress, type OwnedEthName } from "@/lib/ens/useOwnedEthNames";
 import { truncateAddress } from "@/lib/format";
 import { createPortfolioFortressSource } from "@/world/adapters/ensControlWorldSource";
+import type { RegisterMountainState } from "@/world/components/Register/RegisterMountainScenery";
 import { WORLD_RADIUS } from "@/world/config/world.config";
 import { selectSelectedFortressId } from "@/world/state/selectors";
 import { useWorldStore } from "@/world/state/useWorldStore";
@@ -32,6 +34,13 @@ const WorldCanvas = dynamic(
 /// hand back for a name that's actually still owned, but re-checked here rather than assumed, same
 /// convention `AddressWorldPanel` uses.
 const STATUS_REGISTERED = 2;
+
+/// `hasStoredClaim` has nothing to subscribe to — it's a plain synchronous localStorage read, not
+/// an event source — so this tells `useSyncExternalStore` there's no external change to listen
+/// for; the snapshot itself still re-runs on every render, which is all `pendingClaim` needs.
+function noopSubscribe(): () => void {
+  return () => {};
+}
 
 /**
  * `/` used to render the fleet's own `AgentRegistry` namespace tree (task 29) with a bespoke chrome
@@ -70,6 +79,16 @@ export default function WorldRoot() {
 
   const [claimOpen, setClaimOpen] = useState(false);
   const [tab, setTab] = useNameTab();
+
+  // `useSyncExternalStore` re-reads `hasStoredClaim` on every commit (a re-render triggered by,
+  // say, `setClaimOpen(false)` after a successful register is enough — no subscription needed for
+  // that), and its server snapshot (`false`, matching `hasStoredClaim`'s own SSR guard) keeps the
+  // first client render identical to the server-rendered markup so hydration never mismatches.
+  const pendingClaim = useSyncExternalStore(
+    noopSubscribe,
+    () => hasStoredClaim(chainId, address),
+    () => false
+  );
 
   // Same "control panel" mode `/ens/[name]` and `/address/[addr]` set (BuildBar's read-mostly
   // hint, no spawn/build affordance) — root is no longer a separate mode with its own hint copy.
@@ -146,9 +165,36 @@ export default function WorldRoot() {
     if (connector) connect({ connector });
   };
 
+  // Every branch has a defined behavior — no branch clicks out to silence — per task 40's state
+  // table: disconnected/wrong-network route into the same connect/switch flows the empty-state
+  // panel above already uses, scanning is inert, a stored pledge reopens the wizard mid-flow (it
+  // recovers its own step from localStorage), and the normal case opens a fresh claim.
+  const mountainState: RegisterMountainState = !isConnected
+    ? { dormant: true, disabled: false, pending: false, ariaLabel: "Register new ENSv2 — connect a wallet first", caption: "Connect a wallet first" }
+    : isWrongNetwork
+      ? { dormant: true, disabled: false, pending: false, ariaLabel: "Register new ENSv2 — switch to Sepolia", caption: "Switch to Sepolia" }
+      : isScanning
+        ? { dormant: true, disabled: true, pending: false, ariaLabel: "Register new ENSv2 — scanning your names", caption: "Scanning your names…" }
+        : pendingClaim
+          ? { dormant: false, disabled: false, pending: true, ariaLabel: "Register new ENSv2 — a pledge is waiting, finish it", caption: "A pledge is waiting — finish it" }
+          : { dormant: false, disabled: false, pending: false, ariaLabel: "Register new ENSv2 — claim another name", caption: "Claim another name" };
+
+  const handleMountainClick = () => {
+    if (!isConnected) {
+      handleConnect();
+      return;
+    }
+    if (isWrongNetwork) {
+      switchChain({ chainId: sepolia.id });
+      return;
+    }
+    if (isScanning) return;
+    setClaimOpen(true);
+  };
+
   return (
     <ControlPanelWorldShell showBackToWorld={false}>
-      <WorldCanvas />
+      <WorldCanvas registerMountain={{ state: mountainState, onClick: handleMountainClick }} />
       <BuildBar />
 
       {!isConnected ? (

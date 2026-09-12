@@ -57,12 +57,18 @@ export interface WorldTheme {
     treeTrunk: MaterialSpec;
     pineLower: MaterialSpec;
     pineUpper: MaterialSpec;
+    /** Đá trần của ngọn núi "register" — tối và lạnh hơn `stone` của lâu đài. */
+    rock: MaterialSpec;
+    /** Chóp tuyết trên đỉnh núi. */
+    snow: MaterialSpec;
   };
   fortress: {
     keep: MaterialSpec;
     wall: MaterialSpec;
     roof: MaterialSpec;
     banner: MaterialSpec;
+    /** Bright metal used by flag masts, sockets and finials. */
+    flagpole: MaterialSpec;
     /** Windows, portcullis bars — dark ironwork/glass detail. */
     window: MaterialSpec;
     /**
@@ -147,12 +153,15 @@ export const medievalTheme: WorldTheme = {
     treeTrunk: { color: "#5b402c", roughness: 1, metalness: 0, flatShading: true },
     pineLower: { color: "#244f39", roughness: 0.96, metalness: 0, flatShading: true },
     pineUpper: { color: "#397052", roughness: 0.94, metalness: 0, flatShading: true },
+    rock: { color: "#6f6f78", roughness: 0.95, metalness: 0.02, flatShading: true },
+    snow: { color: "#f2f5f7", roughness: 0.82, metalness: 0, flatShading: true },
   },
   fortress: {
     keep: { color: "#c7c1b4", roughness: 0.9, metalness: 0.02, flatShading: true },
     wall: { color: "#aaa69c", roughness: 0.94, metalness: 0.01, flatShading: true },
     roof: { color: "#555966", roughness: 0.78, metalness: 0.08, flatShading: true },
     banner: { color: "#8e1f2b", roughness: 0.6, metalness: 0, flatShading: true },
+    flagpole: { color: "#c6a35a", roughness: 0.38, metalness: 0.68, flatShading: true },
     window: { color: "#1d2730", roughness: 0.32, metalness: 0.48, flatShading: true },
     ruined: { color: "#6f6e69", roughness: 1, metalness: 0, flatShading: true },
     bannerVariantColors: ["#8e1f2b", "#1f3f8e", "#1f7a3b", "#8e6f1f"],
@@ -218,6 +227,7 @@ export const winterTheme: WorldTheme = {
     ground: { color: "#cbd6d9", roughness: 1, metalness: 0 },
     pineLower: { color: "#38574f", roughness: 0.96, metalness: 0, flatShading: true },
     pineUpper: { color: "#b9ccca", roughness: 0.94, metalness: 0, flatShading: true },
+    rock: { color: "#7d8791", roughness: 0.95, metalness: 0.02, flatShading: true },
   },
 };
 

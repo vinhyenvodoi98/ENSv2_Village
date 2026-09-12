@@ -21,6 +21,7 @@ import { WebGLContextRecovery } from "./WebGLContextRecovery";
 import { ForestRing } from "../Terrain/ForestRing";
 import { FlowingStream } from "../Terrain/FlowingStream";
 import { TipCelebrationLayer } from "../Tip/TipCelebration";
+import { RegisterMountainScenery, type RegisterMountainSceneryProps } from "../Register/RegisterMountainScenery";
 
 /**
  * Root of the 3D world. The only place a `<Canvas>` is created — everything
@@ -37,7 +38,16 @@ import { TipCelebrationLayer } from "../Tip/TipCelebration";
  * imperatively instead; the `<color>`/`<fog>` below are just the initial
  * (clear-weather) values.
  */
-export function WorldCanvas() {
+export interface WorldCanvasProps {
+  /**
+   * Task 40's "register another name" mountain — only `/` (the connected wallet's own
+   * portfolio) passes this; `/ens/[name]` and `/address/[addr]` render someone else's names and
+   * have no wallet to register a claim against, so they leave it undefined.
+   */
+  registerMountain?: RegisterMountainSceneryProps;
+}
+
+export function WorldCanvas({ registerMountain }: WorldCanvasProps = {}) {
   const presetName = useWorldStore(selectPresetName);
   const fogDensity = useWorldStore((state) => state.debug.fogDensity);
   const { preset, theme } = resolvePreset(presetName);
@@ -65,6 +75,7 @@ export function WorldCanvas() {
       <FortressLayer theme={theme} kitId={preset.fortressKit} />
       <CitizenCrowd theme={theme} />
       <TipCelebrationLayer theme={theme} />
+      {registerMountain && <RegisterMountainScenery theme={theme} {...registerMountain} />}
     </Canvas>
   );
 }

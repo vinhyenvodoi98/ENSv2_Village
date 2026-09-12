@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { coordKey } from "../core/hex";
+import { coordKey, hexToWorld } from "../core/hex";
 import type { AxialCoord, Cart, Citizen, FortressEntity, Road, Tile, Weather, WeatherRenderState } from "../core/types";
 import { DEFAULT_PRESET, presets } from "../config/presets";
 import { POPULATION, TERRAIN, WORLD_RADIUS } from "../config/world.config";
@@ -55,9 +55,15 @@ const DEFAULT_DEBUG_SETTINGS: DebugSettings = {
   populationCap: POPULATION.maxCitizensPerFortress,
 };
 
-/** A camera fly-to request. `token` makes repeat requests for the same hex distinguishable. */
+/**
+ * A camera fly-to request. World-space (x, z) rather than a hex coord — task 41 (clicking any
+ * object, castle or scenery, re-centers the camera on it) added `RegisterMountainScenery`, which
+ * sits off the hex grid entirely, so a coord-keyed focus can't address it. `token` makes repeat
+ * requests for the same position distinguishable (re-clicking an already-focused castle still
+ * re-triggers the glide).
+ */
 export interface CameraFocus {
-  coord: AxialCoord;
+  position: [number, number];
   token: number;
 }
 
@@ -124,6 +130,11 @@ export interface WorldState {
   selectFortress: (ensKey: string | null) => void;
   /** Selects a castle *and* flies the camera to it — what the detail panel's child links do. */
   focusFortress: (ensKey: string) => void;
+  /**
+   * Flies the camera to an arbitrary world-space point without touching selection — clicking
+   * scenery that isn't a castle (the register mountain) uses this directly.
+   */
+  focusPosition: (position: [number, number]) => void;
   setMode: (mode: WorldMode) => void;
   setFoundKingdomOpen: (open: boolean) => void;
   celebrateTip: (tip: Omit<TipCelebration, "id">) => void;
@@ -353,9 +364,12 @@ export const useWorldStore = create<WorldState>((set) => ({
       if (!fortress) return { selectedFortressId: ensKey };
       return {
         selectedFortressId: ensKey,
-        cameraFocus: { coord: fortress.coord, token: state.tick + Date.now() },
+        cameraFocus: { position: hexToWorld(fortress.coord), token: state.tick + Date.now() },
       };
     }),
+
+  focusPosition: (position) =>
+    set((state) => ({ cameraFocus: { position, token: state.tick + Date.now() } })),
 
   /**
    * Switching modes empties the map. The ENS map and the sandbox are two

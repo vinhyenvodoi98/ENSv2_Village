@@ -100,10 +100,14 @@ export function Fortress({
   const shapeKit = useMemo(() => getShapeKit(kitId), [kitId]);
   const materials = useMemo(() => getThemeMaterials(theme), [theme]);
   const displayName = name?.trim() ?? "";
+  const nameplatePoleHeight = avatar && !derelict
+    ? shapeKit.banner.poleHeight * shapeKit.banner.avatarPoleHeightScale
+      + shapeKit.banner.avatarPoleCapHeight
+    : shapeKit.banner.poleHeight;
   const nameplateY =
     shapeKit.keep.height
     + shapeKit.keep.roofHeight
-    + shapeKit.banner.poleHeight
+    + nameplatePoleHeight
     + shapeKit.detail.nameplateClearance;
 
   const jitter = useMemo(() => {
@@ -137,6 +141,7 @@ export function Fortress({
   // ruin is uniformly grey stone, and a live castle uses the full palette.
   const override = ghost ? materials.fortress.ghost : derelict ? materials.fortress.ruined : null;
   const bannerMaterial = override ?? materials.fortress.bannerVariants[jitter.bannerVariant];
+  const flagpoleMaterial = override ?? materials.fortress.flagpole;
   const bodyMaterial = override ?? materials.fortress.keep;
   const wallMaterial = override ?? materials.fortress.wall;
   const roofMaterial = override ?? materials.fortress.roof;
@@ -165,10 +170,10 @@ export function Fortress({
           wallMaterial={wallMaterial}
           roofMaterial={roofMaterial}
           bannerMaterial={bannerMaterial}
+          flagpoleMaterial={flagpoleMaterial}
           windowMaterial={windowMaterial}
           avatar={avatar}
           avatarName={fullName ?? displayName}
-          derelict={derelict}
         />
       ))}
       {displayName ? (
@@ -191,10 +196,10 @@ interface PartInstanceProps {
   wallMaterial: ReturnType<typeof getThemeMaterials>["fortress"]["wall"];
   roofMaterial: ReturnType<typeof getThemeMaterials>["fortress"]["roof"];
   bannerMaterial: ReturnType<typeof getThemeMaterials>["fortress"]["bannerVariants"][number];
+  flagpoleMaterial: ReturnType<typeof getThemeMaterials>["fortress"]["flagpole"];
   windowMaterial: ReturnType<typeof getThemeMaterials>["fortress"]["window"];
   avatar?: string;
   avatarName: string;
-  derelict: boolean;
 }
 
 function PartInstance({
@@ -204,11 +209,16 @@ function PartInstance({
   wallMaterial,
   roofMaterial,
   bannerMaterial,
+  flagpoleMaterial,
   windowMaterial,
   avatar,
   avatarName,
-  derelict,
 }: PartInstanceProps) {
+  const isCentralBanner =
+    placement.part === "banner"
+    && placement.position[0] === 0
+    && placement.position[2] === 0;
+
   return (
     <group position={placement.position} rotation={placement.rotation} scale={placement.scale}>
       <FortressPartMesh
@@ -218,10 +228,10 @@ function PartInstance({
         wallMaterial={wallMaterial}
         roofMaterial={roofMaterial}
         bannerMaterial={bannerMaterial}
+        flagpoleMaterial={flagpoleMaterial}
         windowMaterial={windowMaterial}
-        avatar={avatar}
+        avatar={isCentralBanner ? avatar : undefined}
         avatarName={avatarName}
-        derelict={derelict}
       />
     </group>
   );
@@ -234,26 +244,16 @@ function FortressPartMesh({
   wallMaterial,
   roofMaterial,
   bannerMaterial,
+  flagpoleMaterial,
   windowMaterial,
   avatar,
   avatarName,
-  derelict,
 }: {
   part: FortressPart;
 } & Omit<PartInstanceProps, "placement">) {
   switch (part) {
     case "keep":
-      return (
-        <Keep
-          shapeKit={shapeKit}
-          bodyMaterial={bodyMaterial}
-          roofMaterial={roofMaterial}
-          windowMaterial={windowMaterial}
-          avatar={avatar}
-          avatarName={avatarName}
-          derelict={derelict}
-        />
-      );
+      return <Keep shapeKit={shapeKit} bodyMaterial={bodyMaterial} roofMaterial={roofMaterial} windowMaterial={windowMaterial} />;
     case "wall":
       return <Wall shapeKit={shapeKit} bodyMaterial={wallMaterial} />;
     case "tower":
@@ -261,7 +261,15 @@ function FortressPartMesh({
     case "gate":
       return <Gate shapeKit={shapeKit} bodyMaterial={wallMaterial} roofMaterial={roofMaterial} windowMaterial={windowMaterial} />;
     case "banner":
-      return <Banner shapeKit={shapeKit} bodyMaterial={bannerMaterial} poleMaterial={wallMaterial} />;
+      return (
+        <Banner
+          shapeKit={shapeKit}
+          bodyMaterial={bannerMaterial}
+          poleMaterial={flagpoleMaterial}
+          avatar={avatar}
+          avatarName={avatarName}
+        />
+      );
     case "merlon":
       return <Merlon shapeKit={shapeKit} bodyMaterial={wallMaterial} />;
     default:

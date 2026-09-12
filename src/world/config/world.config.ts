@@ -103,6 +103,8 @@ export const CAMERA = {
   /** Radians. 0 = looking straight down, PI/2 = horizontal. */
   minPolarAngle: Math.PI / 6,
   maxPolarAngle: Math.PI / 2.4,
+  /** Orbit distance `CameraRig` eases toward when a castle or other object is focused (task 41) — closer than the default framing, but far enough that the castle's own nameplate (floating above the roof) doesn't clip against the near plane or get cropped by the camera. */
+  focusDistance: 20,
 } as const;
 
 export const RENDER = {

@@ -88,7 +88,6 @@ interface TileInstancesProps {
 const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstancesProps) {
   const setHoveredCoord = useWorldStore((state) => state.setHoveredCoord);
   const placeFortress = useWorldStore((state) => state.placeFortress);
-  const selectFortress = useWorldStore((state) => state.selectFortress);
   const setBuildMessage = useWorldStore((state) => state.setBuildMessage);
   const lastMoveAt = useRef(0);
   const base = theme.terrain.grass;
@@ -122,7 +121,10 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
 
       const occupyingFortress = fortressList.find((fortress) => coordKey(fortress.coord) === key);
       if (occupyingFortress) {
-        selectFortress(occupyingFortress.ensKey);
+        // Focuses (not just selects) so clicking a castle through empty-tile
+        // raycast also re-centers the camera on it, same as `FortressLayer`'s
+        // own click handler (task 41).
+        useWorldStore.getState().focusFortress(occupyingFortress.ensKey);
         return;
       }
 
@@ -154,7 +156,7 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
 
       placeFortress(coord);
     },
-    [placeFortress, selectFortress, setBuildMessage]
+    [placeFortress, setBuildMessage]
   );
 
   return (

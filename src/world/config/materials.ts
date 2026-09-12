@@ -49,6 +49,7 @@ function buildGroup<T extends Record<string, MaterialSpec>>(specs: T): MaterialG
 function buildFortressMaterials(fortress: WorldTheme["fortress"]): FortressMaterials {
   const { bannerVariantColors, ...specs } = fortress;
   const base = buildGroup(specs) as MaterialGroup<FortressSpecs>;
+  base.flagpole.side = DoubleSide;
 
   const bannerVariants = bannerVariantColors.map(
     (color) =>
