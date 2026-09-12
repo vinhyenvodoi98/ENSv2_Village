@@ -245,7 +245,7 @@ function StepTreasury({
 
       {claim.mintNeeded ? (
         <>
-          <button type="button" onClick={() => claim.actions.mint.run()} className={continueClass}>
+          <button type="button" onClick={() => claim.actions.mint.run().catch(() => {})} className={continueClass}>
             Mint test USDC
           </button>
           <TxStatus state={claim.actions.mint.state} txHash={claim.actions.mint.txHash} error={claim.actions.mint.error} />
@@ -290,7 +290,7 @@ function StepAuthorize({ claim, onBack }: { claim: ClaimNameState; onBack: () =>
 
       {claim.approveNeeded ? (
         <>
-          <button type="button" onClick={() => claim.actions.approve.run()} className={continueClass}>
+          <button type="button" onClick={() => claim.actions.approve.run().catch(() => {})} className={continueClass}>
             Approve
           </button>
           <TxStatus
@@ -315,7 +315,7 @@ function StepAuthorize({ claim, onBack }: { claim: ClaimNameState; onBack: () =>
           type="button"
           disabled={claim.approveNeeded || !treasury}
           title={claim.approveNeeded ? "Approve MockUSDC first." : undefined}
-          onClick={() => claim.actions.commit.run()}
+          onClick={() => claim.actions.commit.run().catch(() => {})}
           className={continueClass}
         >
           Seal the pledge
@@ -393,7 +393,7 @@ function StepClaim({ claim }: { claim: ClaimNameState }) {
             type="button"
             disabled={!claim.canRegister}
             title={!claim.canRegister ? "Re-checking availability…" : undefined}
-            onClick={() => claim.actions.register.run()}
+            onClick={() => claim.actions.register.run().catch(() => {})}
             className={continueClass}
           >
             Claim the land

@@ -17,6 +17,8 @@ export interface TipCelebration {
   tier: TipDeliveryTier;
   amountEth: string;
   recipientName: string;
+  /** Development-only visual preview; no transaction was submitted. */
+  simulated?: boolean;
 }
 
 /**

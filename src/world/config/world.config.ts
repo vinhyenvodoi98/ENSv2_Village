@@ -135,13 +135,17 @@ export const POPULATION_CAP = 200;
 export const TIP_ANIMATION = {
   sourceDistance: 16,
   launchDistance: 4.8,
+  /** Model-space scale normalized against a 0.445-unit citizen and a ~2-unit keep. */
+  visualScales: { messenger: 0.34, ballista: 0.52, catapult: 0.38 },
+  groundOffsets: { messenger: 0.08, ballista: 0.12, catapult: 0.12 },
+  projectileScales: { messenger: 0.34, ballista: 0.74, catapult: 0.3 },
   messengerApproachSec: 2.2,
   ballistaApproachSec: 1.55,
   catapultApproachSec: 1.85,
-  aimSec: 0.45,
-  flightSec: 0.9,
+  aimSeconds: { messenger: 0.82, ballista: 0.68, catapult: 1.05 },
+  flightSeconds: { messenger: 0.78, ballista: 0.56, catapult: 1.08 },
   coinBurstSec: 2.1,
-  projectileArcHeight: 5.2,
+  projectileArcHeights: { messenger: 0.75, ballista: 0.35, catapult: 2.4 },
   coinCounts: { messenger: 12, ballista: 22, catapult: 38 },
 } as const;
 

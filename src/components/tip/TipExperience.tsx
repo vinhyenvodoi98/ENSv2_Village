@@ -17,6 +17,10 @@ const TIP_OPTIONS = [
   { value: "0.05", tier: "catapult", icon: "💥", title: "Golden catapult", copy: "Launches the grand delivery — and a shower of coins." },
 ] as const satisfies readonly { value: string; tier: TipDeliveryTier; icon: string; title: string; copy: string }[];
 
+// Next replaces this at build time, so the preview controls and code path are removed from the
+// production client bundle. A fake tip must never be reachable on a deployed build.
+const TIP_PREVIEW_ENABLED = process.env.NODE_ENV === "development";
+
 function tierForAmount(value: bigint): TipDeliveryTier {
   if (value >= parseEther("0.025")) return "catapult";
   if (value >= parseEther("0.005")) return "ballista";
@@ -141,6 +145,19 @@ function TipDialog({
     }
   };
 
+  const previewDelivery = () => {
+    if (!TIP_PREVIEW_ENABLED || !parsedAmount || busy) return;
+    celebrateTip({
+      targetFortressId,
+      tier,
+      amountEth: amount,
+      recipientName: name,
+      simulated: true,
+    });
+    onClose();
+    selectFortress(null);
+  };
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="tip-title">
       <button type="button" aria-label="Close tip dialog" onClick={busy ? undefined : onClose} className="absolute inset-0 bg-[#050814]/75 backdrop-blur-sm" />
@@ -222,6 +239,23 @@ function TipDialog({
           <div className={`mt-3 rounded-xl border px-3 py-2 text-xs ${state === "failed" ? "border-red-400/20 bg-red-500/10 text-red-200" : "border-amber-300/15 bg-amber-300/5 text-amber-100/70"}`}>
             {error ?? (state === "signing" ? "Waiting for your wallet signature." : state === "confirming" ? "Transaction sent. Waiting for confirmation…" : "Confirmed — watch the kingdom!")}
             {txHash ? <a href={explorerTxUrl(txHash)} target="_blank" rel="noreferrer" className="ml-2 underline underline-offset-2">View transaction ↗</a> : null}
+          </div>
+        ) : null}
+
+        {TIP_PREVIEW_ENABLED ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-300/25 bg-sky-400/10 px-4 py-3">
+            <div>
+              <p className="text-xs font-black tracking-[0.18em] text-sky-200 uppercase">Development preview</p>
+              <p className="mt-1 text-xs text-white/50">Runs the full delivery effect without opening a wallet or sending ETH.</p>
+            </div>
+            <button
+              type="button"
+              disabled={!parsedAmount || busy}
+              onClick={previewDelivery}
+              className="rounded-full border border-sky-200/30 bg-sky-300 px-4 py-2 text-xs font-black tracking-wide text-sky-950 uppercase transition hover:-translate-y-0.5 hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+            >
+              Preview {tier} animation
+            </button>
           </div>
         ) : null}
       </section>

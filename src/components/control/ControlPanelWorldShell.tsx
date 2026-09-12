@@ -10,13 +10,11 @@ import { TipCelebrationToast } from "@/components/tip/TipCelebrationToast";
 /**
  * Full-bleed frame for the world-styled control panel (`/ens/[name]`, `/address/[addr]`) —
  * `WorldCanvas` fills the screen exactly like the `/` root does (`WorldRoot.tsx`'s own
- * `fixed inset-0` container), with the same search box, wallet and deployment footer as the flat
- * shell (`ControlPanelShell.tsx`) floated over it instead of laid out in a scrolling page.
- * `ControlPanelShell` itself stays in place for `/ens` (the no-name landing page), which has no
- * castle to render and is still a normal scrolling page.
+ * `fixed inset-0` container). There is no no-name `/ens` landing page anymore — every route this
+ * shell serves already has a name or address to render.
  *
  * `/` renders this same shell (the connected wallet's own names, as a portfolio of castles) rather
- * than a fourth bespoke frame — `showBackToWorld` only exists so that root doesn't draw a "Back to
+ * than a second bespoke frame — `showBackToWorld` only exists so that root doesn't draw a "Back to
  * the world" link pointing at itself.
  */
 export function ControlPanelWorldShell({
@@ -35,7 +33,7 @@ export function ControlPanelWorldShell({
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex flex-wrap items-center gap-3 p-4">
         <Link
-          href="/ens"
+          href="/"
           className="pointer-events-auto rounded-full bg-black/60 px-4 py-2 text-sm font-semibold tracking-wide text-white/80 uppercase backdrop-blur transition-colors hover:bg-black/75 hover:text-white"
         >
           ENS control panel
