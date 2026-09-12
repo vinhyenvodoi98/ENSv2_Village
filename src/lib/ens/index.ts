@@ -16,7 +16,7 @@ export { useEnsAvatars, type EnsAvatarDirectory } from "./useEnsAvatars";
 export { useRoles, type RoleGrant } from "./useRoles";
 export { useLastHeartbeats, type LastHeartbeat } from "./useLastHeartbeats";
 export { useAgentEvents, type AgentEvent } from "./useAgentEvents";
-export { useOwnedEthNames, type OwnedEthName } from "./useOwnedEthNames";
+export { useOwnedEthNames, useOwnedNamesScanProgress, type OwnedEthName } from "./useOwnedEthNames";
 export { useSelectedKingdom } from "./useSelectedKingdom";
 export { useClaimName, hasStoredClaim, CLAIM_DURATION_OPTIONS, type ClaimStep } from "./useClaimName";
 export { useFoundKingdom } from "./useFoundKingdom";
@@ -35,7 +35,14 @@ export {
 } from "./permissions";
 export { useBlockGatedQuery } from "./query";
 export { fetchContractEventsChunked } from "./logs";
-export { useNameChildren, type EnsChildName, type EnsNameChildren } from "./useNameChildren";
+export {
+  useNameChildren,
+  useSubnameScanProgress,
+  subnameRegistryOf,
+  type EnsChildName,
+  type EnsNameChildren,
+} from "./useNameChildren";
+export { type ScanPhase, type ScanProgress } from "./scanProgress";
 
 // Task 33 — ENSv2 control panel read layer. Deliberately free of AgentVillage's own
 // `AgentRegistry` tier ladder: everything below maps one-to-one onto a function ENSv2 itself

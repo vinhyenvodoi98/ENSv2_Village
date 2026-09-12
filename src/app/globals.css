@@ -43,10 +43,10 @@ body {
   animation: heartbeat-pulse-ring 1.6s ease-out 1;
 }
 
-/* The subname-scan dialog's entrance (SubnameLoadingModal). Deliberately short and fade-led: a
+/* The chain-scan dialog's entrance (ScanLoadingModal). Deliberately short and fade-led: a
    dialog that explains a wait must not itself feel like one. Applied via `motion-safe:` so a
    reduced-motion preference gets the same dialog, just present immediately. */
-@keyframes subname-scan-in {
+@keyframes chain-scan-in {
   from {
     opacity: 0;
     transform: translateY(4px);

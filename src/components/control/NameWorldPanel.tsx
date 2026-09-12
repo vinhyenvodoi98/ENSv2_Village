@@ -17,8 +17,8 @@ import { selectSelectedFortressId } from "@/world/state/selectors";
 import { BuildBar } from "@/world/ui/BuildBar";
 import { ControlPanelWorldShell } from "./ControlPanelWorldShell";
 import { NameChildDetail, NameStateDetail } from "./NameStateDetail";
+import { ScanLoadingModal } from "@/components/shared/ScanLoadingModal";
 import { Panel } from "./Panel";
-import { SubnameLoadingModal } from "./SubnameLoadingModal";
 import { WorldDetailPanel } from "./WorldDetailPanel";
 
 const WorldCanvas = dynamic(() => import("@/world/components/Scene/WorldCanvas").then((mod) => mod.WorldCanvas), {
@@ -114,7 +114,22 @@ export function NameWorldPanel({ name }: { name: string }) {
         </CenteredMessage>
       ) : null}
 
-      <SubnameLoadingModal name={name} active={subnamesLoading} progress={scanProgress} />
+      <ScanLoadingModal
+        active={subnamesLoading}
+        progress={scanProgress}
+        copy={{
+          title: "Reading subnames",
+          subject: name,
+          scanning: "Scanning registry history",
+          verifying: (found) =>
+            `Re-checking ${found} subname${found === 1 ? "" : "s"} against live registry state`,
+          hint: "ENSv2 has no subname index — they're recovered from registry history, then re-checked on-chain.",
+          slowHint:
+            "This registry has a long history, so the scan is running in several passes. The map stays usable while it finishes.",
+          chip: "Reading subnames",
+          count: (found) => `${found} found so far`,
+        }}
+      />
 
       <WorldDetailPanel open={isSubjectSelected || !!selectedChild} onClose={closePanel}>
         {isSubjectSelected && resolvedState ? (

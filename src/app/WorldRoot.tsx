@@ -15,7 +15,9 @@ import { ClaimNameWizard } from "@/components/onboarding/ClaimNameWizard";
 import { FoundKingdomWizard } from "@/components/onboarding/FoundKingdomWizard";
 import { KingdomEmptyPlate, type EmptyStateKind } from "@/components/onboarding/KingdomEmptyPlate";
 import { ReadOnlyBanner } from "@/components/onboarding/ReadOnlyBanner";
+import { ScanLoadingModal } from "@/components/shared/ScanLoadingModal";
 import { CONTRACTS } from "@/lib/contracts/addresses";
+import { truncateAddress } from "@/lib/format";
 import {
   buildResolverIndex,
   flattenNamespace,
@@ -25,6 +27,7 @@ import {
   useEnsAvatars,
   useNamespaceTree,
   useOwnedEthNames,
+  useOwnedNamesScanProgress,
   useSelectedKingdom,
   type NamespaceNode,
 } from "@/lib/ens";
@@ -73,8 +76,16 @@ export default function WorldRoot() {
   // Deliberately not defaulted to `[]`: `undefined` here means "the read hasn't answered" (first
   // fetch, or a block whose fetch errored), and collapsing that into an empty list is what made the
   // connected wallet's own name — and with it the whole map — disappear mid-session.
-  const { data: ownedNames, refetch: refetchOwnedNames } = useOwnedEthNames(address);
+  const { data: ownedNames, isError: ownedNamesError, refetch: refetchOwnedNames } = useOwnedEthNames(address);
   const { selected: selectedKingdom, select: selectKingdom } = useSelectedKingdom(ownedNames);
+
+  // The `.eth` walk is a chunked scan over the registrar's whole history, so on a cold load it is
+  // seconds of nothing — and "nothing" used to be indistinguishable from "this wallet owns no
+  // land", which is how a wallet that *does* own a kingdom got shown the claim plate first. Until
+  // the scan answers, the screen says it is looking. Wrong network and an errored read both fall
+  // out of this deliberately: neither is a scan in progress, and each has its own message.
+  const isScanningOwnedNames = isConnected && !isWrongNetwork && !ownedNamesError && ownedNames === undefined;
+  const ownedNamesScan = useOwnedNamesScanProgress(address);
 
   const activeKingdomName = showcaseKingdom ?? (isConnected ? selectedKingdom : null);
 
@@ -221,14 +232,19 @@ export default function WorldRoot() {
       ? null
       : !isConnected
         ? "not-connected"
-        // Only ever claimed against a list that actually came back. While `ownedNames` is
-        // `undefined` the read simply hasn't answered, and telling a wallet it owns nothing on the
-        // strength of that flashed the message at every wallet that does own a name.
-        : ownedNames?.length === 0
-          ? "no-name"
-          : !isLoading && !!activeKingdomName && combinedTree.length === 0
-            ? "no-agents"
-            : null;
+        // Never an empty state while the wallet's names are still being read — the scan dialog
+        // below owns the screen for that window. Stated explicitly rather than relying on
+        // `ownedNames === undefined` falling through the checks underneath it.
+        : isScanningOwnedNames
+          ? null
+          // Only ever claimed against a list that actually came back. While `ownedNames` is
+          // `undefined` the read simply hasn't answered, and telling a wallet it owns nothing on
+          // the strength of that flashed the message at every wallet that does own a name.
+          : ownedNames?.length === 0
+            ? "no-name"
+            : !isLoading && !!activeKingdomName && combinedTree.length === 0
+              ? "no-agents"
+              : null;
 
   return (
     <div className="fixed inset-0 h-dvh w-dvw overflow-hidden">
@@ -261,6 +277,22 @@ export default function WorldRoot() {
         <WalletHud ownedNames={ownedNames} selectedKingdom={selectedKingdom} onSelectKingdom={selectKingdom} />
         <DebugPanel className="pointer-events-none" />
       </div>
+
+      <ScanLoadingModal
+        active={isScanningOwnedNames}
+        progress={ownedNamesScan}
+        copy={{
+          title: "Looking for your land",
+          subject: address ? truncateAddress(address) : "",
+          scanning: "Scanning .eth registrations",
+          verifying: (found) => `Checking which of ${found} name${found === 1 ? "" : "s"} is yours`,
+          hint: "ENSv2 has no owner index — every registration is replayed from registrar history, then ownership is checked on-chain.",
+          slowHint:
+            "The registrar has a long history on this deployment, so the scan runs in several passes. The map below stays usable.",
+          chip: "Looking for your land",
+          count: (found) => `${found} registrations seen`,
+        }}
+      />
 
       {emptyStateKind && (
         <KingdomEmptyPlate
