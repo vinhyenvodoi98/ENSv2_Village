@@ -70,7 +70,10 @@ export default function WorldRoot() {
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   const isWrongNetwork = isConnected && chainId !== sepolia.id;
 
-  const { data: ownedNames = [], isLoading: isLoadingOwnedNames, refetch: refetchOwnedNames } = useOwnedEthNames(address);
+  // Deliberately not defaulted to `[]`: `undefined` here means "the read hasn't answered" (first
+  // fetch, or a block whose fetch errored), and collapsing that into an empty list is what made the
+  // connected wallet's own name — and with it the whole map — disappear mid-session.
+  const { data: ownedNames, refetch: refetchOwnedNames } = useOwnedEthNames(address);
   const { selected: selectedKingdom, select: selectKingdom } = useSelectedKingdom(ownedNames);
 
   const activeKingdomName = showcaseKingdom ?? (isConnected ? selectedKingdom : null);
@@ -87,7 +90,7 @@ export default function WorldRoot() {
   // showcase mode (a viewer isn't the one who'd found it).
   const isKingdomUnfinished = !isReadOnly && !!activeKingdomName && activeKingdomRegistry === zeroAddress;
   const activeTokenId = useMemo(
-    () => ownedNames.find((n) => n.name === activeKingdomName)?.tokenId ?? null,
+    () => ownedNames?.find((n) => n.name === activeKingdomName)?.tokenId ?? null,
     [ownedNames, activeKingdomName]
   );
 
@@ -218,9 +221,12 @@ export default function WorldRoot() {
       ? null
       : !isConnected
         ? "not-connected"
-        : ownedNames.length === 0
+        // Only ever claimed against a list that actually came back. While `ownedNames` is
+        // `undefined` the read simply hasn't answered, and telling a wallet it owns nothing on the
+        // strength of that flashed the message at every wallet that does own a name.
+        : ownedNames?.length === 0
           ? "no-name"
-          : !isLoading && combinedTree.length === 0
+          : !isLoading && !!activeKingdomName && combinedTree.length === 0
             ? "no-agents"
             : null;
 
@@ -344,7 +350,7 @@ function NamespaceSidebar({
         aria-expanded={open}
         className="pointer-events-auto absolute left-4 top-4 z-30 rounded-full bg-black/60 px-4 py-2 text-sm font-semibold text-white backdrop-blur hover:bg-black/75"
       >
-        {open ? "Hide agents" : `Agents (${nodes.length})`}
+        {open ? "Hide ENSv2 names" : `ENSv2 names (${nodes.length})`}
       </button>
 
       {/* The list view is not decoration: it's the way through when the tree
@@ -359,7 +365,7 @@ function NamespaceSidebar({
         {error && (
           <div className="mb-4 flex flex-col items-start gap-2 rounded-lg border border-red-500/40 bg-red-950/50 p-3 text-xs">
             <p>
-              <strong>Couldn&apos;t read the agent tree from Sepolia.</strong> The map below shows terrain only —
+              <strong>Couldn&apos;t read the name tree from Sepolia.</strong> The map below shows terrain only —
               it is <em>not</em> an empty fleet.
             </p>
             <p className="font-mono text-[11px] text-red-300">{error.message}</p>
@@ -374,7 +380,7 @@ function NamespaceSidebar({
           </div>
         )}
 
-        {isLoading && kingdomName && <p className="mb-4 text-xs text-zinc-400">Reading agent tree from Sepolia…</p>}
+        {isLoading && kingdomName && <p className="mb-4 text-xs text-zinc-400">Reading name tree from Sepolia…</p>}
 
         <NamespaceTree
           nodes={nodes}

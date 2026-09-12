@@ -38,7 +38,11 @@ function accountKeyOf(chainId: number | undefined, address: `0x${string}` | unde
 /// rather than in a `useEffect`, specifically so switching wallets can never paint even one frame
 /// of the previous wallet's kingdom — the spec calls that state-leak out by name as something that
 /// looks like a security bug in a demo, and an effect-based reset lags by a render.
-export function useSelectedKingdom(ownedNames: OwnedEthName[]) {
+/// `ownedNames` is `undefined` while the read that produces it has no answer — its first fetch, or
+/// a block whose fetch failed (React Query only substitutes the previous block's data while a query
+/// is *pending*; an errored one reports `data: undefined`). "Not known yet" must not collapse into
+/// "owns nothing", or one bad block drops the persisted pick and blanks the whole map.
+export function useSelectedKingdom(ownedNames: OwnedEthName[] | undefined) {
   const { address, chainId } = useAccount();
   const accountKey = accountKeyOf(chainId, address);
 
@@ -53,12 +57,15 @@ export function useSelectedKingdom(ownedNames: OwnedEthName[]) {
 
   // Nothing persisted for this account, or the persisted pick isn't owned any more (transferred
   // away) — both cases derive straight from live data instead of needing a separate effect+write.
-  const stillOwned = cache.key === accountKey && cache.value !== null && ownedNames.some((n) => n.name === cache.value);
+  // With no live data at all yet, the persisted pick stands: dropping it would only trade a name
+  // that is probably still owned for a definitely-wrong "no kingdom".
+  const hasPick = cache.key === accountKey && cache.value !== null;
+  const stillOwned = hasPick && (ownedNames === undefined || ownedNames.some((n) => n.name === cache.value));
   // The deployer wallet also owns `CONTRACTS.parentName` (task 30 registered it to itself) — when
   // that same wallet is used to test claiming a *personal* kingdom, alphabetical sort would
   // otherwise hand the fleet's own showcase name back as the default every time. A name the wallet
   // actually claimed for itself always wins the fallback over the fleet's own.
-  const fallback = ownedNames.find((n) => n.name !== CONTRACTS.parentName)?.name ?? ownedNames[0]?.name ?? null;
+  const fallback = ownedNames?.find((n) => n.name !== CONTRACTS.parentName)?.name ?? ownedNames?.[0]?.name ?? null;
   const selected = stillOwned ? cache.value : fallback;
 
   const select = useCallback(

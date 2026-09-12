@@ -13,6 +13,37 @@ import type {
 /// historical read in the control panel goes through the chunked scan below instead.
 const DEFAULT_MAX_SPAN = 49_999n;
 
+/// Candidate sets discovered from append-only event history, keyed by `${event}:${address}`. Lives
+/// at module scope so it survives the per-block query-key churn in `query.ts`. What it holds is
+/// "this tokenId was registered at some point", which is wallet-independent and never expires —
+/// who owns a name *now* is not cached here at all.
+const candidatesByScope = new Map<string, Map<bigint, unknown>>();
+
+/// Merges one scan's findings into the running candidate set for `scope` and returns the union.
+///
+/// Event history is append-only — a `NameRegistered`/`LabelRegistered` that fired in the past can
+/// never un-fire — but this deployment's RPC does not always answer as though that were true:
+/// identical `eth_getLogs` calls intermittently come back holding only the most recent slice of the
+/// requested range, with no error and nothing marking the response as partial. Measured against the
+/// configured endpoint, one unchanged query returned 124 logs, then 15, then 14 (the truncated
+/// answers started at block 11668849/11678084 instead of the requested 11635740), and the union of
+/// every answer was exactly the same 124.
+///
+/// A scan that *replaces* its candidate set therefore drops names out of the UI whenever a
+/// truncated answer lands — the connected wallet's own `.eth` vanishing mid-session, taking the map
+/// with it, was this. Merging leaves a scan only able to *add*: a truncated answer is a no-op, and
+/// the next complete one heals whatever it missed. Callers still re-verify every candidate against
+/// live registry state, so a transfer, expiry or revocation lands on the very next read.
+export function mergeEventCandidates<V>(scope: string, fresh: ReadonlyMap<bigint, V>): Map<bigint, V> {
+  let known = candidatesByScope.get(scope) as Map<bigint, V> | undefined;
+  if (!known) {
+    known = new Map<bigint, V>();
+    candidatesByScope.set(scope, known as Map<bigint, unknown>);
+  }
+  for (const [tokenId, value] of fresh) known.set(tokenId, value);
+  return new Map(known);
+}
+
 /// `getContractEvents` over an arbitrarily wide range, split into windows the RPC will accept.
 ///
 /// A window that still gets rejected is retried at half the span, down to 1,000 blocks, so a

@@ -56,12 +56,12 @@ export function NamespaceTree({
         )}
       </div>
 
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">Every agent below is a real Sepolia read.</p>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">Every name below is a real Sepolia read.</p>
 
-      {isLoading && <p className="text-sm text-zinc-500 dark:text-zinc-400">Reading agent tree from Sepolia…</p>}
+      {isLoading && <p className="text-sm text-zinc-500 dark:text-zinc-400">Reading name tree from Sepolia…</p>}
       {error && <p className="text-sm text-red-500">Failed to read tree: {error.message}</p>}
       {!isLoading && combined.length === 0 && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">No agents found yet under {kingdomName}.</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">No subnames found yet under {kingdomName}.</p>
       )}
 
       {combined.length > 0 && (

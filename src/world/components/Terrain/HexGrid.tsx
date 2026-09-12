@@ -128,12 +128,11 @@ const TileInstances = memo(function TileInstances({ tiles, theme }: TileInstance
 
       // On the root map, empty ground is just empty ground: a castle is an ENS
       // node, and layout is deterministic from labelhash — there is no "place
-      // it here" click to offer. Spawning a child happens from the parent's
-      // own panel (unambiguous parent); spawning at the root happens from the
-      // explicit "New root agent" HUD action. Neither is reachable by
-      // clicking a tile, which used to silently default to the root parent.
+      // it here" click to offer. Creating a subname happens from the parent's
+      // own panel (unambiguous parent). Not reachable by clicking a tile,
+      // which used to silently default to the root parent.
       if (mode === "ens") {
-        setBuildMessage("Select a castle to spawn a child, or use “+ New root agent”.");
+        setBuildMessage("Select a castle to create a subname from its panel.");
         return;
       }
 

@@ -93,7 +93,7 @@ export function KingdomEmptyPlate({
               Your land is claimed, unfinished
             </h2>
             <p className="text-sm text-[#5c4b32]">
-              No agent registry wired yet — found your kingdom before spawning agents.
+              No subregistry wired yet — found your kingdom before adding names.
             </p>
             <button type="button" onClick={onFoundKingdom} className={ctaClass}>
               Found your kingdom
@@ -104,9 +104,9 @@ export function KingdomEmptyPlate({
         {kind === "no-agents" && !isKingdomUnfinished && (
           <>
             <h2 className="font-serif text-lg font-bold uppercase tracking-wide text-[#3a2f22]">
-              Kingdom founded, no agents yet
+              Kingdom founded, no names yet
             </h2>
-            <p className="text-sm text-[#5c4b32]">Your castle stands, with no agents under it yet.</p>
+            <p className="text-sm text-[#5c4b32]">Your castle stands, with no subnames under it yet.</p>
           </>
         )}
 

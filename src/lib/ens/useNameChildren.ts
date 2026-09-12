@@ -2,7 +2,7 @@ import { zeroAddress, type PublicClient } from "viem";
 import { usePublicClient } from "wagmi";
 import { ethRegistryAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
-import { fetchContractEventsChunked } from "./logs";
+import { fetchContractEventsChunked, mergeEventCandidates } from "./logs";
 import { NAME_STATUS, type EnsNameState, type NameStatus } from "./useEnsName";
 import { useBlockGatedQuery } from "./query";
 
@@ -91,11 +91,14 @@ async function fetchChildren(publicClient: PublicClient, registry: `0x${string}`
 
   // Latest event per tokenId wins — a label re-registered after expiring changes its labelhash's
   // entry but keeps the same tokenId, so this also naturally dedupes.
-  const candidateByTokenId = new Map<bigint, { label: string; tokenId: bigint }>();
+  const scanned = new Map<bigint, { label: string; tokenId: bigint }>();
   for (const log of logs) {
     if (log.args.tokenId === undefined || log.args.label === undefined) continue;
-    candidateByTokenId.set(log.args.tokenId, { label: log.args.label, tokenId: log.args.tokenId });
+    scanned.set(log.args.tokenId, { label: log.args.label, tokenId: log.args.tokenId });
   }
+  // Merged, not replaced, for the same reason `useOwnedEthNames` does it: a truncated log range
+  // from the RPC must not read as "these subnames are gone". See `mergeEventCandidates`.
+  const candidateByTokenId = mergeEventCandidates(`LabelRegistered:${registry.toLowerCase()}`, scanned);
   const candidates = [...candidateByTokenId.values()];
   if (candidates.length === 0) {
     // No history — still worth confirming the registry actually speaks `IPermissionedRegistry`

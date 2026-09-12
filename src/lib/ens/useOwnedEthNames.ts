@@ -1,7 +1,7 @@
 import { usePublicClient } from "wagmi";
 import { ethRegistrarAbi, ethRegistryAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
-import { fetchContractEventsChunked } from "./logs";
+import { fetchContractEventsChunked, mergeEventCandidates } from "./logs";
 import { useBlockGatedQuery } from "./query";
 
 export type OwnedEthName = {
@@ -40,11 +40,14 @@ export function useOwnedEthNames(owner: `0x${string}` | undefined) {
         toBlock: await publicClient.getBlockNumber(),
       });
 
-      const labelByTokenId = new Map<bigint, string>();
+      const scanned = new Map<bigint, string>();
       for (const log of logs) {
         if (log.args.tokenId === undefined || log.args.label === undefined) continue;
-        labelByTokenId.set(log.args.tokenId, log.args.label);
+        scanned.set(log.args.tokenId, log.args.label);
       }
+      // Merged, not replaced: this endpoint serves a truncated log range often enough that a
+      // replacing scan makes owned names blink out of the UI. See `mergeEventCandidates`.
+      const labelByTokenId = mergeEventCandidates(`NameRegistered:${CONTRACTS.ethRegistrar.toLowerCase()}`, scanned);
       if (labelByTokenId.size === 0) return [];
 
       const tokenIds = [...labelByTokenId.keys()];

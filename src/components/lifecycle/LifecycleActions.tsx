@@ -160,7 +160,7 @@ function RenewAction({ node, isFleetAdmin }: { node: NamespaceNode; isFleetAdmin
   const { send, state, txHash, error } = useTxAction();
   const [days, setDays] = useState(30);
 
-  const reason = !isFleetAdmin ? "requires FLEET_ADMIN" : node.expiry === 0n ? "this agent has no expiry" : null;
+  const reason = !isFleetAdmin ? "requires FLEET_ADMIN" : node.expiry === 0n ? "this name has no expiry" : null;
 
   return (
     <div className="flex flex-col gap-2">

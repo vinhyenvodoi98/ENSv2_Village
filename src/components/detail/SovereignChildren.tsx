@@ -31,7 +31,7 @@ export function SovereignChildren({
       </a>
 
       {node.children.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">No child agents spawned in its namespace yet.</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">No child names created in its namespace yet.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {node.children.map((child) => (
