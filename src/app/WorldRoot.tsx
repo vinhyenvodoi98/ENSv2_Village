@@ -17,7 +17,12 @@ import { hasStoredClaim } from "@/lib/ens/useClaimName";
 import { useEnsAvatars } from "@/lib/ens/useEnsAvatars";
 import { useEnsName } from "@/lib/ens/useEnsName";
 import { subnameRegistryOf, useNameChildren, type EnsChildName } from "@/lib/ens/useNameChildren";
-import { useOwnedEthNames, useOwnedNamesScanProgress, type OwnedEthName } from "@/lib/ens/useOwnedEthNames";
+import {
+  useConfirmedEmptyOwnedNames,
+  useOwnedEthNames,
+  useOwnedNamesScanProgress,
+  type OwnedEthName,
+} from "@/lib/ens/useOwnedEthNames";
 import { usePortfolioSubnames } from "@/lib/ens/usePortfolioSubnames";
 import { truncateAddress } from "@/lib/format";
 import { createPortfolioFortressSource } from "@/world/adapters/ensControlWorldSource";
@@ -73,7 +78,15 @@ export default function WorldRoot() {
   // else it's read (task 31) — collapsing that into `[]` is what used to make a wallet's own
   // castle flash away mid-scan.
   const { data: names, isError: namesError, refetch: refetchNames } = useOwnedEthNames(address);
-  const isScanning = isConnected && !isWrongNetwork && !namesError && names === undefined;
+  // A first scan that resolves to `[]` isn't yet trustworthy — see `useConfirmedEmptyOwnedNames` —
+  // so an unconfirmed empty result keeps counting as "still scanning" rather than flashing the
+  // "No names yet" panel a block early.
+  const isEmptyConfirmed = useConfirmedEmptyOwnedNames(names);
+  const isScanning =
+    isConnected &&
+    !isWrongNetwork &&
+    !namesError &&
+    (names === undefined || (names.length === 0 && !isEmptyConfirmed));
   const scanProgress = useOwnedNamesScanProgress(address);
 
   // Level-1 subnames of every owned name, scanned once names is known — the root map's own castles

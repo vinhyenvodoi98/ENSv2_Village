@@ -1,4 +1,5 @@
-import { usePublicClient } from "wagmi";
+import { useState } from "react";
+import { useBlockNumber, usePublicClient } from "wagmi";
 import { ethRegistrarAbi, ethRegistryAbi } from "@/lib/contracts/abis";
 import { CONTRACTS } from "@/lib/contracts/addresses";
 import { fetchContractEventsChunked, mergeEventCandidates } from "./logs";
@@ -25,6 +26,31 @@ function scanScope(owner: `0x${string}`): string {
 /// rendering the actual names should re-render with it.
 export function useOwnedNamesScanProgress(owner: `0x${string}` | undefined): ScanProgress | null {
   return useScanProgress(owner ? scanScope(owner) : null);
+}
+
+/// Whether an empty `useOwnedEthNames` result is trustworthy yet.
+///
+/// `mergeEventCandidates` (`logs.ts`) exists because this deployment's RPC intermittently answers
+/// an `eth_getLogs` window with only a truncated slice of it, no error, nothing marking the answer
+/// partial — merging across every block-gated refetch is what heals that. But the very *first* scan
+/// has nothing to merge into yet: if that first pass happens to land on a truncated answer, it
+/// resolves to a real, successful, empty `[]` — indistinguishable from an owner who truly has no
+/// names — and only self-corrects on the next block's refetch. Rendering "No names yet" straight off
+/// that first empty result is what produced the flash the wallet's own castle used to vanish
+/// through; this gives it one more block to heal before anyone is told to trust it.
+export function useConfirmedEmptyOwnedNames(names: OwnedEthName[] | undefined): boolean {
+  const { data: blockNumber } = useBlockNumber({ watch: true });
+  const isEmpty = names !== undefined && names.length === 0;
+
+  const [firstEmptyBlock, setFirstEmptyBlock] = useState<bigint | null>(null);
+  if (!isEmpty) {
+    if (firstEmptyBlock !== null) setFirstEmptyBlock(null);
+  } else if (firstEmptyBlock === null && blockNumber !== undefined) {
+    setFirstEmptyBlock(blockNumber);
+  }
+
+  if (!isEmpty || firstEmptyBlock === null || blockNumber === undefined) return false;
+  return blockNumber > firstEmptyBlock;
 }
 
 /// Task 31: which `.eth` names (on the hackathon `ETHRegistrar`) the connected wallet actually

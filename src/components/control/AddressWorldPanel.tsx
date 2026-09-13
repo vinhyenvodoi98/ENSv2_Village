@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { useAccount } from "wagmi";
 import { ensPath } from "@/lib/ens/name";
-import { useOwnedEthNames, type OwnedEthName } from "@/lib/ens/useOwnedEthNames";
+import { useConfirmedEmptyOwnedNames, useOwnedEthNames, type OwnedEthName } from "@/lib/ens/useOwnedEthNames";
 import { useReverseName } from "@/lib/ens/useReverseName";
 import { useEnsAvatars } from "@/lib/ens/useEnsAvatars";
 import { explorerAddressUrl } from "@/lib/explorer";
@@ -38,6 +38,10 @@ export function AddressWorldPanel({ address }: { address: `0x${string}` }) {
   // worse than a spinner. Every row carries its re-verified `owner`, so the check is exact.
   const isStale = !!names && names.some((owned) => owned.owner.toLowerCase() !== address.toLowerCase());
   const resolvedNames = isStale ? undefined : names;
+  // Same first-scan-may-be-truncated caveat `WorldRoot` guards against — see
+  // `useConfirmedEmptyOwnedNames` — so an unconfirmed empty result still reads as "loading" below.
+  const isEmptyConfirmed = useConfirmedEmptyOwnedNames(resolvedNames);
+  const isLoadingNames = isPending || !resolvedNames || (resolvedNames.length === 0 && !isEmptyConfirmed);
   const avatarNames = useMemo(
     () => resolvedNames?.map((owned) => owned.name) ?? [],
     [resolvedNames]
@@ -129,15 +133,15 @@ export function AddressWorldPanel({ address }: { address: `0x${string}` }) {
             </p>
             {isError ? (
               <p className="mt-2 text-sm text-red-300">{error?.message ?? "Could not read the registry."}</p>
-            ) : isPending || !resolvedNames ? (
+            ) : isLoadingNames ? (
               <p className="mt-2 text-sm text-[#9c8563]">Reading the registry…</p>
-            ) : resolvedNames.length === 0 ? (
+            ) : resolvedNames && resolvedNames.length === 0 ? (
               <p className="mt-2 text-sm text-[#8a755b]">
                 Owns no <code>.eth</code> name on this deployment right now.
               </p>
             ) : (
               <p className="mt-2 font-mono text-xs text-[#9c8563]">
-                {resolvedNames.length} name{resolvedNames.length === 1 ? "" : "s"} on the map
+                {resolvedNames!.length} name{resolvedNames!.length === 1 ? "" : "s"} on the map
               </p>
             )}
           </Panel>
