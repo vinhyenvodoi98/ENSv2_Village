@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import WorldRoot from "./WorldRoot";
 
 export const metadata: Metadata = {
-  title: "AgentVillage",
+  title: "ENSv2 Kingdom",
   description: "Your ENSv2 names, as a world map read straight off Sepolia.",
 };
 

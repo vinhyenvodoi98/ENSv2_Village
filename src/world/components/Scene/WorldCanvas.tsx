@@ -66,7 +66,7 @@ export function WorldCanvas({ registerMountain }: WorldCanvasProps = {}) {
       <Clouds theme={theme} />
       <Rain theme={theme} />
       <Lighting theme={theme} />
-      <CameraRig />
+      <CameraRig includeRegisterMountain={!!registerMountain} />
       <Ground theme={theme} />
       <FlowingStream theme={theme} />
       <ForestRing theme={theme} />
