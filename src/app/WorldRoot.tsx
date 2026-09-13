@@ -2,10 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { zeroAddress } from "viem";
 import { useAccount, useConnect, useSwitchChain } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { ControlPanelWorldShell } from "@/components/control/ControlPanelWorldShell";
-import { NameStateDetail } from "@/components/control/NameStateDetail";
+import { NameChildDetail, NameStateDetail } from "@/components/control/NameStateDetail";
 import { Panel } from "@/components/control/Panel";
 import { ActionButton } from "@/components/control/ui/ActionButton";
 import { useNameTab } from "@/components/control/useNameTab";
@@ -15,8 +16,9 @@ import { ScanLoadingModal } from "@/components/shared/ScanLoadingModal";
 import { hasStoredClaim } from "@/lib/ens/useClaimName";
 import { useEnsAvatars } from "@/lib/ens/useEnsAvatars";
 import { useEnsName } from "@/lib/ens/useEnsName";
-import { subnameRegistryOf, useNameChildren } from "@/lib/ens/useNameChildren";
+import { subnameRegistryOf, useNameChildren, type EnsChildName } from "@/lib/ens/useNameChildren";
 import { useOwnedEthNames, useOwnedNamesScanProgress, type OwnedEthName } from "@/lib/ens/useOwnedEthNames";
+import { usePortfolioSubnames } from "@/lib/ens/usePortfolioSubnames";
 import { truncateAddress } from "@/lib/format";
 import { createPortfolioFortressSource } from "@/world/adapters/ensControlWorldSource";
 import type { RegisterMountainState } from "@/world/components/Register/RegisterMountainScenery";
@@ -74,7 +76,15 @@ export default function WorldRoot() {
   const isScanning = isConnected && !isWrongNetwork && !namesError && names === undefined;
   const scanProgress = useOwnedNamesScanProgress(address);
 
-  const avatarNames = useMemo(() => names?.map((n) => n.name) ?? [], [names]);
+  // Level-1 subnames of every owned name, scanned once names is known — the root map's own castles
+  // ring outward one more hop, same as `/ens/[name]`'s subject does for its own children.
+  const { data: subnamesByName } = usePortfolioSubnames(names);
+
+  const avatarNames = useMemo(() => {
+    const owned = names?.map((n) => n.name) ?? [];
+    const children = [...(subnamesByName?.values() ?? [])].flatMap((list) => list.map((c) => c.fullName));
+    return [...owned, ...children];
+  }, [names, subnamesByName]);
   const { data: avatarsByName } = useEnsAvatars(avatarNames);
 
   const setMode = useWorldStore((state) => state.setMode);
@@ -113,11 +123,19 @@ export default function WorldRoot() {
         label: owned.label,
         fullName: owned.name,
         derelict: owned.status !== STATUS_REGISTERED,
+        children: (subnamesByName?.get(owned.name) ?? []).map((child) => ({
+          ensKey: child.ensKey,
+          label: child.label,
+          fullName: child.fullName,
+          hasResolver: !!child.resolver && child.resolver !== zeroAddress,
+          hasSubregistry: !!child.subregistry && child.subregistry !== zeroAddress,
+          derelict: child.status !== "registered",
+        })),
       })),
       avatarsByName
     );
     return { fortresses: source.loadFortresses(), worldRadius: source.requiredWorldRadius() };
-  }, [names, avatarsByName]);
+  }, [names, subnamesByName, avatarsByName]);
 
   useEffect(() => {
     syncFortresses(fortressPlan.fortresses, fortressPlan.worldRadius);
@@ -130,6 +148,19 @@ export default function WorldRoot() {
   }, [names]);
 
   const selectedOwned = selectedFortressId ? (byKey.get(selectedFortressId) ?? null) : null;
+
+  // Subname castles ringed around each owned name are only ever this shallow read-only card — same
+  // "no `useEnsName` per castle" scope `NameWorldPanel` applies to its own children, here spread
+  // across every owned name instead of one subject.
+  const childByKey = useMemo(() => {
+    const map = new Map<string, EnsChildName>();
+    for (const children of subnamesByName?.values() ?? []) {
+      for (const child of children) map.set(child.ensKey, child);
+    }
+    return map;
+  }, [subnamesByName]);
+  const selectedChild = !selectedOwned && selectedFortressId ? (childByKey.get(selectedFortressId) ?? null) : null;
+
   const closePanel = () => selectFortress(null);
 
   // Full read (roles, subnames, records…) only for whichever castle is actually clicked — same
@@ -229,7 +260,10 @@ export default function WorldRoot() {
         </CenteredMessage>
       ) : !isScanning && names?.length === 0 ? (
         <CenteredMessage>
-          <Panel title="No names yet" subtitle={`${truncateAddress(address!)} doesn't own a .eth name on this deployment`}>
+          <Panel
+            title="No names yet"
+            subtitle={`${address ? truncateAddress(address) : "This wallet"} doesn't own a .eth name on this deployment`}
+          >
             <ActionButton label="Claim a name" enabled onClick={() => setClaimOpen(true)} tone="primary" />
           </Panel>
         </CenteredMessage>
@@ -251,7 +285,11 @@ export default function WorldRoot() {
         }}
       />
 
-      <WorldDetailPanel open={!!selectedOwned} onClose={closePanel} wide={!!selectedOwned && tab === "permissions"}>
+      <WorldDetailPanel
+        open={!!selectedOwned || !!selectedChild}
+        onClose={closePanel}
+        wide={!!selectedOwned && tab === "permissions"}
+      >
         {selectedOwned ? (
           isNameError ? (
             <CenteredMessage>
@@ -275,6 +313,8 @@ export default function WorldRoot() {
               targetFortressId={selectedOwned ? `0x${selectedOwned.tokenId.toString(16)}` : ""}
             />
           )
+        ) : selectedChild ? (
+          <NameChildDetail child={selectedChild} />
         ) : null}
       </WorldDetailPanel>
 

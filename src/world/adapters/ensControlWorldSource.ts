@@ -145,12 +145,22 @@ export interface EnsPortfolioEntryInput {
   label: string;
   fullName: string;
   derelict: boolean;
+  /// This entry's own direct subnames (ENSv2 "level 1" children) — optional because most callers
+  /// (`/address/[addr]`, which only ever wanted the flat "one castle per owned name" view task 33
+  /// specified) never read subnames for a portfolio at all. When present, each one gets its own
+  /// castle ringed around its parent, the same `probeCoord`/`childRingRadius` placement
+  /// `createEnsNameFortressSource` uses for `/ens/[name]`'s subnames — just rooted at every
+  /// portfolio entry instead of at one page's single subject.
+  children?: EnsChildInput[];
 }
 
 /**
- * `/address/[addr]`: one castle per name the address owns, scattered around the origin with no
- * hierarchy between them — a portfolio, not a namespace (task 33's routing decision: "the address
- * is a portfolio"). No roads connect them, since none of them is any other's parent.
+ * `/address/[addr]` and `/` (the connected wallet's own portfolio): one castle per name the
+ * address owns, scattered around the origin with no hierarchy *between* those top-level castles —
+ * a portfolio, not a namespace (task 33's routing decision: "the address is a portfolio"). No
+ * roads connect one owned name to another. An entry's own `children` (its direct ENSv2 subnames,
+ * when supplied) are the one hierarchy this source does draw — ringed around that entry's castle
+ * exactly as `/ens/[name]` rings a subject's children around it.
  */
 export function createPortfolioFortressSource(
   entries: EnsPortfolioEntryInput[],
@@ -162,21 +172,40 @@ export function createPortfolioFortressSource(
     const placed: AxialCoord[] = [];
     const sorted = [...entries].sort((a, b) => a.label.localeCompare(b.label));
 
-    const fortresses = sorted.map((entry) => {
+    const fortresses: FortressEntity[] = [];
+
+    for (const entry of sorted) {
       const coord = probeCoord(ORIGIN, LAYOUT.rootRingRadius, entry.ensKey, placed);
       placed.push(coord);
 
-      return {
+      fortresses.push({
         ensKey: entry.ensKey,
         coord,
         name: entry.label,
         fullName: entry.fullName,
         avatar: avatarFor(avatarsByName, entry.fullName),
-        tier: FORTRESS_TIER.active,
+        tier: entry.children?.length ? FORTRESS_TIER.grown : FORTRESS_TIER.active,
         parentEnsKey: null,
         derelict: entry.derelict,
-      } satisfies FortressEntity;
-    });
+      });
+
+      const children = [...(entry.children ?? [])].sort((a, b) => a.label.localeCompare(b.label));
+      for (const child of children) {
+        const childCoord = probeCoord(coord, LAYOUT.childRingRadius, child.ensKey, placed);
+        placed.push(childCoord);
+
+        fortresses.push({
+          ensKey: child.ensKey,
+          coord: childCoord,
+          name: child.label,
+          fullName: child.fullName,
+          avatar: avatarFor(avatarsByName, child.fullName),
+          tier: child.hasSubregistry ? FORTRESS_TIER.grown : child.hasResolver ? FORTRESS_TIER.active : FORTRESS_TIER.bare,
+          parentEnsKey: entry.ensKey,
+          derelict: child.derelict,
+        });
+      }
+    }
 
     return fortresses;
   }

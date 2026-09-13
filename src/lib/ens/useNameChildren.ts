@@ -108,7 +108,10 @@ export function useNameChildren(state: EnsNameState | null | undefined) {
   );
 }
 
-async function fetchChildren(publicClient: PublicClient, registry: `0x${string}`): Promise<EnsNameChildren> {
+/// Exported for `usePortfolioSubnames.ts`, which runs this same per-registry walk over several
+/// registries at once (one per portfolio entry) rather than the single `subregistry` this hook's
+/// own `useNameChildren` reads off one `EnsNameState`.
+export async function fetchChildren(publicClient: PublicClient, registry: `0x${string}`): Promise<EnsNameChildren> {
   const logs = await fetchContractEventsChunked({
     publicClient,
     address: registry,

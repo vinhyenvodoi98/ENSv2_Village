@@ -19,6 +19,9 @@ const BEAM_QUATERNION = new Quaternion();
 const ARCHER_STRING_TOP = new Vector3(0.11, 1.52, 0.31);
 const ARCHER_STRING_BOTTOM = new Vector3(0.11, 0.7, 0.31);
 const ARCHER_NOCK = new Vector3();
+const ARCHER_ARROW_STOWED = new Vector3(-0.18, 1.15, -0.25);
+const ARCHER_ARROW_STOWED_ROTATION = new Quaternion();
+const ARCHER_ARROW_READY_ROTATION = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2);
 const BALLISTA_STRING_LEFT = new Vector3(-0.88, 1.01, 0.2);
 const BALLISTA_STRING_RIGHT = new Vector3(0.88, 1.01, 0.2);
 const BALLISTA_NOCK = new Vector3();
@@ -396,26 +399,40 @@ function animateRig(
   const moving = Math.max(approaching, exiting);
   const stride = Math.sin(elapsed * 10.5) * moving;
   if (tier === "messenger") {
+    // First reach over the shoulder and lift the arrow out vertically; only after it has cleared
+    // the quiver does the hand rotate it onto the bow and begin drawing the string.
+    const retrieve = smootherStep(clamp01(aim / 0.55));
+    const bowAim = smootherStep(clamp01((aim - 0.28) / 0.72));
+    const draw = smootherStep(clamp01((aim - 0.48) / 0.52)) * (1 - release);
+    const reachBack = Math.sin(retrieve * Math.PI);
     if (rig.archerBody.current) rig.archerBody.current.rotation.x = -0.09 * moving + Math.sin(Math.max(0, releaseTime) * 15) * 0.05 * (1 - release);
     if (rig.archerLeftLeg.current) rig.archerLeftLeg.current.rotation.x = stride * 0.48;
     if (rig.archerRightLeg.current) rig.archerRightLeg.current.rotation.x = -stride * 0.48;
-    if (rig.archerBowArm.current) rig.archerBowArm.current.rotation.x = -stride * 0.22 - aim * 1.28 + release * 0.12;
+    if (rig.archerBowArm.current) rig.archerBowArm.current.rotation.x = -stride * 0.22 - bowAim * 1.28 + release * 0.12;
     if (rig.archerDrawArm.current) {
-      rig.archerDrawArm.current.rotation.x = stride * 0.22 - aim * 1.2 + release * 0.42;
-      rig.archerDrawArm.current.rotation.z = -aim * 1.05 + release * 0.2;
+      rig.archerDrawArm.current.rotation.x = stride * 0.22 + reachBack * 1.05 - bowAim * 1.2 + release * 0.42;
+      rig.archerDrawArm.current.rotation.z = reachBack * 0.28 - bowAim * 1.05 + release * 0.2;
     }
     if (rig.archerBow.current) {
-      rig.archerBow.current.scale.y = 1 - aim * 0.075 + release * 0.075;
-      rig.archerBow.current.rotation.z = -0.08 * aim;
+      rig.archerBow.current.scale.y = 1 - draw * 0.075;
+      rig.archerBow.current.rotation.z = -0.08 * bowAim;
     }
-    const draw = aim * (1 - release);
     const nockZ = 0.28 - draw * 0.58;
     ARCHER_NOCK.set(0.34, 1.1, nockZ);
     if (rig.archerStringTop.current) setBeamBetween(rig.archerStringTop.current, ARCHER_STRING_TOP, ARCHER_NOCK);
     if (rig.archerStringBottom.current) setBeamBetween(rig.archerStringBottom.current, ARCHER_STRING_BOTTOM, ARCHER_NOCK);
     if (rig.archerLoadedArrow.current) {
       rig.archerLoadedArrow.current.visible = releaseTime < 0;
-      rig.archerLoadedArrow.current.position.z = nockZ + 0.61;
+      rig.archerLoadedArrow.current.position.set(
+        MathUtils.lerp(ARCHER_ARROW_STOWED.x, ARCHER_NOCK.x, retrieve),
+        MathUtils.lerp(ARCHER_ARROW_STOWED.y, ARCHER_NOCK.y, retrieve) + Math.sin(retrieve * Math.PI) * 0.24,
+        MathUtils.lerp(ARCHER_ARROW_STOWED.z, nockZ + 0.61, retrieve)
+      );
+      rig.archerLoadedArrow.current.quaternion.slerpQuaternions(
+        ARCHER_ARROW_STOWED_ROTATION,
+        ARCHER_ARROW_READY_ROTATION,
+        retrieve
+      );
     }
     return;
   }
@@ -478,10 +495,15 @@ function Messenger({ theme, rig }: { theme: WorldTheme; rig: DeliveryRig }) {
       </group>
       <mesh ref={rig.archerStringTop}><cylinderGeometry args={[0.008, 0.008, 1, 5]} /><meshStandardMaterial {...theme.tip.arrow} /></mesh>
       <mesh ref={rig.archerStringBottom}><cylinderGeometry args={[0.008, 0.008, 1, 5]} /><meshStandardMaterial {...theme.tip.arrow} /></mesh>
-      <group ref={rig.archerLoadedArrow} rotation={[Math.PI / 2, 0, 0]}><Arrow theme={theme} scale={0.92} /></group>
-      <group position={[-0.24, 1.03, -0.18]} rotation={[0.08, 0, 0.12]}>
+      <group ref={rig.archerLoadedArrow} position={ARCHER_ARROW_STOWED}><Arrow theme={theme} scale={0.78} /></group>
+      <group position={[-0.18, 1.03, -0.25]}>
         <mesh castShadow><cylinderGeometry args={[0.105, 0.08, 0.72, 7]} /><meshStandardMaterial {...theme.tip.wood} /></mesh>
-        <mesh position={[0, 0.16, 0.04]} rotation={[0.16, 0, 0]}><cylinderGeometry args={[0.018, 0.018, 0.76, 5]} /><meshStandardMaterial {...theme.tip.arrow} /></mesh>
+        {[-0.055, 0.055].map((x, index) => (
+          <group key={x} position={[x, 0.29, index === 0 ? -0.015 : 0.025]}>
+            <mesh castShadow><cylinderGeometry args={[0.018, 0.018, 0.8, 5]} /><meshStandardMaterial {...theme.tip.arrow} /></mesh>
+            <mesh castShadow position={[0, 0.47, 0]}><coneGeometry args={[0.055, 0.14, 5]} /><meshStandardMaterial {...theme.tip.metal} /></mesh>
+          </group>
+        ))}
       </group>
     </group>
   );
