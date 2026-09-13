@@ -11,9 +11,6 @@ import { explorerTxUrl } from "@/lib/explorer";
 import { truncateAddress } from "@/lib/format";
 import { useWorldStore, type TipDeliveryTier, type TipUnitCounts } from "@/world/state/useWorldStore";
 
-// Next replaces this at build time, so the preview controls and code path are removed from the
-// production client bundle. A fake tip must never be reachable on a deployed build.
-const TIP_PREVIEW_ENABLED = process.env.NODE_ENV === "development";
 const MAX_FORMATION_SIZE = 12;
 const UNIT_OPTIONS = [
   { tier: "messenger", icon: "🏹", title: "Archer", price: parseEther("0.001"), max: 12 },
@@ -37,13 +34,12 @@ export function TipExperience({ state, targetFortressId }: { state: EnsNameState
   const isOwnName = !!address && !!owner && address.toLowerCase() === owner.toLowerCase();
   const canOfferTip = state.status === "registered" && !!owner && !isOwnName;
   const { data: resolution, isPending: isResolving, isError: resolutionFailed } = useResolve(canOfferTip ? state.name : undefined);
-  const resolvedAddress = resolution?.address && resolution.address !== zeroAddress ? resolution.address : null;
-  // A registered name can legitimately have no `addr` record yet. The current registry owner is
-  // still an authoritative, on-chain recipient, so use it as an explicit fallback instead of
-  // blocking a tip. Wait for resolution to finish first so an intentionally configured `addr`
-  // record always takes precedence over ownership.
-  const recipient = resolvedAddress ?? (!isResolving ? owner : null);
-  const recipientSource = resolvedAddress ? "record" : recipient ? "owner" : null;
+  // A registered name with no `addr` record has nothing safe to tip: there is no on-chain proof
+  // the current registry owner is still the right recipient (ownership can change without the
+  // record ever being set), so a missing record is treated as "this address does not exist" and
+  // blocks the tip rather than silently falling back to the owner.
+  const recipient = resolution?.address && resolution.address !== zeroAddress ? resolution.address : null;
+  const addressMissing = !isResolving && !resolutionFailed && !!resolution && !recipient;
   const [open, setOpen] = useState(false);
   const closeDialog = useCallback(() => setOpen(false), []);
 
@@ -62,7 +58,7 @@ export function TipExperience({ state, targetFortressId }: { state: EnsNameState
         <TipDialog
           name={state.name}
           recipient={recipient}
-          recipientSource={recipientSource}
+          addressMissing={addressMissing}
           targetFortressId={targetFortressId}
           isResolving={isResolving}
           resolutionFailed={resolutionFailed}
@@ -78,7 +74,7 @@ export function TipExperience({ state, targetFortressId }: { state: EnsNameState
 function TipDialog({
   name,
   recipient,
-  recipientSource,
+  addressMissing,
   targetFortressId,
   isResolving,
   resolutionFailed,
@@ -88,7 +84,7 @@ function TipDialog({
 }: {
   name: string;
   recipient: `0x${string}` | null;
-  recipientSource: "record" | "owner" | null;
+  addressMissing: boolean;
   targetFortressId: string;
   isResolving: boolean;
   resolutionFailed: boolean;
@@ -146,19 +142,6 @@ function TipDialog({
     } catch {
       // The hook exposes a wallet-friendly error in the dialog.
     }
-  };
-
-  const previewDelivery = () => {
-    if (!TIP_PREVIEW_ENABLED || amountWei === 0n || busy) return;
-    celebrateTip({
-      targetFortressId,
-      units,
-      amountEth: amount,
-      recipientName: name,
-      simulated: true,
-    });
-    onClose();
-    selectFortress(null);
   };
 
   return (
@@ -244,10 +227,12 @@ function TipDialog({
             ) : recipient ? (
               <>
                 Treasury: <span className="font-mono font-bold text-[#4b3420]">{truncateAddress(recipient)}</span>
-                <span className="ml-1 text-[#8a755b]">({recipientSource === "record" ? "ENS record" : "current owner"})</span>
+                <span className="ml-1 text-[#8a755b]">(ENS record)</span>
               </>
             ) : resolutionFailed ? (
-              "Could not resolve this name or read its owner."
+              "Could not resolve this name."
+            ) : addressMissing ? (
+              "This name has no address record — the recipient address does not exist."
             ) : (
               "No safe recipient is available for this name."
             )}
@@ -273,23 +258,6 @@ function TipDialog({
           <div className={`mt-4 rounded-sm border px-3 py-2 text-xs ${state === "failed" ? "border-[#9e4242] bg-[#8a2630]/10 text-[#7a1f28]" : "border-[#9c7a48] bg-[#d5c39f]/45 text-[#654923]"}`}>
             {error ?? (state === "signing" ? "Waiting for your wallet signature." : state === "confirming" ? "Transaction sent. Waiting for confirmation…" : "Confirmed — watch the kingdom!")}
             {txHash ? <a href={explorerTxUrl(txHash)} target="_blank" rel="noreferrer" className="ml-2 underline underline-offset-2">View transaction ↗</a> : null}
-          </div>
-        ) : null}
-
-        {TIP_PREVIEW_ENABLED ? (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-dashed border-[#8c704b] bg-[#d5c39f]/35 px-4 py-3">
-            <div>
-              <p className="font-cinzel text-xs font-black tracking-[0.18em] text-[#5d4225] uppercase">Scribe&apos;s rehearsal · development only</p>
-              <p className="mt-1 text-xs text-[#806c52]">Preview the campaign without opening a wallet or sending ETH.</p>
-            </div>
-            <button
-              type="button"
-              disabled={busy || totalUnits === 0}
-              onClick={previewDelivery}
-              className="rounded-sm border border-[#765329] bg-[#efe2c5] px-4 py-2 font-cinzel text-xs font-black tracking-wide text-[#4a331d] uppercase shadow-[0_2px_0_#806039] transition hover:-translate-y-0.5 hover:bg-[#f7ecd5] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-            >
-              Preview campaign
-            </button>
           </div>
         ) : null}
         </div>

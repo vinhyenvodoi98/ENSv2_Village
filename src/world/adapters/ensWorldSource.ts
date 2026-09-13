@@ -81,6 +81,19 @@ function probeCoord(
   return { q: base.q + preferredRadius + LAYOUT.maxProbeRings + 1, r: base.r };
 }
 
+/**
+ * A subname's castle must always read smaller than the castle it hangs off
+ * of. The root castle sits fixed at the top tier (`AGENT_TIERS.length - 1`),
+ * so a depth-0 node (e.g. `abc.eth`) is capped one rung below that, a
+ * depth-1 node (e.g. `test.abc.eth`) one rung below its depth-0 parent's
+ * cap, and so on — each hop down the namespace tree loses one tier off the
+ * ladder's top, regardless of the node's own on-chain tier.
+ */
+function cappedTier(rawTier: number, depth: number): number {
+  const maxForDepth = AGENT_TIERS.length - 2 - depth;
+  return Math.max(0, Math.min(rawTier, maxForDepth));
+}
+
 /** Deterministic ordering: depth first, then labelhash. Never array or event order. */
 function comparePending(a: PendingNode, b: PendingNode): number {
   if (a.node.depth !== b.node.depth) return a.node.depth - b.node.depth;
@@ -147,7 +160,7 @@ export function createEnsFortressSource(
         name: node.label,
         fullName: node.fullName,
         avatar: avatarsByName[node.fullName.toLowerCase()],
-        tier: Math.max(0, AGENT_TIERS.indexOf(node.tier)),
+        tier: cappedTier(Math.max(0, AGENT_TIERS.indexOf(node.tier)), node.depth),
         // Every depth-0 agent roads straight into the root castle; a deeper
         // node whose parent was itself dropped (shouldn't happen — the tree
         // is walked top-down) falls back to the root too, rather than a

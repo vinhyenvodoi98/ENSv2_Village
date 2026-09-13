@@ -21,8 +21,6 @@ export interface TipCelebration {
   formationSeed: number;
   amountEth: string;
   recipientName: string;
-  /** Development-only visual preview; no transaction was submitted. */
-  simulated?: boolean;
 }
 
 /**

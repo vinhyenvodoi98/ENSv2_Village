@@ -5,11 +5,13 @@ type MaterialGroup<T extends Record<string, MaterialSpec>> = {
   [K in keyof T]: MeshStandardMaterial;
 };
 
-type FortressSpecs = Omit<WorldTheme["fortress"], "bannerVariantColors">;
+type FortressSpecs = Omit<WorldTheme["fortress"], "bannerVariantColors" | "roofByTier">;
 
 export interface FortressMaterials extends MaterialGroup<FortressSpecs> {
   /** Cached once per theme, shared by every fortress — never per-instance. */
   bannerVariants: MeshStandardMaterial[];
+  /** Roof material by `AGENT_TIERS` index, cached once per theme. */
+  roofByTier: MeshStandardMaterial[];
   /** Shared translucent material for the build-target preview fortress. */
   ghost: MeshStandardMaterial;
 }
@@ -47,7 +49,7 @@ function buildGroup<T extends Record<string, MaterialSpec>>(specs: T): MaterialG
 }
 
 function buildFortressMaterials(fortress: WorldTheme["fortress"]): FortressMaterials {
-  const { bannerVariantColors, ...specs } = fortress;
+  const { bannerVariantColors, roofByTier, ...specs } = fortress;
   const base = buildGroup(specs) as MaterialGroup<FortressSpecs>;
   base.flagpole.side = DoubleSide;
 
@@ -62,6 +64,8 @@ function buildFortressMaterials(fortress: WorldTheme["fortress"]): FortressMater
       })
   );
 
+  const roofByTierMaterials = roofByTier.map(buildMaterial);
+
   const ghost = new MeshStandardMaterial({
     color: fortress.keep.color,
     roughness: fortress.keep.roughness,
@@ -72,7 +76,7 @@ function buildFortressMaterials(fortress: WorldTheme["fortress"]): FortressMater
     depthWrite: false,
   });
 
-  return { ...base, bannerVariants, ghost };
+  return { ...base, bannerVariants, roofByTier: roofByTierMaterials, ghost };
 }
 
 function buildCitizenMaterials(citizens: WorldTheme["citizens"]): CitizenMaterials {

@@ -1,4 +1,4 @@
-import { keccak256, namehash, toHex } from "viem";
+import { isAddress, keccak256, namehash, toHex } from "viem";
 
 /// Pure name/address parsing for the control panel — no wagmi, no React, no chain reads, so the
 /// routing rules in task 33 ("the name is the entity, the address is a portfolio") can be reasoned
@@ -42,23 +42,42 @@ export function leafLabel(name: string): string {
 export type SearchTarget =
   | { kind: "address"; address: `0x${string}` }
   | { kind: "name"; name: string }
+  | { kind: "invalid"; reason: string }
   | { kind: "empty" };
+
+/// A single label per DNS/ENS convention: alphanumeric, optionally hyphenated in the middle, never
+/// leading/trailing with a hyphen or empty (which `"a..b".split(".")` would otherwise produce).
+const ENS_LABEL_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+
+function isValidEnsNameShape(name: string): boolean {
+  const labels = name.split(".");
+  return labels.every((label) => ENS_LABEL_PATTERN.test(label));
+}
 
 /// The search box's one rule, from task 33: `0x` + 40 hex is an address (a portfolio of names),
 /// anything else is a name. An address still has to go through a reverse lookup before it can be
 /// turned into a single `/ens/[name]` — that's a chain read, so it lives in `useReverseName`, not
 /// here.
+///
+/// Anything that merely *looks* like an attempted address (`0x…`) or an attempted name but doesn't
+/// match either shape is rejected as `"invalid"` rather than silently sent through as a name lookup
+/// that could never resolve — the caller uses this to keep the submit control disabled.
 export function parseSearchInput(input: string): SearchTarget {
   const trimmed = input.trim();
   if (!trimmed) return { kind: "empty" };
-  // Matched on shape alone, not on EIP-55 checksum: a pasted all-lowercase or mis-cased address
-  // is still unambiguously an address, and refusing it would only send the user to a name lookup
-  // that cannot possibly resolve.
-  if (/^0x[0-9a-fA-F]{40}$/.test(trimmed)) {
-    return { kind: "address", address: trimmed.toLowerCase() as `0x${string}` };
+  if (/^0x/i.test(trimmed)) {
+    // `isAddress` accepts all-lowercase/all-uppercase without a checksum (a pasted mis-cased
+    // address is still unambiguously an address) but rejects mixed case with a wrong checksum,
+    // catching the typo instead of quietly routing to a name lookup that cannot resolve.
+    return isAddress(trimmed)
+      ? { kind: "address", address: trimmed.toLowerCase() as `0x${string}` }
+      : { kind: "invalid", reason: "Not a valid address — expected 0x followed by 40 hex characters." };
   }
   const name = normalizeName(trimmed);
-  return name ? { kind: "name", name } : { kind: "empty" };
+  if (!name) return { kind: "empty" };
+  return isValidEnsNameShape(name)
+    ? { kind: "name", name }
+    : { kind: "invalid", reason: "Not a valid ENS name — use letters, numbers, hyphens and dots." };
 }
 
 export function ensPath(name: string): string {

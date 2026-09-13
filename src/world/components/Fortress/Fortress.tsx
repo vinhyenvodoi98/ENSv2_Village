@@ -144,7 +144,7 @@ export function Fortress({
   const flagpoleMaterial = override ?? materials.fortress.flagpole;
   const bodyMaterial = override ?? materials.fortress.keep;
   const wallMaterial = override ?? materials.fortress.wall;
-  const roofMaterial = override ?? materials.fortress.roof;
+  const roofMaterial = override ?? materials.fortress.roofByTier[tier] ?? materials.fortress.roof;
   const windowMaterial = override ?? materials.fortress.window;
 
   return (

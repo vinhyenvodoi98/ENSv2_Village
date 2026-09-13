@@ -79,6 +79,13 @@ export interface WorldTheme {
     ruined: MaterialSpec;
     /** Small fixed set of banner cloth colors; a fortress picks one by seeded RNG. */
     bannerVariantColors: string[];
+    /**
+     * Roof color by `AGENT_TIERS` index — 0 `Wildcard` through 3 `Sovereign` —
+     * so a castle's roof reads richer as it climbs the tier ladder: humble
+     * thatch, slate, weathered copper, gilded bronze. `roof` stays the
+     * fallback for an out-of-range tier.
+     */
+    roofByTier: MaterialSpec[];
   };
   roads: {
     path: MaterialSpec;
@@ -165,6 +172,16 @@ export const medievalTheme: WorldTheme = {
     window: { color: "#1d2730", roughness: 0.32, metalness: 0.48, flatShading: true },
     ruined: { color: "#6f6e69", roughness: 1, metalness: 0, flatShading: true },
     bannerVariantColors: ["#8e1f2b", "#1f3f8e", "#1f7a3b", "#8e6f1f"],
+    roofByTier: [
+      // 0 Wildcard — squatter's outpost: humble weathered thatch, no shine.
+      { color: "#7c6a45", roughness: 0.97, metalness: 0.02, flatShading: true },
+      // 1 Leased — same honest slate as the base roof.
+      { color: "#555966", roughness: 0.78, metalness: 0.08, flatShading: true },
+      // 2 Owned — aged copper-teal patina, a step up from bare slate.
+      { color: "#3d6b5e", roughness: 0.6, metalness: 0.16, flatShading: true },
+      // 3 Sovereign — gilded bronze, echoing the gold flagpole/banner accents.
+      { color: "#8a6a2c", roughness: 0.4, metalness: 0.55, flatShading: true },
+    ],
   },
   roads: {
     path: { color: "#b09b73", roughness: 1, metalness: 0 },

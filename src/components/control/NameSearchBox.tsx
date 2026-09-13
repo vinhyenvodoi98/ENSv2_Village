@@ -21,10 +21,11 @@ export function NameSearchBox({ initialValue = "" }: { initialValue?: string }) 
   const [value, setValue] = useState(initialValue);
   const [isResolving, setIsResolving] = useState(false);
 
+  const target = parseSearchInput(value);
+
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const target = parseSearchInput(value);
-    if (target.kind === "empty") return;
+    if (target.kind === "empty" || target.kind === "invalid") return;
     if (target.kind === "name") {
       router.push(ensPath(target.name));
       return;
@@ -40,23 +41,27 @@ export function NameSearchBox({ initialValue = "" }: { initialValue?: string }) 
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex min-w-0 flex-1 items-center gap-2">
-      <input
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        spellCheck={false}
-        autoComplete="off"
-        placeholder="name.eth  or  0x…"
-        aria-label="Look up an ENS name or address"
-        className="min-w-0 flex-1 rounded-full border border-[#c9a15a]/50 bg-[#3a2918]/22 px-4 py-2 font-mono text-sm text-[#3a2918] placeholder:text-[#a8926e] focus:border-sky-400/60 focus:outline-none"
-      />
-      <button
-        type="submit"
-        disabled={isResolving || parseSearchInput(value).kind === "empty"}
-        className="rounded-full bg-[#c9a15a]/15 px-4 py-2 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {isResolving ? "Resolving…" : "Open"}
-      </button>
+    <form onSubmit={onSubmit} className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex min-w-0 items-center gap-2">
+        <input
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          spellCheck={false}
+          autoComplete="off"
+          placeholder="name.eth  or  0x…"
+          aria-label="Look up an ENS name or address"
+          aria-invalid={target.kind === "invalid"}
+          className="min-w-0 flex-1 rounded-full border border-[#c9a15a]/50 bg-[#3a2918]/22 px-4 py-2 font-mono text-sm text-[#3a2918] placeholder:text-[#a8926e] focus:border-sky-400/60 focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={isResolving || target.kind === "empty" || target.kind === "invalid"}
+          className="rounded-full bg-[#c9a15a]/15 px-4 py-2 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isResolving ? "Resolving…" : "Open"}
+        </button>
+      </div>
+      {target.kind === "invalid" ? <p className="px-4 text-xs text-red-300/90">{target.reason}</p> : null}
     </form>
   );
 }
