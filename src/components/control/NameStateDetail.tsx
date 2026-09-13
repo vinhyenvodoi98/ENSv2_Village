@@ -98,14 +98,14 @@ export function NameStateDetail({
   return (
     <div className="flex h-full flex-col">
       {/* Identity header — never scrolls, the four facts re-checked constantly */}
-      <div className="shrink-0 border-b border-white/10 px-5 pt-14 pb-4">
+      <div className="shrink-0 border-b-2 border-[#8a6a34] bg-[linear-gradient(135deg,#2d251d_0%,#493621_52%,#251c15_100%)] px-5 pt-14 pb-4 shadow-[inset_0_-5px_12px_rgba(0,0,0,0.25)]">
         <div className="flex items-center gap-3">
           {avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatar} alt="" className="h-10 w-10 shrink-0 rounded-full border border-white/10 object-cover" />
+            <img src={avatar} alt="" className="h-10 w-10 shrink-0 rounded-full border-2 border-[#d1ae68]/70 object-cover" />
           ) : null}
           <div className="min-w-0">
-            <h1 className="truncate font-mono text-lg text-white">{state.name}</h1>
+            <h1 className="truncate font-cinzel text-lg font-bold tracking-wide text-[#f3e6c8]">{state.name}</h1>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -115,16 +115,16 @@ export function NameStateDetail({
           </div>
           <TipExperience state={state} targetFortressId={targetFortressId} />
         </div>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-white/50">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-[#ddcfb3]/70">
           <span className="flex items-center gap-1.5">
-            Owner: {owner ? <AddressValue address={owner} /> : <span className="text-white/35 italic">nobody</span>}
+            Owner: {owner ? <AddressValue address={owner} /> : <span className="text-[#ddcfb3]/45 italic">nobody</span>}
           </span>
-          <span className="text-white/70">{verdict}</span>
+          <span className="text-[#ddcfb3]/90">{verdict}</span>
         </div>
       </div>
 
       {/* Tab strip — never scrolls */}
-      <div className="shrink-0 flex flex-wrap gap-1 border-b border-white/10 bg-black/10 px-3 py-2">
+      <div className="shrink-0 flex flex-wrap gap-1.5 border-b-2 border-[#8a6a34] bg-[#1c130a] px-3 py-2.5">
         {NAME_TABS.map((key) => {
           const active = tab === key;
           const isLocked = locked[key];
@@ -137,13 +137,15 @@ export function NameStateDetail({
               onClick={() => selectTab(key)}
               disabled={!!blockedReason}
               title={blockedReason ?? (isLocked ? "Connected wallet holds no write role here" : undefined)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
-                active ? "border-white/60 bg-white/15 text-white" : "border-white/10 text-white/60 hover:bg-white/5"
+              className={`flex items-center gap-1.5 rounded-sm border px-3 py-1.5 font-cinzel text-[11px] font-bold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
+                active
+                  ? "border-[#c9a15a] bg-gradient-to-b from-[#8d2932] to-[#641c23] text-[#fff0cf] shadow-[0_2px_0_#3d1418]"
+                  : "border-[#8a6a34]/40 text-[#d9b66f]/70 hover:border-[#8a6a34] hover:bg-[#2d2116] hover:text-[#d9b66f]"
               }`}
             >
               {TAB_LABEL[key]}
               {count !== null ? (
-                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-white/60">{count}</span>
+                <span className="rounded-full bg-black/25 px-1.5 py-0.5 text-[10px]">{count}</span>
               ) : null}
               {isLocked && !blockedReason ? <span aria-hidden>🔒</span> : null}
             </button>
@@ -181,10 +183,10 @@ function TabBody({
     if (tabKey !== "overview") return null;
     return (
       <Panel title="Nothing governs this name" actions={<StatusPill label="unreachable" tone="unreachable" />}>
-        <p className="text-sm text-white/60">
+        <p className="text-sm text-[#5d4a30]">
           The walk down from the root registry stopped at{" "}
-          <span className="font-mono text-white/80">{state.brokenAt?.label}</span>: its <code>getSubregistry</code>{" "}
-          returns <code>address(0)</code>, so no registry issues <span className="font-mono text-white/80">{state.name}</span>{" "}
+          <span className="font-mono text-[#3a2918]">{state.brokenAt?.label}</span>: its <code>getSubregistry</code>{" "}
+          returns <code>address(0)</code>, so no registry issues <span className="font-mono text-[#3a2918]">{state.name}</span>{" "}
           and there is no on-chain state to read.
         </p>
         <div className="mt-4">
@@ -242,8 +244,8 @@ function TabBody({
 function CustomRegistryPanel({ state }: { state: EnsNameState }) {
   return (
     <Panel title="Custom registry" actions={<StatusPill label="non-standard" tone="custom" />}>
-      <p className="text-sm text-white/60">
-        <span className="font-mono text-white/80">{state.parent}</span> delegates its subnames to a registry that does not
+      <p className="text-sm text-[#5d4a30]">
+        <span className="font-mono text-[#3a2918]">{state.parent}</span> delegates its subnames to a registry that does not
         implement <code>IPermissionedRegistry</code>: <code>getState</code> reverts there. Its resolver and subregistry
         below are still real reads (<code>IRegistry</code> guarantees those), but this name has no expiry, no ERC-1155
         token and no EACL resource for the control panel to act on.
@@ -269,26 +271,26 @@ function NotRegisteredPanel({
 
   return (
     <Panel title={hasLapsed ? "Registration lapsed" : "Not registered"} actions={<StatusPill label="available" tone="available" />}>
-      <p className="text-sm text-white/60">
+      <p className="text-sm text-[#5d4a30]">
         {hasLapsed ? (
           <>
-            <span className="font-mono text-white/80">{name}</span> exists in the registry but its expiry has passed, so{" "}
+            <span className="font-mono text-[#3a2918]">{name}</span> exists in the registry but its expiry has passed, so{" "}
             <code>getStatus</code> reports it as <code>AVAILABLE</code> again and its owner, resolver and subregistry all
             read as unset.
           </>
         ) : (
           <>
-            No one has registered <span className="font-mono text-white/80">{name}</span> on this deployment. The registry
+            No one has registered <span className="font-mono text-[#3a2918]">{name}</span> on this deployment. The registry
             answered — there is simply nothing recorded under this label.
           </>
         )}
       </p>
       {hadOwner ? (
-        <p className="mt-2 text-sm text-white/50">
+        <p className="mt-2 text-sm text-[#8a755b]">
           Last held by{" "}
           <Link
             href={addressPath(hadOwner)}
-            className="font-mono text-sky-300 underline decoration-sky-300/30 underline-offset-2 hover:text-sky-200"
+            className="font-mono text-[#8e1f2b] underline decoration-[#8e1f2b]/30 underline-offset-2 hover:text-[#641c23]"
           >
             {hadOwner}
           </Link>
@@ -314,7 +316,7 @@ export function NameChildDetail({ child }: { child: EnsChildName }) {
             {child.owner ? <AddressValue address={child.owner} /> : <EmptyState className="italic">nobody</EmptyState>}
           </Field>
           <Field label="Expiry" hint="getState(tokenId).expiry">
-            {child.expiry > 0n ? <ExpiryCountdown expiry={child.expiry} /> : <span className="text-sm text-white/35 italic">—</span>}
+            {child.expiry > 0n ? <ExpiryCountdown expiry={child.expiry} /> : <span className="text-sm text-[#a8926e] italic">—</span>}
           </Field>
           <Field label="Resolver" hint="getResolver(label)">
             <AddressValue address={child.resolver} />
@@ -325,7 +327,7 @@ export function NameChildDetail({ child }: { child: EnsChildName }) {
         </dl>
         <Link
           href={ensPath(child.fullName)}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-sm border-2 border-[#c9a15a] bg-gradient-to-b from-[#8d2932] to-[#641c23] px-4 py-2 font-cinzel text-xs font-bold tracking-wide text-[#fff0cf] uppercase shadow-[0_2px_0_#3d1418] transition hover:brightness-110"
         >
           Open its own control panel →
         </Link>

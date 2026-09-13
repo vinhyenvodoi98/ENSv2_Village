@@ -21,7 +21,7 @@ export function AddressValue({
   full?: boolean;
 }) {
   if (!address || address === zeroAddress) {
-    return <span className="font-mono text-sm text-white/35 italic">{notSetLabel}</span>;
+    return <span className="font-mono text-sm text-[#a8926e] italic">{notSetLabel}</span>;
   }
 
   return (

@@ -33,16 +33,16 @@ export function YourRoleBadges({ state }: { state: EnsNameState }) {
   const isOwner = !!address && !!state.owner && address.toLowerCase() === state.owner.toLowerCase();
 
   return (
-    <div className="mb-5 border-b border-white/10 pb-5">
+    <div className="mb-5 border-b border-[#c9a15a]/40 pb-5">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-xs font-semibold tracking-wide text-white/70 uppercase">Your permissions</h3>
+        <h3 className="text-xs font-semibold tracking-wide text-[#4b3420] uppercase">Your permissions</h3>
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] text-white/30">
+          <span className="font-mono text-[11px] text-[#a8926e]">
             <code>roles(resource, account)</code> on{" "}
             {state.registry ? <AddressValue address={state.registry} /> : "—"}
           </span>
           {isConnected && address ? (
-            <span className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 font-mono text-xs text-white/70">
+            <span className="flex items-center gap-2 rounded-full bg-[#c9a15a]/10 px-3 py-1 font-mono text-xs text-[#4b3420]">
               {truncateAddress(address)}
               {isOwner ? (
                 <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-200 uppercase">
@@ -55,19 +55,19 @@ export function YourRoleBadges({ state }: { state: EnsNameState }) {
       </div>
 
       {!isConnected || !address ? (
-        <p className="text-sm text-white/50">
-          Connect a wallet to see which ENSv2 roles it holds on <span className="text-white/80">{state.name}</span>.
+        <p className="text-sm text-[#8a755b]">
+          Connect a wallet to see which ENSv2 roles it holds on <span className="text-[#3f2c1a]">{state.name}</span>.
         </p>
       ) : !state.registry ? (
-        <p className="text-sm text-white/50">No registry governs this name yet, so there is no resource to hold roles on.</p>
+        <p className="text-sm text-[#8a755b]">No registry governs this name yet, so there is no resource to hold roles on.</p>
       ) : state.resource === null ? (
-        <p className="text-sm text-white/50">
+        <p className="text-sm text-[#8a755b]">
           This name&apos;s registry exposes no EACL resource for it, so there are no ENSv2 roles to read.
         </p>
       ) : isError ? (
         <p className="text-sm text-red-300">Could not read roles from the registry.</p>
       ) : isPending || !roles || isStale ? (
-        <p className="text-sm text-white/40">Reading roles…</p>
+        <p className="text-sm text-[#9c8563]">Reading roles…</p>
       ) : (
         <div className="space-y-5">
           <RoleGroup
@@ -98,7 +98,7 @@ export function YourRoleBadges({ state }: { state: EnsNameState }) {
               emptyLabel="This wallet holds no record-writing roles on the resolver."
             />
           ) : state.resolver && state.resolver !== zeroAddress ? (
-            <p className="text-xs text-white/40">
+            <p className="text-xs text-[#9c8563]">
               This name&apos;s resolver does not implement <code>IEnhancedAccessControl</code>, so it has no
               per-name roles to report.
             </p>
@@ -152,8 +152,8 @@ function RoleGroup({
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-xs font-semibold tracking-wide text-white/70 uppercase">{heading}</h3>
-        <span className="font-mono text-[11px] text-white/30">{note}</span>
+        <h3 className="text-xs font-semibold tracking-wide text-[#4b3420] uppercase">{heading}</h3>
+        <span className="font-mono text-[11px] text-[#a8926e]">{note}</span>
       </div>
       {shown.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
@@ -166,7 +166,7 @@ function RoleGroup({
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
                   held
                     ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
-                    : "border-white/10 bg-white/[0.02] text-white/30 line-through decoration-white/20"
+                    : "border-[#c9a15a]/40 bg-[#f6efdc]/70 text-[#a8926e] line-through decoration-white/20"
                 }`}
               >
                 {role.def.label}
@@ -180,8 +180,8 @@ function RoleGroup({
           })}
         </ul>
       ) : null}
-      {!anyHeld && emptyLabel ? <p className="mt-2 text-sm text-white/40">{emptyLabel}</p> : null}
-      <p className="mt-2 font-mono text-[11px] break-all text-white/25">raw bitmap 0x{bitmap.toString(16)}</p>
+      {!anyHeld && emptyLabel ? <p className="mt-2 text-sm text-[#9c8563]">{emptyLabel}</p> : null}
+      <p className="mt-2 font-mono text-[11px] break-all text-[#b9a684]">raw bitmap 0x{bitmap.toString(16)}</p>
     </div>
   );
 }

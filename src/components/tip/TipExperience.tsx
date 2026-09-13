@@ -54,7 +54,7 @@ export function TipExperience({ state, targetFortressId }: { state: EnsNameState
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-sm border-2 border-[#c9a15a] bg-gradient-to-b from-[#f2e5c5] to-[#d8c08a] px-3 py-1.5 font-serif text-xs font-black tracking-[0.12em] text-[#3a2918] uppercase shadow-[0_3px_0_#69461f,0_8px_18px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0 active:shadow-[0_1px_0_#69461f]"
+        className="rounded-sm border-2 border-[#c9a15a] bg-gradient-to-b from-[#f2e5c5] to-[#d8c08a] px-3 py-1.5 font-cinzel text-xs font-black tracking-[0.12em] text-[#3a2918] uppercase shadow-[0_3px_0_#69461f,0_8px_18px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0 active:shadow-[0_1px_0_#69461f]"
       >
         <span aria-hidden>⚔</span> Muster a tip
       </button>
@@ -185,7 +185,7 @@ function TipDialog({
         <div className="p-5 sm:p-7">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <p className="font-serif text-xs font-black tracking-[0.18em] text-[#755329] uppercase">I · Muster the company</p>
+              <p className="font-cinzel text-xs font-black tracking-[0.18em] text-[#755329] uppercase">I · Muster the company</p>
               <p className="mt-1 text-xs text-[#735f47]">Select up to {MAX_FORMATION_SIZE} units. The battlefield capacity keeps the 3D campaign smooth across devices.</p>
             </div>
             <p className="shrink-0 rounded-sm border border-[#98713b]/40 bg-[#d7c59f]/60 px-2 py-1 font-mono text-xs font-bold text-[#62451f]" title="Performance-safe battlefield capacity">♜ {totalUnits} / {MAX_FORMATION_SIZE}</p>
@@ -228,7 +228,7 @@ function TipDialog({
 
         <div className="mt-5 flex items-center justify-between gap-4 border-y-2 border-[#a67b3c] bg-[linear-gradient(90deg,#37291d,#564022,#37291d)] px-4 py-3 text-[#f2e3c1] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]" aria-live="polite">
           <div className="min-w-0">
-            <p className="font-serif text-[10px] font-black tracking-[0.22em] text-[#d6b36c] uppercase">II · Royal muster</p>
+            <p className="font-cinzel text-[10px] font-black tracking-[0.22em] text-[#d6b36c] uppercase">II · Royal muster</p>
             <p className="mt-1 truncate font-serif text-sm text-[#f2e3c1]/85">{deliveryLabel || "Choose at least one unit"}</p>
           </div>
           <div className="shrink-0 text-right">
@@ -279,14 +279,14 @@ function TipDialog({
         {TIP_PREVIEW_ENABLED ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-dashed border-[#8c704b] bg-[#d5c39f]/35 px-4 py-3">
             <div>
-              <p className="font-serif text-xs font-black tracking-[0.18em] text-[#5d4225] uppercase">Scribe&apos;s rehearsal · development only</p>
+              <p className="font-cinzel text-xs font-black tracking-[0.18em] text-[#5d4225] uppercase">Scribe&apos;s rehearsal · development only</p>
               <p className="mt-1 text-xs text-[#806c52]">Preview the campaign without opening a wallet or sending ETH.</p>
             </div>
             <button
               type="button"
               disabled={busy || totalUnits === 0}
               onClick={previewDelivery}
-              className="rounded-sm border border-[#765329] bg-[#efe2c5] px-4 py-2 font-serif text-xs font-black tracking-wide text-[#4a331d] uppercase shadow-[0_2px_0_#806039] transition hover:-translate-y-0.5 hover:bg-[#f7ecd5] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+              className="rounded-sm border border-[#765329] bg-[#efe2c5] px-4 py-2 font-cinzel text-xs font-black tracking-wide text-[#4a331d] uppercase shadow-[0_2px_0_#806039] transition hover:-translate-y-0.5 hover:bg-[#f7ecd5] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
             >
               Preview campaign
             </button>
@@ -298,4 +298,4 @@ function TipDialog({
   );
 }
 
-const primaryButtonClass = "rounded-sm border-2 border-[#c39a50] bg-gradient-to-b from-[#8d2932] to-[#641c23] px-5 py-2.5 font-serif text-sm font-black tracking-[0.1em] text-[#fff0cf] uppercase shadow-[0_3px_0_#3d1418,0_7px_16px_rgba(62,24,19,0.24)] transition hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:shadow-[0_1px_0_#3d1418] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0";
+const primaryButtonClass = "rounded-sm border-2 border-[#c39a50] bg-gradient-to-b from-[#8d2932] to-[#641c23] px-5 py-2.5 font-cinzel text-sm font-black tracking-[0.1em] text-[#fff0cf] uppercase shadow-[0_3px_0_#3d1418,0_7px_16px_rgba(62,24,19,0.24)] transition hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:shadow-[0_1px_0_#3d1418] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0";

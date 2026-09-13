@@ -34,7 +34,7 @@ export function AddressInput({
         onChange={(event) => setValue(event.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
+        className="min-w-0 flex-1 rounded-sm border border-[#9c7b49] bg-[#f6efdc] px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e] disabled:opacity-40"
       />
       <ActionButton
         label={submitLabel}

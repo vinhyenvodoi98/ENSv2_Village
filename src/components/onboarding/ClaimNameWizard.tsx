@@ -20,7 +20,7 @@ const STEP_TITLES = [
 ] as const;
 
 const continueClass = [
-  "w-fit rounded-sm border-2 px-5 py-1.5 font-serif text-sm font-bold uppercase tracking-wide",
+  "w-fit rounded-sm border-2 px-5 py-1.5 font-cinzel text-sm font-bold uppercase tracking-wide",
   "transition-transform duration-100 hover:-translate-y-0.5 active:translate-y-[2px]",
   "disabled:pointer-events-none disabled:opacity-50",
   "border-[#c9a15a] bg-gradient-to-b from-[#8e1f2b] to-[#4c0f16] text-[#f3e6c8]",
@@ -95,7 +95,7 @@ export function ClaimNameWizard({
 
         {/* Left: stepper, all 6 stages visible from the start. */}
         <div className="flex w-52 shrink-0 flex-col border-r-2 border-[#c9a15a] bg-gradient-to-b from-[#8e1f2b] to-[#5a141c] p-4">
-          <h2 className="mb-4 font-serif text-xs font-bold uppercase tracking-[0.2em] text-[#f3e6c8]">
+          <h2 className="mb-4 font-cinzel text-xs font-bold uppercase tracking-[0.2em] text-[#f3e6c8]">
             Royal Charter
           </h2>
           <div className="flex flex-col">
@@ -125,7 +125,7 @@ export function ClaimNameWizard({
                   </div>
                   <div className={`pb-4 pt-0.5 ${isLast ? "pb-0" : ""}`}>
                     <p
-                      className={`font-serif text-xs font-semibold uppercase leading-tight tracking-wide ${
+                      className={`font-cinzel text-xs font-semibold uppercase leading-tight tracking-wide ${
                         isActive ? "text-[#f3e6c8]" : isDone ? "text-[#e0bd7a]" : "text-[#e0bd7a]/60"
                       }`}
                     >
@@ -183,7 +183,7 @@ function MonoTag({ text }: { text: string }) {
 function StepChooseName({ claim, onContinue }: { claim: ClaimNameState; onContinue: () => void }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-serif text-base font-bold uppercase tracking-wide text-[#3a2f22]">Choose a name</h3>
+      <h3 className="font-cinzel text-base font-bold uppercase tracking-wide text-[#3a2f22]">Choose a name</h3>
       <MonoTag text="ETHRegistrar.isAvailable(string)" />
 
       <input
@@ -251,7 +251,7 @@ function StepTreasury({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-serif text-base font-bold uppercase tracking-wide text-[#3a2f22]">Treasury</h3>
+      <h3 className="font-cinzel text-base font-bold uppercase tracking-wide text-[#3a2f22]">Treasury</h3>
       <MonoTag text="ETHRegistrar.getRegisterPrice(string,uint64,address)" />
 
       {treasury ? (
@@ -309,7 +309,7 @@ function StepAuthorize({ claim, onBack }: { claim: ClaimNameState; onBack: () =>
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-serif text-base font-bold uppercase tracking-wide text-[#3a2f22]">Authorize payment</h3>
+      <h3 className="font-cinzel text-base font-bold uppercase tracking-wide text-[#3a2f22]">Authorize payment</h3>
       <MonoTag text="MockUSDC.approve(address,uint256)" />
 
       {treasury && (
@@ -361,7 +361,7 @@ function StepAuthorize({ claim, onBack }: { claim: ClaimNameState; onBack: () =>
 function StepSeal({ claim }: { claim: ClaimNameState }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-serif text-base font-bold uppercase tracking-wide text-[#3a2f22]">Seal the pledge</h3>
+      <h3 className="font-cinzel text-base font-bold uppercase tracking-wide text-[#3a2f22]">Seal the pledge</h3>
       <MonoTag text="ETHRegistrar.commit(bytes32)" />
       <p className="text-sm text-[#5c4b32]">Sealing your pledge on-chain…</p>
       <TxStatus state={claim.actions.commit.state} txHash={claim.actions.commit.txHash} error={claim.actions.commit.error} />
@@ -372,7 +372,7 @@ function StepSeal({ claim }: { claim: ClaimNameState }) {
 function StepWait({ claim }: { claim: ClaimNameState }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-serif text-base font-bold uppercase tracking-wide text-[#3a2f22]">Wait 60 seconds</h3>
+      <h3 className="font-cinzel text-base font-bold uppercase tracking-wide text-[#3a2f22]">Wait 60 seconds</h3>
       <MonoTag text="ETHRegistrar.commitmentAt(bytes32) + MIN_COMMITMENT_AGE" />
 
       {claim.commitmentLoading ? (
@@ -406,7 +406,7 @@ function StepWait({ claim }: { claim: ClaimNameState }) {
 function StepClaim({ claim }: { claim: ClaimNameState }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-serif text-base font-bold uppercase tracking-wide text-[#3a2f22]">Claim the land</h3>
+      <h3 className="font-cinzel text-base font-bold uppercase tracking-wide text-[#3a2f22]">Claim the land</h3>
       <MonoTag text="ETHRegistrar.register(string,address,bytes32,address,address,uint64,address,bytes32)" />
 
       {claim.nameTakenAtRegister ? (
@@ -474,7 +474,7 @@ function StepSetupResolver({ name, onDone }: { name: string; onDone: () => void 
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-serif text-base font-bold uppercase tracking-wide text-[#3a2f22]">
+      <h3 className="font-cinzel text-base font-bold uppercase tracking-wide text-[#3a2f22]">
         Set up your resolver
       </h3>
       <MonoTag text="VerifiableFactory.deployProxy(PermissionedResolver, salt, initialize(...))" />

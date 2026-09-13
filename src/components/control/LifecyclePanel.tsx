@@ -42,7 +42,7 @@ function ExpiryBanner({ expiry }: { expiry: bigint }) {
   const expired = secondsLeft <= 0;
   return (
     <div
-      className={`rounded-2xl border-2 px-5 py-4 text-sm font-semibold ${
+      className={`rounded-sm border-2 px-5 py-4 text-sm font-semibold ${
         expired ? "border-red-400 bg-red-500/15 text-red-200" : "border-amber-400 bg-amber-500/15 text-amber-200"
       }`}
     >
@@ -72,12 +72,12 @@ function RenewPanel({ state }: { state: EnsNameState }) {
       }
     >
       <div className="flex flex-wrap items-center gap-3">
-        <label className="text-xs text-white/60">
+        <label className="text-xs text-[#6b5636]">
           Duration
           <select
             value={lifecycle.duration.toString()}
             onChange={(e) => lifecycle.setDuration(BigInt(e.target.value))}
-            className="mt-1 block w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm text-white"
+            className="mt-1 block w-full rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2 py-1.5 text-sm text-[#3a2918]"
           >
             {lifecycle.durationOptions.map((opt) => (
               <option key={opt.label} value={opt.seconds.toString()}>
@@ -87,23 +87,23 @@ function RenewPanel({ state }: { state: EnsNameState }) {
           </select>
         </label>
         {lifecycle.resultingExpiry !== null ? (
-          <p className="text-xs text-white/50">
-            New expiry: <span className="font-mono text-white/80">{formatAbsoluteTime(lifecycle.resultingExpiry)}</span>
+          <p className="text-xs text-[#8a755b]">
+            New expiry: <span className="font-mono text-[#3f2c1a]">{formatAbsoluteTime(lifecycle.resultingExpiry)}</span>
           </p>
         ) : null}
       </div>
 
       {lifecycle.isEthRegistrarPath ? (
-        <p className="mt-3 text-xs text-white/50">
+        <p className="mt-3 text-xs text-[#8a755b]">
           This name renews through <code>ETHRegistrar</code>, the same priced path task 31 registers
           through — anyone may pay to renew it, not only the owner.
         </p>
       ) : null}
 
       {lifecycle.isEthRegistrarPath && price ? (
-        <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3 text-xs">
-          <p className="text-white/70">
-            Price: <span className="font-mono text-white">{formatTokenAmount(price.total, price.decimals)} mUSDC</span> — read live from{" "}
+        <div className="mt-3 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/12 p-3 text-xs">
+          <p className="text-[#4b3420]">
+            Price: <span className="font-mono text-[#3a2918]">{formatTokenAmount(price.total, price.decimals)} mUSDC</span> — read live from{" "}
             <code>getRenewPrice</code>, never assumed.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -168,15 +168,15 @@ function TransferPanel({ state }: { state: EnsNameState }) {
 
   return (
     <Panel title="Transfer" subtitle={<code>safeTransferFrom(from, to, tokenId, 1, &quot;0x&quot;)</code>}>
-      <p className="text-sm text-white/60">
+      <p className="text-sm text-[#6b5636]">
         ENSv2 has no dedicated transfer function — a name is an ERC-1155 token, and moving it to
         another address is the standard <code>safeTransferFrom</code> every 1155 exposes.
       </p>
 
-      <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 p-3">
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/12 p-3">
         <div>
-          <p className="text-sm font-medium text-white/80">Transferable</p>
-          <p className="mt-0.5 text-xs text-white/50">
+          <p className="text-sm font-medium text-[#3f2c1a]">Transferable</p>
+          <p className="mt-0.5 text-xs text-[#8a755b]">
             Turning this off revokes <code>ROLE_CAN_TRANSFER_ADMIN</code> from the current owner, which is what makes
             this name unsellable — no <code>safeTransferFrom</code> will succeed until it&apos;s granted back.
           </p>
@@ -188,11 +188,11 @@ function TransferPanel({ state }: { state: EnsNameState }) {
           onClick={() => void toggleTransferable(!transferable)}
           disabled={toggleAction.state === "signing" || toggleAction.state === "confirming"}
           className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
-            transferable ? "bg-emerald-500" : "bg-white/15"
+            transferable ? "bg-emerald-500" : "bg-[#c9a15a]/20"
           }`}
         >
           <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-[#ece1c8] transition-transform ${
               transferable ? "translate-x-5" : "translate-x-0.5"
             }`}
           />
@@ -201,29 +201,29 @@ function TransferPanel({ state }: { state: EnsNameState }) {
       <TxStatus state={toggleAction.state} txHash={toggleAction.txHash} error={toggleAction.error} />
 
       {!transferable ? (
-        <p className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+        <p className="mt-3 rounded-sm border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
           This name is not transferable — the connected wallet lacks <code>ROLE_CAN_TRANSFER_ADMIN</code>. Turn the
           switch back on above to enable a transfer.
         </p>
       ) : (
-        <div className="mt-4 rounded-lg border border-red-400/20 bg-red-500/5 p-3">
-          <label className="text-xs text-white/60">
+        <div className="mt-4 rounded-sm border border-red-400/20 bg-red-500/5 p-3">
+          <label className="text-xs text-[#6b5636]">
             Destination address
             <input
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
               placeholder="0x…"
-              className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 font-mono text-sm text-white placeholder:text-white/25"
+              className="mt-1 w-full rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2 py-1.5 font-mono text-sm text-[#3a2918] placeholder:text-[#b9a684]"
             />
           </label>
           {validDestination ? (
-            <label className="mt-2 block text-xs text-white/60">
-              Type <span className="font-mono text-white/80">{destination}</span> to confirm — this is irreversible
+            <label className="mt-2 block text-xs text-[#6b5636]">
+              Type <span className="font-mono text-[#3f2c1a]">{destination}</span> to confirm — this is irreversible
               <input
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder="0x…"
-                className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 font-mono text-sm text-white placeholder:text-white/25"
+                className="mt-1 w-full rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2 py-1.5 font-mono text-sm text-[#3a2918] placeholder:text-[#b9a684]"
               />
             </label>
           ) : null}
@@ -259,7 +259,7 @@ function RepointPanel({ state, onTabChange }: { state: EnsNameState; onTabChange
           <button
             type="button"
             onClick={() => onTabChange("overview")}
-            className="underline decoration-white/30 underline-offset-2 hover:text-white"
+            className="underline decoration-white/30 underline-offset-2 hover:text-[#3a2918]"
           >
             Overview
           </button>{" "}
@@ -277,7 +277,7 @@ function RepointPanel({ state, onTabChange }: { state: EnsNameState; onTabChange
         onSubmit={lifecycle.setResolver.run}
         action={lifecycle.setResolver}
       />
-      <div className="my-4 border-t border-white/5" />
+      <div className="my-4 border-t border-[#c9a15a]/20" />
       <RepointField
         label="Subregistry"
         hint="setSubregistry(anyId, registry)"
@@ -317,8 +317,8 @@ function RepointField({
   return (
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs font-medium tracking-wide text-white/60 uppercase">{label}</p>
-        <p className="font-mono text-[11px] text-white/30">{hint}</p>
+        <p className="text-xs font-medium tracking-wide text-[#6b5636] uppercase">{label}</p>
+        <p className="font-mono text-[11px] text-[#a8926e]">{hint}</p>
       </div>
       {hasCurrent ? <p className="mt-1 text-xs text-amber-200/80">{warning}</p> : null}
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -327,7 +327,7 @@ function RepointField({
           onChange={(e) => setValue(e.target.value)}
           placeholder="0x… new address"
           disabled={!canSet}
-          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
+          className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e] disabled:opacity-40"
         />
         <ActionButton
           label="Set"

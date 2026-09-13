@@ -47,7 +47,7 @@ function FoundSubregistryPanel({ state }: { state: EnsNameState }) {
   if (flow.loading) {
     return (
       <Panel title="Found your own registry">
-        <p className="text-sm text-white/40">Reading registry state…</p>
+        <p className="text-sm text-[#9c8563]">Reading registry state…</p>
       </Panel>
     );
   }
@@ -66,7 +66,7 @@ function FoundSubregistryPanel({ state }: { state: EnsNameState }) {
       }
     >
       {flow.blockedReason ? (
-        <p className="mb-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+        <p className="mb-3 rounded-sm border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
           Cannot finish this flow: connected wallet is {flow.blockedReason}.
         </p>
       ) : null}
@@ -82,7 +82,7 @@ function FoundSubregistryPanel({ state }: { state: EnsNameState }) {
                 type="button"
                 onClick={() => void flow.deploy.run()}
                 disabled={flow.deploy.state === "signing" || flow.deploy.state === "confirming"}
-                className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-full bg-[#c9a15a]/15 px-3 py-1 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Deploy
               </button>
@@ -101,7 +101,7 @@ function FoundSubregistryPanel({ state }: { state: EnsNameState }) {
                 type="button"
                 onClick={() => void flow.link.run()}
                 disabled={!!flow.blockedReason || flow.link.state === "signing" || flow.link.state === "confirming"}
-                className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-full bg-[#c9a15a]/15 px-3 py-1 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 setSubregistry
               </button>
@@ -111,7 +111,7 @@ function FoundSubregistryPanel({ state }: { state: EnsNameState }) {
           <TxStatus state={flow.link.state} txHash={flow.link.txHash} error={flow.link.error} />
         </StepRow>
         <StepRow n={3} label="Register your first subname" done={false}>
-          <p className="text-xs text-white/40">Unlocks once step 2 confirms.</p>
+          <p className="text-xs text-[#9c8563]">Unlocks once step 2 confirms.</p>
         </StepRow>
       </ol>
     </Panel>
@@ -135,14 +135,14 @@ function StepRow({
     <li className="flex items-start gap-3">
       <span
         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-          done ? "bg-emerald-500 text-black" : "bg-white/10 text-white/60"
+          done ? "bg-emerald-500 text-[#3a2918]" : "bg-[#c9a15a]/15 text-[#6b5636]"
         }`}
       >
         {done ? "✓" : n}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`text-sm ${done ? "text-white/50 line-through" : "text-white/90"}`}>{label}</span>
+          <span className={`text-sm ${done ? "text-[#8a755b] line-through" : "text-[#33230f]"}`}>{label}</span>
           {action}
         </div>
         {children}
@@ -194,49 +194,49 @@ function RegisterSubnamePanel({ state, subregistry }: { state: EnsNameState; sub
   return (
     <Panel title="Register a subname" subtitle={<code>register(label, owner, registry, resolver, roleBitmap, expiry)</code>}>
       {!canRegister.holds ? (
-        <p className="mb-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+        <p className="mb-3 rounded-sm border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
           Connected wallet is missing <code>ROLE_REGISTRAR</code> on this registry — only the address that founded it (or
           someone it delegated to) can register subnames.
         </p>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-xs text-white/60">
+        <label className="text-xs text-[#6b5636]">
           Label
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value.toLowerCase())}
             placeholder="e.g. alice"
-            className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 font-mono text-sm text-white placeholder:text-white/25"
+            className="mt-1 w-full rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2 py-1.5 font-mono text-sm text-[#3a2918] placeholder:text-[#b9a684]"
           />
-          <span className="mt-0.5 block text-[11px] text-white/30">
+          <span className="mt-0.5 block text-[11px] text-[#a8926e]">
             {label ? `${label}.${state.name}` : `<label>.${state.name}`}
           </span>
         </label>
-        <label className="text-xs text-white/60">
+        <label className="text-xs text-[#6b5636]">
           Owner
           <input
             value={owner}
             onChange={(e) => setOwner(e.target.value)}
             placeholder={address ?? "0x…"}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 font-mono text-sm text-white placeholder:text-white/25"
+            className="mt-1 w-full rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2 py-1.5 font-mono text-sm text-[#3a2918] placeholder:text-[#b9a684]"
           />
         </label>
-        <label className="text-xs text-white/60">
+        <label className="text-xs text-[#6b5636]">
           Resolver
           <input
             value={resolver}
             onChange={(e) => setResolver(e.target.value)}
             placeholder="0x… (optional)"
-            className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 font-mono text-sm text-white placeholder:text-white/25"
+            className="mt-1 w-full rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2 py-1.5 font-mono text-sm text-[#3a2918] placeholder:text-[#b9a684]"
           />
         </label>
-        <label className="text-xs text-white/60">
+        <label className="text-xs text-[#6b5636]">
           Duration
           <select
             value={duration.toString()}
             onChange={(e) => setDuration(BigInt(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm text-white"
+            className="mt-1 w-full rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2 py-1.5 text-sm text-[#3a2918]"
           >
             {CLAIM_DURATION_OPTIONS.map((opt) => (
               <option key={opt.label} value={opt.seconds.toString()}>
@@ -254,7 +254,7 @@ function RegisterSubnamePanel({ state, subregistry }: { state: EnsNameState; sub
             type="button"
             onClick={() => setPreset(p)}
             className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase transition-colors ${
-              preset.key === p.key ? "border-white/60 bg-white/15 text-white" : "border-white/10 text-white/60 hover:bg-white/5"
+              preset.key === p.key ? "border-[#8e1f2b] bg-[#c9a15a]/20 text-[#3a2918]" : "border-[#c9a15a]/40 text-[#6b5636] hover:bg-[#c9a15a]/10"
             }`}
           >
             {p.name}
@@ -262,16 +262,16 @@ function RegisterSubnamePanel({ state, subregistry }: { state: EnsNameState; sub
         ))}
       </div>
 
-      <div className="mt-3 grid gap-3 rounded-lg border border-white/10 bg-black/20 p-3 text-xs sm:grid-cols-2">
+      <div className="mt-3 grid gap-3 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/12 p-3 text-xs sm:grid-cols-2">
         <div>
           <p className="mb-1 font-semibold tracking-wide text-emerald-300 uppercase">Will be able to</p>
-          <ul className="list-inside list-disc space-y-0.5 text-white/70">
+          <ul className="list-inside list-disc space-y-0.5 text-[#4b3420]">
             {preset.will.length > 0 ? preset.will.map((w) => <li key={w}>{w}</li>) : <li className="italic">Nothing.</li>}
           </ul>
         </div>
         <div>
           <p className="mb-1 font-semibold tracking-wide text-red-300 uppercase">Will NOT be able to</p>
-          <ul className="list-inside list-disc space-y-0.5 text-white/70">
+          <ul className="list-inside list-disc space-y-0.5 text-[#4b3420]">
             {preset.willNot.map((w) => (
               <li key={w}>{w}</li>
             ))}
@@ -291,7 +291,7 @@ function RegisterSubnamePanel({ state, subregistry }: { state: EnsNameState; sub
             registerAction.state === "signing" ||
             registerAction.state === "confirming"
           }
-          className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold tracking-wide text-black uppercase transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Register subname
         </button>
@@ -302,7 +302,7 @@ function RegisterSubnamePanel({ state, subregistry }: { state: EnsNameState; sub
         {result?.resolverGrantAttempted ? (
           <TxStatus state={grantAction.state} txHash={grantAction.txHash} error={grantAction.error} />
         ) : result && !result.resolverGrantAttempted && preset.resolverRoleKeys.length > 0 ? (
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-[#9c8563]">
             Registered without the resolver-side role grant: no resolver was set, or it doesn&apos;t support{" "}
             <code>IEnhancedAccessControl</code>. The new owner can still be granted those roles later once a compatible
             resolver is set.
@@ -354,21 +354,21 @@ function ChildrenPanel({
       subtitle={<code>IPermissionedRegistry.LabelRegistered</code>}
       actions={
         subnames?.enumerable ? (
-          <span className="rounded-full bg-white/5 px-3 py-1 font-mono text-xs text-white/60">{subnames.children.length}</span>
+          <span className="rounded-full bg-[#c9a15a]/10 px-3 py-1 font-mono text-xs text-[#6b5636]">{subnames.children.length}</span>
         ) : null
       }
     >
       {!subregistry ? (
-        <p className="text-sm text-white/50">No subregistry wired yet — found one above first.</p>
+        <p className="text-sm text-[#8a755b]">No subregistry wired yet — found one above first.</p>
       ) : !subnames ? (
-        <p className="text-sm text-white/40">Reading subnames…</p>
+        <p className="text-sm text-[#9c8563]">Reading subnames…</p>
       ) : !subnames.enumerable ? (
-        <p className="text-sm text-white/50">
-          <span className="font-mono text-white/80">{parentName}</span>&apos;s subregistry does not implement{" "}
+        <p className="text-sm text-[#8a755b]">
+          <span className="font-mono text-[#3f2c1a]">{parentName}</span>&apos;s subregistry does not implement{" "}
           <code>IPermissionedRegistry</code>, so there is no standard way to list what it holds.
         </p>
       ) : subnames.children.length === 0 ? (
-        <p className="text-sm text-white/50">No subnames registered under this name yet.</p>
+        <p className="text-sm text-[#8a755b]">No subnames registered under this name yet.</p>
       ) : (
         <ul className="divide-y divide-white/5">
           {subnames.children.map((child) => (
@@ -420,19 +420,19 @@ function ChildRow({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <Link
           href={ensPath(child.fullName)}
-          className="font-mono text-sm text-white underline decoration-white/20 underline-offset-2 hover:decoration-white"
+          className="font-mono text-sm text-[#3a2918] underline decoration-white/20 underline-offset-2 hover:decoration-white"
         >
           {child.fullName}
         </Link>
         <span className="flex items-baseline gap-3 text-xs">
           {child.status !== "registered" ? (
-            <span className="text-white/40 italic">lapsed</span>
+            <span className="text-[#9c8563] italic">lapsed</span>
           ) : child.expiry > 0n ? (
             <ExpiryCountdown expiry={child.expiry} />
           ) : null}
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/50">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#8a755b]">
         <span>
           Owner: <AddressValue address={child.owner} />
         </span>
@@ -492,7 +492,7 @@ function InlineAddressAction({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-2">
+    <div className="flex flex-wrap items-center gap-2 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/12 p-2">
       <AddressInput
         placeholder={`0x… new ${kind}`}
         onSubmit={(value) => void submit(value)}

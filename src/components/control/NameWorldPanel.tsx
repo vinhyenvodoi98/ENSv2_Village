@@ -116,7 +116,7 @@ export function NameWorldPanel({ name }: { name: string }) {
       ) : isPending || !resolvedState ? (
         <CenteredMessage>
           <Panel title="Resolving">
-            <p className="text-sm text-white/40">Walking the registries for {name}…</p>
+            <p className="text-sm text-[#9c8563]">Walking the registries for {name}…</p>
           </Panel>
         </CenteredMessage>
       ) : null}

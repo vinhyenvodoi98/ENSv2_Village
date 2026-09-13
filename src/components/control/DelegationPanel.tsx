@@ -161,14 +161,14 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
         }
       >
         {!anyAdmin ? (
-          <p className="mb-4 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/50">
+          <p className="mb-4 rounded-sm border border-[#c9a15a]/40 bg-[#f6efdc]/70 px-3 py-2 text-xs text-[#8a755b]">
             Your connected wallet holds no admin bit on this name&apos;s registry or resolver, so the rows below are
             shown for reference — every grant/revoke control stays inert until an admin address connects.
           </p>
         ) : null}
 
         {/* — Grant a new capability — */}
-        <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+        <div className="mb-6 rounded-sm border border-[#c9a15a]/40 bg-[#f6efdc]/70 p-3">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <input
               value={addressInput}
@@ -176,7 +176,7 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
                 setAddressInput(e.target.value);
               }}
               placeholder="0x… address to grant to"
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30"
+              className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e]"
             />
           </div>
 
@@ -194,8 +194,8 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
                 }
                 className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
                   activePreset?.key === preset.key
-                    ? "border-white/60 bg-white/15 text-white"
-                    : "border-white/10 text-white/60 hover:bg-white/5"
+                    ? "border-[#8e1f2b] bg-[#c9a15a]/20 text-[#3a2918]"
+                    : "border-[#c9a15a]/40 text-[#6b5636] hover:bg-[#c9a15a]/10"
                 }`}
               >
                 {preset.name}
@@ -204,7 +204,7 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
           </div>
 
           <details className="mb-3 text-xs">
-            <summary className="cursor-pointer font-semibold tracking-wide text-white/60 uppercase">
+            <summary className="cursor-pointer font-semibold tracking-wide text-[#6b5636] uppercase">
               Or choose exact roles
             </summary>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -228,16 +228,16 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
           </details>
 
           {willList.length > 0 || willNotList.length > 0 ? (
-            <div className="mb-3 grid gap-3 rounded-lg border border-white/10 bg-black/20 p-2.5 text-xs sm:grid-cols-2">
+            <div className="mb-3 grid gap-3 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/12 p-2.5 text-xs sm:grid-cols-2">
               <div>
                 <p className="mb-1 font-semibold tracking-wide text-emerald-300 uppercase">Will be able to</p>
-                <ul className="list-inside list-disc space-y-0.5 text-white/70">
+                <ul className="list-inside list-disc space-y-0.5 text-[#4b3420]">
                   {willList.length > 0 ? willList.map((w) => <li key={w}>{w}</li>) : <li className="italic">Nothing yet — pick a role.</li>}
                 </ul>
               </div>
               <div>
                 <p className="mb-1 font-semibold tracking-wide text-red-300 uppercase">Will NOT be able to</p>
-                <ul className="list-inside list-disc space-y-0.5 text-white/70">
+                <ul className="list-inside list-disc space-y-0.5 text-[#4b3420]">
                   {willNotList.map((w) => (
                     <li key={w}>{w}</li>
                   ))}
@@ -265,14 +265,14 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
         {/* — The matrix — */}
         <div className="overflow-x-auto">
           {assigneesPending ? (
-            <p className="text-xs text-white/40 italic">Reading role assignees…</p>
+            <p className="text-xs text-[#9c8563] italic">Reading role assignees…</p>
           ) : !assignees || assignees.length === 0 ? (
-            <p className="text-xs text-white/40 italic">No address holds a role on this name yet.</p>
+            <p className="text-xs text-[#9c8563] italic">No address holds a role on this name yet.</p>
           ) : (
             <table className="w-full min-w-max border-collapse text-xs">
               <thead>
                 <tr>
-                  <th className="border-b border-white/10 px-2 py-1.5 text-left text-white/60">Address</th>
+                  <th className="border-b border-[#c9a15a]/40 px-2 py-1.5 text-left text-[#6b5636]">Address</th>
                   {REGISTRY_TOKEN_ROLES.map((def) => (
                     <ColHeader key={def.key} def={def} />
                   ))}
@@ -302,11 +302,11 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
       </Panel>
 
       {revokeTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0b1020] p-4 text-white shadow-2xl">
-            <h3 className="mb-2 text-sm font-semibold tracking-wide text-white uppercase">Revoke a role</h3>
-            <p className="mb-3 text-xs text-white/60">
-              Revoke <span className="font-semibold text-white">{revokeTarget.def.label}</span> (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#3a2918]/35 p-4">
+          <div className="w-full max-w-sm rounded-sm border border-[#c9a15a]/40 bg-[#0b1020] p-4 text-[#3a2918] shadow-2xl">
+            <h3 className="mb-2 text-sm font-semibold tracking-wide text-[#3a2918] uppercase">Revoke a role</h3>
+            <p className="mb-3 text-xs text-[#6b5636]">
+              Revoke <span className="font-semibold text-[#3a2918]">{revokeTarget.def.label}</span> (
               <code>{revokeTarget.def.key}</code>) from{" "}
               <span className="font-mono">{truncateAddress(revokeTarget.account)}</span>. This calls{" "}
               <code>revokeRoles</code> on the {revokeTarget.target === "registry" ? "registry" : "resolver"}{" "}
@@ -317,7 +317,7 @@ export function DelegationPanel({ state }: { state: EnsNameState }) {
               <button
                 type="button"
                 onClick={() => setRevokeTarget(null)}
-                className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold tracking-wide text-white/70 uppercase hover:bg-white/10"
+                className="rounded-full border border-[#c9a15a]/50 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#4b3420] uppercase hover:bg-[#c9a15a]/15"
               >
                 Cancel
               </button>
@@ -346,7 +346,7 @@ function ColHeader({ def }: { def: EnsRoleDef }) {
   return (
     <th
       title={`${def.key} — ${def.description}`}
-      className="border-b border-white/10 px-2 py-1.5 text-left font-semibold whitespace-nowrap text-white/60"
+      className="border-b border-[#c9a15a]/40 px-2 py-1.5 text-left font-semibold whitespace-nowrap text-[#6b5636]"
     >
       {def.label}
     </th>
@@ -372,11 +372,11 @@ function RoleCheckboxGroup({
 }) {
   return (
     <div>
-      <p className="mb-1 font-semibold tracking-wide text-white/60 uppercase">{heading}</p>
+      <p className="mb-1 font-semibold tracking-wide text-[#6b5636] uppercase">{heading}</p>
       {disabled ? (
-        <p className="text-white/40 italic">{disabledReason}</p>
+        <p className="text-[#9c8563] italic">{disabledReason}</p>
       ) : (
-        <ul className="space-y-1 text-white/80">
+        <ul className="space-y-1 text-[#3f2c1a]">
           {defs.map((def) => {
             const admin = isAdmin(def);
             return (
@@ -417,7 +417,7 @@ function MatrixRow({
   const resolverDecoded = decodeRoles(row.resolverBitmap, RESOLVER_ROLES);
 
   return (
-    <tr className="border-b border-white/5">
+    <tr className="border-b border-[#c9a15a]/20">
       <td className="px-2 py-1.5 font-mono">
         <AddressValue address={row.account} />
       </td>
@@ -465,7 +465,7 @@ function Cell({ decoded, canRevoke, onClick }: { decoded: DecodedRole; canRevoke
             ? clickable
               ? "border-emerald-400/50 bg-emerald-400/60 hover:bg-emerald-300 cursor-pointer"
               : "border-emerald-400/30 bg-emerald-400/30 cursor-default"
-            : "border-white/15 bg-transparent cursor-default",
+            : "border-[#c9a15a]/50 bg-transparent cursor-default",
         ].join(" ")}
       />
     </td>

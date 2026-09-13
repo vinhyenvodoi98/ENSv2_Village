@@ -18,7 +18,7 @@ export function ExpiryCountdown({ expiry }: { expiry: bigint }) {
       >
         {isExpired ? `expired ${formatDuration(-secondsLeft)} ago` : `in ${formatDuration(secondsLeft)}`}
       </span>
-      <span className="text-xs text-white/40">{formatAbsoluteTime(expiry)}</span>
+      <span className="text-xs text-[#9c8563]">{formatAbsoluteTime(expiry)}</span>
     </span>
   );
 }

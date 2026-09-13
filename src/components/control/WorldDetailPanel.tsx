@@ -39,7 +39,7 @@ export function WorldDetailPanel({
 
       <aside
         className={[
-          "fixed inset-y-0 right-0 z-50 flex w-full flex-col overflow-hidden bg-[#0b1020] text-white shadow-2xl shadow-black/50 transition-[transform,max-width] duration-200",
+          "fixed inset-y-0 right-0 z-50 flex w-full flex-col overflow-hidden border-l-2 border-[#8a6a34] bg-[linear-gradient(160deg,#241a10_0%,#1c130a_55%,#150e07_100%)] text-[#f3e6c8] shadow-[-8px_0_40px_rgba(0,0,0,0.5)] transition-[transform,max-width] duration-200",
           wide ? "max-w-3xl" : "max-w-md",
           open ? "translate-x-0" : "translate-x-full",
         ].join(" ")}
@@ -48,7 +48,7 @@ export function WorldDetailPanel({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 z-10 rounded-full p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+          className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full border border-[#d1ae68]/40 bg-black/20 text-[#ead8b3]/70 transition hover:border-[#d1ae68] hover:bg-black/35 hover:text-white"
         >
           ✕
         </button>

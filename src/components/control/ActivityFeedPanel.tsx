@@ -15,18 +15,18 @@ export function ActivityFeedPanel({ state }: { state: EnsNameState }) {
   return (
     <Panel title="Activity" subtitle={<code>LabelRegistered · ExpiryUpdated · EACRolesChanged · …</code>}>
       {isLoading ? (
-        <p className="text-sm text-white/50">Reading event history…</p>
+        <p className="text-sm text-[#8a755b]">Reading event history…</p>
       ) : error ? (
         <p className="text-sm text-red-400">{error.message}</p>
       ) : !events || events.length === 0 ? (
-        <p className="text-sm text-white/50 italic">No history yet — this name has no events on chain.</p>
+        <p className="text-sm text-[#8a755b] italic">No history yet — this name has no events on chain.</p>
       ) : (
-        <ol className="flex flex-col gap-3 border-l border-white/10 pl-4">
+        <ol className="flex flex-col gap-3 border-l border-[#c9a15a]/40 pl-4">
           {[...events].reverse().map((event) => (
             <li key={`${event.blockNumber}-${event.logIndex}`} className="relative">
               <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-indigo-400" aria-hidden />
               <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-                <span className="text-sm font-medium text-white/90">{event.summary}</span>
+                <span className="text-sm font-medium text-[#33230f]">{event.summary}</span>
                 <a
                   href={explorerTxUrl(event.txHash)}
                   target="_blank"
@@ -36,7 +36,7 @@ export function ActivityFeedPanel({ state }: { state: EnsNameState }) {
                   view on Etherscan ↗
                 </a>
               </div>
-              <p className="text-xs text-white/40" title={formatAbsoluteTime(event.timestamp)}>
+              <p className="text-xs text-[#9c8563]" title={formatAbsoluteTime(event.timestamp)}>
                 {formatRelativeTime(event.timestamp)} · block {event.blockNumber.toString()}
               </p>
             </li>

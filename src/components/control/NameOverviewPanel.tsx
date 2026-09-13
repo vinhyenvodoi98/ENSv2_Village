@@ -36,7 +36,7 @@ export function NameOverviewPanel({ state }: { state: EnsNameState }) {
     >
       <dl>
         <Field label="Name">
-          <span className="font-mono text-base text-white">{state.name}</span>
+          <span className="font-mono text-base text-[#3a2918]">{state.name}</span>
         </Field>
 
         <Field label="Resolver" hint="getResolver(label)">
@@ -49,7 +49,7 @@ export function NameOverviewPanel({ state }: { state: EnsNameState }) {
 
         {state.isPermissionedRegistry ? (
           <Field label="Token id" hint="getTokenId(labelhash)">
-            <span className="font-mono text-xs break-all text-white/60">
+            <span className="font-mono text-xs break-all text-[#6b5636]">
               {state.tokenId !== null ? `0x${state.tokenId.toString(16)}` : "—"}
             </span>
           </Field>
@@ -57,19 +57,19 @@ export function NameOverviewPanel({ state }: { state: EnsNameState }) {
 
         {state.isPermissionedRegistry ? (
           <Field label="EACL resource" hint="getResource(labelhash)">
-            <span className="font-mono text-xs break-all text-white/60">
+            <span className="font-mono text-xs break-all text-[#6b5636]">
               {state.resource !== null ? `0x${state.resource.toString(16)}` : "—"}
             </span>
           </Field>
         ) : null}
 
         <Field label="Labelhash" hint="LibLabel.id(label)">
-          <span className="font-mono text-xs break-all text-white/60">0x{state.labelhash.toString(16)}</span>
+          <span className="font-mono text-xs break-all text-[#6b5636]">0x{state.labelhash.toString(16)}</span>
         </Field>
       </dl>
 
       {state.resolver === zeroAddress || state.subregistry === zeroAddress ? (
-        <p className="mt-4 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/50">
+        <p className="mt-4 rounded-sm border border-[#c9a15a]/40 bg-[#f6efdc]/70 px-3 py-2 text-xs text-[#8a755b]">
           {state.resolver === zeroAddress && state.subregistry === zeroAddress
             ? "No resolver and no subregistry are set: this name currently answers no queries and issues no subnames."
             : state.resolver === zeroAddress
@@ -88,16 +88,16 @@ export function RegistryPathPanel({ state }: { state: EnsNameState }) {
   return (
     <Panel title="Registry path" subtitle={<code>IRegistry.getSubregistry(label)</code>}>
       <ol className="space-y-1">
-        <li className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-white/5 py-2">
-          <span className="text-sm text-white/70">RootRegistry</span>
+        <li className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-[#c9a15a]/20 py-2">
+          <span className="text-sm text-[#4b3420]">RootRegistry</span>
           <AddressValue address={CONTRACTS.rootRegistry} />
         </li>
         {state.path.map((hop) => (
           <li
             key={`${hop.parentRegistry}-${hop.label}`}
-            className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-white/5 py-2"
+            className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-[#c9a15a]/20 py-2"
           >
-            <span className="font-mono text-sm text-white/70">
+            <span className="font-mono text-sm text-[#4b3420]">
               ↳ getSubregistry(&quot;{hop.label}&quot;)
             </span>
             <AddressValue address={hop.subregistry} notSetLabel="address(0) — walk ends here" />
@@ -105,8 +105,8 @@ export function RegistryPathPanel({ state }: { state: EnsNameState }) {
         ))}
         {state.registry ? (
           <li className="flex flex-wrap items-baseline justify-between gap-x-4 py-2">
-            <span className="text-sm text-white/70">
-              ↳ label <span className="font-mono text-white/90">{state.label}</span> lives in
+            <span className="text-sm text-[#4b3420]">
+              ↳ label <span className="font-mono text-[#33230f]">{state.label}</span> lives in
             </span>
             <AddressValue address={state.registry} />
           </li>

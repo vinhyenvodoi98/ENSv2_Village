@@ -1,9 +1,10 @@
 "use client";
 
 const TONE_STYLES: Record<string, string> = {
-  default: "border-white/15 text-white/80 hover:bg-white/10",
-  danger: "border-red-400/40 bg-red-500/10 text-red-200 hover:bg-red-500/20",
-  primary: "border-transparent bg-sky-500/90 text-white hover:bg-sky-400",
+  default: "border-[#9c7b49] bg-[#dfd0ae]/60 text-[#4a331d] hover:bg-[#dfd0ae]",
+  danger: "border-[#9e4242] bg-[#8a2630]/10 text-[#7a1f28] hover:bg-[#8a2630]/20",
+  primary:
+    "border-[#c39a50] bg-gradient-to-b from-[#8d2932] to-[#641c23] text-[#fff0cf] shadow-[0_2px_0_#3d1418] hover:brightness-110",
 };
 
 const SIZE_STYLES: Record<string, string> = {
@@ -38,7 +39,7 @@ export function ActionButton({
       onClick={onClick}
       disabled={!enabled || pending}
       title={enabled ? undefined : (reason ?? "Connected wallet lacks the role this action needs")}
-      className={`rounded-full border font-semibold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${SIZE_STYLES[size]} ${TONE_STYLES[tone]}`}
+      className={`rounded-sm border font-cinzel font-bold tracking-wide uppercase transition disabled:cursor-not-allowed disabled:opacity-30 ${SIZE_STYLES[size]} ${TONE_STYLES[tone]}`}
     >
       {label}
     </button>

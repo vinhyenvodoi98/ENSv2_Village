@@ -112,13 +112,13 @@ export function AddressWorldPanel({ address }: { address: `0x${string}` }) {
             >
               {address}
             </a>
-            <p className="mt-2 text-sm text-white/50">
+            <p className="mt-2 text-sm text-[#8a755b]">
               {reverse ? (
                 <>
                   Primary name{" "}
                   <Link
                     href={ensPath(reverse.name)}
-                    className="font-mono text-white/80 underline decoration-white/20 underline-offset-2 hover:text-white"
+                    className="font-mono text-[#3f2c1a] underline decoration-white/20 underline-offset-2 hover:text-[#3a2918]"
                   >
                     {reverse.name}
                   </Link>
@@ -130,13 +130,13 @@ export function AddressWorldPanel({ address }: { address: `0x${string}` }) {
             {isError ? (
               <p className="mt-2 text-sm text-red-300">{error?.message ?? "Could not read the registry."}</p>
             ) : isPending || !resolvedNames ? (
-              <p className="mt-2 text-sm text-white/40">Reading the registry…</p>
+              <p className="mt-2 text-sm text-[#9c8563]">Reading the registry…</p>
             ) : resolvedNames.length === 0 ? (
-              <p className="mt-2 text-sm text-white/50">
+              <p className="mt-2 text-sm text-[#8a755b]">
                 Owns no <code>.eth</code> name on this deployment right now.
               </p>
             ) : (
-              <p className="mt-2 font-mono text-xs text-white/40">
+              <p className="mt-2 font-mono text-xs text-[#9c8563]">
                 {resolvedNames.length} name{resolvedNames.length === 1 ? "" : "s"} on the map
               </p>
             )}

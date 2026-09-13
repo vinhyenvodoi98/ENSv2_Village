@@ -16,16 +16,20 @@ export function Panel({
 }) {
   return (
     <section
-      className={`rounded-2xl border border-white/10 bg-white/[0.03] shadow-lg shadow-black/20 backdrop-blur ${className}`}
+      className={`relative overflow-hidden rounded-sm border-2 border-[#c9a15a]/70 bg-[#ece1c8] shadow-[0_10px_30px_rgba(28,19,10,0.35),inset_0_0_0_3px_#5d4026] ${className}`}
     >
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 px-5 py-4">
+      <span className="pointer-events-none absolute left-1.5 top-1.5 z-10 size-3 border-l-2 border-t-2 border-[#9a7436]/70" aria-hidden />
+      <span className="pointer-events-none absolute right-1.5 top-1.5 z-10 size-3 border-r-2 border-t-2 border-[#9a7436]/70" aria-hidden />
+      <span className="pointer-events-none absolute bottom-1.5 left-1.5 z-10 size-3 border-b-2 border-l-2 border-[#9a7436]/70" aria-hidden />
+      <span className="pointer-events-none absolute bottom-1.5 right-1.5 z-10 size-3 border-b-2 border-r-2 border-[#9a7436]/70" aria-hidden />
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[#c9a15a]/40 bg-[#dfd0ae]/50 px-5 py-3.5">
         <div>
-          <h2 className="text-sm font-semibold tracking-wide text-white uppercase">{title}</h2>
-          {subtitle ? <p className="mt-1 text-xs text-white/50">{subtitle}</p> : null}
+          <h2 className="font-cinzel text-xs font-bold tracking-[0.14em] text-[#4a331d] uppercase">{title}</h2>
+          {subtitle ? <p className="mt-1 text-xs text-[#8a755b]">{subtitle}</p> : null}
         </div>
         {actions}
       </header>
-      <div className="px-5 py-4">{children}</div>
+      <div className="px-5 py-4 text-[#3a2918]">{children}</div>
     </section>
   );
 }
@@ -42,12 +46,12 @@ export function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-white/5 py-2.5 last:border-b-0">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-[#c9a15a]/25 py-2.5 last:border-b-0">
       <div className="min-w-0">
-        <dt className="text-xs font-medium tracking-wide text-white/60 uppercase">{label}</dt>
-        {hint ? <p className="mt-0.5 font-mono text-[11px] text-white/30">{hint}</p> : null}
+        <dt className="text-xs font-semibold tracking-wide text-[#755329] uppercase">{label}</dt>
+        {hint ? <p className="mt-0.5 font-mono text-[11px] text-[#a8926e]">{hint}</p> : null}
       </div>
-      <dd className="min-w-0 text-right text-sm text-white/90">{children}</dd>
+      <dd className="min-w-0 text-right text-sm text-[#33230f]">{children}</dd>
     </div>
   );
 }

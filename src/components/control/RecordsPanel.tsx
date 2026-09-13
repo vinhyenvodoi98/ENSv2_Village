@@ -84,24 +84,24 @@ function NoResolverPanel({
 
   return (
     <Panel title="Records" subtitle={<code>PermissionedResolver</code>}>
-      <p className="text-sm text-white/60">
-        <span className="font-mono text-white/80">{state.name}</span> has no resolver set (
+      <p className="text-sm text-[#6b5636]">
+        <span className="font-mono text-[#3f2c1a]">{state.name}</span> has no resolver set (
         <code>getResolver</code> returns <code>address(0)</code>), so it cannot hold any address, text
         or contenthash record — every setter on a resolver reverts without one. Point this name at a
         resolver first.
       </p>
       {!state.isPermissionedRegistry ? (
-        <p className="mt-3 text-sm text-white/40 italic">
+        <p className="mt-3 text-sm text-[#9c8563] italic">
           This name&apos;s registry isn&apos;t a <code>PermissionedRegistry</code>, so there is no
           on-chain way for this panel to set one.
         </p>
       ) : (
         <>
-          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-            <label className="mb-1.5 block text-xs font-medium tracking-wide text-white/50 uppercase">
+          <div className="mt-4 rounded-sm border border-[#c9a15a]/40 bg-[#f6efdc]/70 p-3">
+            <label className="mb-1.5 block text-xs font-medium tracking-wide text-[#8a755b] uppercase">
               Deploy your own resolver
             </label>
-            <p className="mb-2 text-xs text-white/50">
+            <p className="mb-2 text-xs text-[#8a755b]">
               <code>VerifiableFactory.deployProxy</code> over ENSv2&apos;s verified{" "}
               <code>PermissionedResolver</code> implementation — your wallet becomes its sole admin,
               holding every record-setter role, ready to delegate pieces of it away with task 34&apos;s
@@ -115,20 +115,20 @@ function NoResolverPanel({
                   !canSetResolver || deployResolver.state === "signing" || deployResolver.state === "confirming"
                 }
                 title={!canSetResolver ? "Requires ROLE_SET_RESOLVER on this name" : undefined}
-                className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+                className="rounded-sm bg-[#c9a15a]/15 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 Deploy resolver
               </button>
               <TxStatus state={deployResolver.state} txHash={deployResolver.txHash} error={deployResolver.error} />
             </div>
             {deployedAddress ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#c9a15a]/20 pt-3">
                 <span className="font-mono text-xs text-emerald-300">{deployedAddress}</span>
                 <button
                   type="button"
                   onClick={() => submit(deployedAddress)}
                   disabled={setResolverAction.state === "signing" || setResolverAction.state === "confirming"}
-                  className="rounded-lg bg-sky-500/90 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
+                  className="rounded-sm bg-sky-500/90 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   Use as this name&apos;s resolver
                 </button>
@@ -137,8 +137,8 @@ function NoResolverPanel({
             ) : null}
           </div>
 
-          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-            <label className="mb-1.5 block text-xs font-medium tracking-wide text-white/50 uppercase">
+          <div className="mt-4 rounded-sm border border-[#c9a15a]/40 bg-[#f6efdc]/70 p-3">
+            <label className="mb-1.5 block text-xs font-medium tracking-wide text-[#8a755b] uppercase">
               Or point at an existing resolver (<code>setResolver(tokenId, resolver)</code>)
             </label>
             <div className="flex flex-wrap gap-2">
@@ -147,7 +147,7 @@ function NoResolverPanel({
                 onChange={(e) => setResolverInput(e.target.value)}
                 placeholder="0x…"
                 disabled={!canSetResolver}
-                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
+                className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e] disabled:opacity-40"
               />
               <button
                 type="button"
@@ -159,13 +159,13 @@ function NoResolverPanel({
                   setResolverAction.state === "confirming"
                 }
                 title={!canSetResolver ? "Requires ROLE_SET_RESOLVER on this name" : undefined}
-                className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+                className="rounded-sm bg-[#c9a15a]/15 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 Set resolver
               </button>
             </div>
             {!canSetResolver ? (
-              <p className="mt-1.5 text-xs text-white/40">
+              <p className="mt-1.5 text-xs text-[#9c8563]">
                 Requires <code>ROLE_SET_RESOLVER</code>, which this wallet does not hold on this name.
               </p>
             ) : null}
@@ -343,7 +343,7 @@ function RecordsEditor({
       }
     >
       {!isEacl ? (
-        <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200/80">
+        <div className="mb-4 rounded-sm border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200/80">
           <p>
             This resolver doesn&apos;t implement <code>IEnhancedAccessControl</code> (<code>roles()</code>{" "}
             reverts), so this panel can show what it currently returns but can&apos;t safely gate or
@@ -375,7 +375,7 @@ function RecordsEditor({
                     onClick={() => deployResolver.deployFor(state.name)}
                     disabled={!canSetResolver || deployResolver.state === "signing" || deployResolver.state === "confirming"}
                     title={!canSetResolver ? "Requires ROLE_SET_RESOLVER on this name" : undefined}
-                    className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+                    className="rounded-sm bg-[#c9a15a]/15 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     Deploy resolver
                   </button>
@@ -388,7 +388,7 @@ function RecordsEditor({
                       type="button"
                       onClick={() => submitSwitchResolver(deployedAddress)}
                       disabled={setResolverAction.state === "signing" || setResolverAction.state === "confirming"}
-                      className="rounded-lg bg-sky-500/90 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
+                      className="rounded-sm bg-sky-500/90 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       Use as this name&apos;s resolver
                     </button>
@@ -417,7 +417,7 @@ function RecordsEditor({
                     onChange={(e) => setResolverInput(e.target.value)}
                     placeholder="0x…"
                     disabled={!canSetResolver}
-                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
+                    className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e] disabled:opacity-40"
                   />
                   <button
                     type="button"
@@ -429,7 +429,7 @@ function RecordsEditor({
                       setResolverAction.state === "confirming"
                     }
                     title={!canSetResolver ? "Requires ROLE_SET_RESOLVER on this name" : undefined}
-                    className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+                    className="rounded-sm bg-[#c9a15a]/15 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     Set resolver
                   </button>
@@ -447,7 +447,7 @@ function RecordsEditor({
         </div>
       ) : null}
 
-      {recordsPending ? <p className="text-sm text-white/40">Reading records…</p> : null}
+      {recordsPending ? <p className="text-sm text-[#9c8563]">Reading records…</p> : null}
 
       <Section
         title="Text records"
@@ -461,12 +461,12 @@ function RecordsEditor({
           ))}
         </div>
         {canText ? (
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-white/5 pt-3">
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-[#c9a15a]/20 pt-3">
             <input
               value={newTextKey}
               onChange={(e) => setNewTextKey(e.target.value)}
               placeholder="custom key, e.g. org.example"
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30"
+              className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e]"
             />
             <button
               type="button"
@@ -477,7 +477,7 @@ function RecordsEditor({
                 setNewTextKey("");
               }}
               disabled={!newTextKey.trim()}
-              className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+              className="rounded-sm bg-[#c9a15a]/15 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-30"
             >
               Add key
             </button>
@@ -498,13 +498,13 @@ function RecordsEditor({
           ))}
         </div>
         {canAddr ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#c9a15a]/20 pt-3">
             {CHAIN_PRESETS.filter((p) => !coinTypes.includes(p.coinType)).map((p) => (
               <button
                 key={p.label}
                 type="button"
                 onClick={() => setExtraCoinTypes((prev) => [...prev, p.coinType])}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70 hover:bg-white/10"
+                className="rounded-full border border-[#c9a15a]/40 bg-[#c9a15a]/10 px-3 py-1 text-xs text-[#4b3420] hover:bg-[#c9a15a]/15"
               >
                 + {p.label}
               </button>
@@ -513,7 +513,7 @@ function RecordsEditor({
               value={newChainCoinType}
               onChange={(e) => setNewChainCoinType(e.target.value.replace(/[^0-9]/g, ""))}
               placeholder="custom coin type (ENSIP-11)"
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30"
+              className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e]"
             />
             <button
               type="button"
@@ -525,7 +525,7 @@ function RecordsEditor({
                 setNewChainCoinType("");
               }}
               disabled={!newChainCoinType}
-              className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+              className="rounded-sm bg-[#c9a15a]/15 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-30"
             >
               Add chain
             </button>
@@ -539,7 +539,7 @@ function RecordsEditor({
             value={contenthashProtocol}
             onChange={(e) => onContenthashChange(e.target.value as ContenthashProtocol, displayContenthashValue)}
             disabled={!canContenthash}
-            className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-white disabled:opacity-40"
+            className="rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2 py-1.5 text-xs text-[#3a2918] disabled:opacity-40"
           >
             {CONTENTHASH_PROTOCOLS.map((p) => (
               <option key={p} value={p}>
@@ -552,7 +552,7 @@ function RecordsEditor({
             onChange={(e) => onContenthashChange(contenthashProtocol, e.target.value)}
             disabled={!canContenthash}
             placeholder={contenthashProtocol === "swarm" ? "0x… (32-byte hash)" : "CID"}
-            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
+            className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e] disabled:opacity-40"
           />
         </div>
         {contenthashError ? <p className="mt-1.5 text-xs text-red-400">{contenthashError}</p> : null}
@@ -560,12 +560,12 @@ function RecordsEditor({
 
       <DataSection pending={pending} setEdit={setEdit} canData={canData} />
 
-      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[#c9a15a]/40 pt-4">
         <button
           type="button"
           onClick={submit}
           disabled={!dirty || save.state === "signing" || save.state === "confirming"}
-          className="rounded-lg bg-sky-500/90 px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
+          className="rounded-sm bg-sky-500/90 px-4 py-2 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
         >
           Save changes {dirty ? `(${pending.size})` : ""}
         </button>
@@ -589,13 +589,13 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-5 border-b border-white/5 pb-5 last:mb-0 last:border-b-0 last:pb-0">
+    <div className="mb-5 border-b border-[#c9a15a]/20 pb-5 last:mb-0 last:border-b-0 last:pb-0">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-xs font-semibold tracking-wide text-white/70 uppercase">{title}</h3>
-        <span className="font-mono text-[11px] text-white/30">{hint}</span>
+        <h3 className="text-xs font-semibold tracking-wide text-[#4b3420] uppercase">{title}</h3>
+        <span className="font-mono text-[11px] text-[#a8926e]">{hint}</span>
       </div>
       {!allowed ? (
-        <p className="mb-2 text-xs text-white/40">
+        <p className="mb-2 text-xs text-[#9c8563]">
           Disabled — requires <code>{roleKey}</code>, which this wallet does not hold on the resolver.
         </p>
       ) : null}
@@ -619,12 +619,12 @@ function TextRow({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`w-32 shrink-0 font-mono text-xs ${isKnown ? "text-white/70" : "text-white/50 italic"}`}>{textKey}</span>
+        <span className={`w-32 shrink-0 font-mono text-xs ${isKnown ? "text-[#4b3420]" : "text-[#8a755b] italic"}`}>{textKey}</span>
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs text-white placeholder:text-white/30 disabled:opacity-40"
+          className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 text-xs text-[#3a2918] placeholder:text-[#a8926e] disabled:opacity-40"
         />
       </div>
       {textKey === "avatar" ? <AvatarPreview value={value} /> : null}
@@ -638,15 +638,15 @@ function AvatarPreview({ value }: { value: string }) {
   const previewable = /^(https?:\/\/|ipfs:\/\/|data:image\/)/.test(value);
 
   if (!value) return null;
-  if (!previewable) return <p className="ml-[8.5rem] mt-1 text-[11px] text-white/30 italic">No preview for this avatar reference.</p>;
+  if (!previewable) return <p className="ml-[8.5rem] mt-1 text-[11px] text-[#a8926e] italic">No preview for this avatar reference.</p>;
 
   return (
     <div className="ml-[8.5rem] mt-1.5">
       {failed ? (
-        <p className="text-[11px] text-white/30 italic">Preview failed to load.</p>
+        <p className="text-[11px] text-[#a8926e] italic">Preview failed to load.</p>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="avatar preview" onError={() => setFailed(true)} className="h-12 w-12 rounded-full border border-white/10 object-cover" />
+        <img src={src} alt="avatar preview" onError={() => setFailed(true)} className="h-12 w-12 rounded-full border border-[#c9a15a]/40 object-cover" />
       )}
     </div>
   );
@@ -668,13 +668,13 @@ function AddrRow({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="w-32 shrink-0 font-mono text-xs text-white/70">{label}</span>
+        <span className="w-32 shrink-0 font-mono text-xs text-[#4b3420]">{label}</span>
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           placeholder="0x…"
-          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30 disabled:opacity-40"
+          className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e] disabled:opacity-40"
         />
       </div>
       {invalid ? <p className="ml-[8.5rem] mt-1 text-[11px] text-red-400">Not a valid address/hex value.</p> : null}
@@ -720,10 +720,10 @@ function DataSection({
       {pendingEntries.length > 0 ? (
         <ul className="mb-2 space-y-1">
           {pendingEntries.map((edit) => (
-            <li key={edit.key} className="flex items-center gap-2 font-mono text-xs text-white/70">
+            <li key={edit.key} className="flex items-center gap-2 font-mono text-xs text-[#4b3420]">
               <span className="w-32 shrink-0 truncate">{edit.key}</span>
-              <span className="min-w-0 flex-1 truncate text-white/50">{edit.value || "(clear)"}</span>
-              <button type="button" onClick={() => setEdit(dataId(edit.key), null)} className="text-white/40 hover:text-white">
+              <span className="min-w-0 flex-1 truncate text-[#8a755b]">{edit.value || "(clear)"}</span>
+              <button type="button" onClick={() => setEdit(dataId(edit.key), null)} className="text-[#9c8563] hover:text-[#3a2918]">
                 ✕
               </button>
             </li>
@@ -736,19 +736,19 @@ function DataSection({
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="key"
-            className="w-32 shrink-0 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30"
+            className="w-32 shrink-0 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e]"
           />
           <input
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="0x… value, or empty to clear"
-            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-white/30"
+            className="min-w-0 flex-1 rounded-sm border border-[#c9a15a]/40 bg-[#3a2918]/16 px-2.5 py-1.5 font-mono text-xs text-[#3a2918] placeholder:text-[#a8926e]"
           />
           <button
             type="button"
             onClick={add}
             disabled={!key.trim()}
-            className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white uppercase transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+            className="rounded-sm bg-[#c9a15a]/15 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#3a2918] uppercase transition-colors hover:bg-[#c9a15a]/25 disabled:cursor-not-allowed disabled:opacity-30"
           >
             Queue
           </button>

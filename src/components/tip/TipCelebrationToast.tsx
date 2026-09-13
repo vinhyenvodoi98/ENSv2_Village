@@ -12,10 +12,10 @@ export function TipCelebrationToast() {
   ].filter(Boolean).join(" · ");
   return (
     <div className="pointer-events-none absolute inset-x-0 top-24 z-30 flex justify-center px-4" role="status" aria-live="polite">
-      <div className="rounded-full border border-amber-200/30 bg-[#241807]/80 px-5 py-2.5 text-center text-sm font-bold text-amber-100 shadow-[0_8px_35px_rgba(0,0,0,0.35)] backdrop-blur motion-safe:animate-[chain-scan-in_180ms_ease-out]">
+      <div className="rounded-sm border-2 border-[#c9a15a]/60 bg-[#1c130a]/90 px-5 py-2.5 text-center font-serif text-sm font-bold text-[#f3e6c8] shadow-[0_8px_35px_rgba(0,0,0,0.35)] backdrop-blur motion-safe:animate-[chain-scan-in_180ms_ease-out]">
         {tip.simulated ? (
           <>
-            <span className="mr-2 rounded-full bg-sky-300/15 px-2 py-1 text-[10px] tracking-[0.14em] text-sky-200 uppercase">Dev preview</span>
+            <span className="mr-2 rounded-sm bg-sky-300/15 px-2 py-1 font-cinzel text-[10px] tracking-[0.14em] text-sky-200 uppercase">Dev preview</span>
             <span aria-hidden>🪙</span> Previewing {formation} surrounding <span className="font-mono">{tip.recipientName}</span>
           </>
         ) : (
