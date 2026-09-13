@@ -6,10 +6,11 @@
 import { useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Group, MathUtils, Mesh, PointLight, Quaternion, Vector3 } from "three";
-import { coordKey, hexToWorld } from "@/world/core/hex";
-import { HEX_HEIGHT, TIP_ANIMATION } from "@/world/config/world.config";
-import { useWorldStore, type TipDeliveryTier } from "@/world/state/useWorldStore";
+import { coordKey, hexToWorld, worldToHex } from "@/world/core/hex";
+import { HEX_HEIGHT, SCENERY, TIP_ANIMATION } from "@/world/config/world.config";
+import { useWorldStore, type TipDeliveryTier, type TipUnitCounts } from "@/world/state/useWorldStore";
 import type { WorldTheme } from "@/world/config/theme";
+import type { Tile } from "@/world/core/types";
 
 const UP = new Vector3(0, 1, 0);
 const BEAM_DELTA = new Vector3();
@@ -58,15 +59,98 @@ export function TipCelebrationLayer({ theme }: { theme: WorldTheme }) {
   const [x, z] = hexToWorld(fortress.coord);
   const y = HEX_HEIGHT + (tile?.height ?? 0);
 
-  return <TipDelivery key={tip.id} id={tip.id} tier={tip.tier} target={[x, y, z]} theme={theme} onFinish={finish} />;
+  return (
+    <TipFormation
+      key={tip.id}
+      id={tip.id}
+      unitCounts={tip.units}
+      formationSeed={tip.formationSeed}
+      target={[x, y, z]}
+      tiles={tiles}
+      theme={theme}
+      onFinish={finish}
+    />
+  );
 }
 
-function TipDelivery({ id, tier, target, theme, onFinish }: {
+function TipFormation({ id, unitCounts, formationSeed, target, tiles, theme, onFinish }: {
+  id: number;
+  unitCounts: TipUnitCounts;
+  formationSeed: number;
+  target: [number, number, number];
+  tiles: Map<string, Tile>;
+  theme: WorldTheme;
+  onFinish: (id: number) => void;
+}) {
+  // Defence against stale/local callers: the UI caps these too, but the renderer owns the final
+  // GPU-safety boundary. Even the largest formation remains deliberately small and short-lived.
+  const units = useMemo(() => {
+    const roster = (["messenger", "ballista", "catapult"] as const).flatMap((tier) =>
+      Array.from({ length: Math.max(0, Math.round(unitCounts[tier])) }, () => tier)
+    ).slice(0, 12);
+    // Shuffle the purchased unit types before assigning angular sectors, so a mixed army is
+    // distributed around the whole castle instead of forming three obvious type clusters.
+    const shuffled = roster
+      .map((tier, index) => ({ tier, order: seededNoise(formationSeed, 100 + index) }))
+      .sort((a, b) => a.order - b.order);
+
+    return shuffled.map(({ tier }, index) => {
+      const count = shuffled.length;
+      const columns = Math.min(4, count);
+      const row = Math.floor(index / columns);
+      const rowStart = row * columns;
+      const rowCount = Math.min(columns, count - rowStart);
+      const column = index - rowStart;
+      return {
+        tier,
+        directionAngle: formationSeed * Math.PI * 2,
+        lateralOffset: (column - (rowCount - 1) / 2) * TIP_ANIMATION.formationColumnSpacing,
+        depthOffset: row * TIP_ANIMATION.formationRowSpacing,
+        impactOffset: [
+          (seededNoise(formationSeed, index * 2) - 0.5) * 0.9,
+          (seededNoise(formationSeed, index * 2 + 1) - 0.5) * 0.9,
+        ] as [number, number],
+      };
+    });
+  }, [formationSeed, unitCounts]);
+
+  if (units.length === 0) return null;
+  const finaleIndex = units.length - 1;
+
+  return (
+    <group>
+      {units.map((unit, index) => (
+        <TipDelivery
+          key={index}
+          id={id}
+          tier={unit.tier}
+          target={target}
+          tiles={tiles}
+          directionAngle={unit.directionAngle}
+          lateralOffset={unit.lateralOffset}
+          depthOffset={unit.depthOffset}
+          impactOffset={unit.impactOffset}
+          showFinale={index === finaleIndex}
+          onFinish={index === finaleIndex ? onFinish : undefined}
+          theme={theme}
+        />
+      ))}
+    </group>
+  );
+}
+
+function TipDelivery({ id, tier, target, tiles, directionAngle, lateralOffset, depthOffset, impactOffset, showFinale, theme, onFinish }: {
   id: number;
   tier: TipDeliveryTier;
   target: [number, number, number];
+  tiles: Map<string, Tile>;
+  directionAngle: number;
+  lateralOffset: number;
+  depthOffset: number;
+  impactOffset: [number, number];
+  showFinale: boolean;
   theme: WorldTheme;
-  onFinish: (id: number) => void;
+  onFinish?: (id: number) => void;
 }) {
   const carrier = useRef<Group>(null);
   const projectile = useRef<Group>(null);
@@ -76,6 +160,7 @@ function TipDelivery({ id, tier, target, theme, onFinish }: {
   const impactLight = useRef<PointLight>(null);
   const startedAt = useRef<number | null>(null);
   const finished = useRef(false);
+  const groundY = useRef<number | null>(null);
   const scratchPosition = useRef(new Vector3());
   const scratchTangent = useRef(new Vector3());
   const scratchQuaternion = useRef(new Quaternion());
@@ -104,18 +189,31 @@ function TipDelivery({ id, tier, target, theme, onFinish }: {
   };
 
   const targetVector = useMemo(() => new Vector3(...target), [target]);
-  const outward = useMemo(() => {
-    const vector = new Vector3(target[0], 0, target[2]);
-    if (vector.lengthSq() < 0.1) vector.set(1, 0, 1);
-    return vector.normalize();
-  }, [target]);
+  const outward = useMemo(() => new Vector3(Math.cos(directionAngle), 0, Math.sin(directionAngle)), [directionAngle]);
+  const right = useMemo(() => new Vector3(-outward.z, 0, outward.x), [outward]);
   const source = useMemo(
-    () => targetVector.clone().addScaledVector(outward, TIP_ANIMATION.sourceDistance),
-    [targetVector, outward]
+    () => {
+      const position = targetVector.clone()
+      .addScaledVector(outward, TIP_ANIMATION.sourceDistance + depthOffset)
+      .addScaledVector(right, lateralOffset);
+      position.y = terrainSurfaceAt(position.x, position.z, tiles);
+      return position;
+    },
+    [depthOffset, lateralOffset, outward, right, targetVector, tiles]
   );
   const launch = useMemo(
-    () => targetVector.clone().addScaledVector(outward, TIP_ANIMATION.launchDistance),
-    [targetVector, outward]
+    () => {
+      const position = targetVector.clone()
+      .addScaledVector(outward, TIP_ANIMATION.launchDistance + depthOffset)
+      .addScaledVector(right, lateralOffset);
+      position.y = terrainSurfaceAt(position.x, position.z, tiles);
+      return position;
+    },
+    [depthOffset, lateralOffset, outward, right, targetVector, tiles]
+  );
+  const exit = useMemo(
+    () => source.clone().addScaledVector(outward, TIP_ANIMATION.formationExitDistance),
+    [outward, source]
   );
   const projectileStart = useMemo(
     () => {
@@ -126,16 +224,17 @@ function TipDelivery({ id, tier, target, theme, onFinish }: {
     },
     [launch, outward, tier]
   );
-  const impact = useMemo(() => targetVector.clone().setY(targetVector.y + 1.25), [targetVector]);
-  const approachDuration = tier === "messenger"
-    ? TIP_ANIMATION.messengerApproachSec
-    : tier === "ballista"
-      ? TIP_ANIMATION.ballistaApproachSec
-      : TIP_ANIMATION.catapultApproachSec;
+  const impact = useMemo(
+    () => targetVector.clone().add(new Vector3(impactOffset[0], 1.25, impactOffset[1])),
+    [targetVector, impactOffset]
+  );
+  const approachDuration = TIP_ANIMATION.formationApproachSec;
   const aimDuration = TIP_ANIMATION.aimSeconds[tier];
   const flightDuration = TIP_ANIMATION.flightSeconds[tier];
   const arcHeight = TIP_ANIMATION.projectileArcHeights[tier];
-  const coinCount = TIP_ANIMATION.coinCounts[tier];
+  // One shared finale per formation avoids multiplying coin meshes and dynamic lights by every
+  // attacker. Every unit still has its own projectile and local impact flash.
+  const coinCount = showFinale ? TIP_ANIMATION.coinCounts[tier] : 0;
   const travelDistance = source.distanceTo(launch);
   const coinPhysics = useMemo(() => Array.from({ length: coinCount }, (_, index) => {
     const angle = index * 2.39996;
@@ -148,31 +247,49 @@ function TipDelivery({ id, tier, target, theme, onFinish }: {
     };
   }), [coinCount]);
 
-  useFrame((frame) => {
+  useFrame((frame, delta) => {
     if (startedAt.current === null) startedAt.current = frame.clock.elapsedTime;
     const elapsed = frame.clock.elapsedTime - startedAt.current;
-    const actionAt = approachDuration + aimDuration;
+    const actionAt = TIP_ANIMATION.formationVolleyAtSec;
     // A catapult payload stays in its cup through most of the arm swing, then separates near the
     // vertical. Bow strings and ballista cords release their projectile immediately.
     const projectileLaunchAt = actionAt + (tier === "catapult" ? 0.24 : 0);
     const impactAt = projectileLaunchAt + flightDuration;
-    const endAt = impactAt + TIP_ANIMATION.coinBurstSec;
+    const exitAt = TIP_ANIMATION.formationExitAtSec;
+    const endAt = exitAt + TIP_ANIMATION.formationExitSec;
     const walk = clamp01(elapsed / approachDuration);
-    const aim = smootherStep(clamp01((elapsed - approachDuration) / aimDuration));
+    const aim = smootherStep(clamp01((elapsed - (actionAt - aimDuration)) / aimDuration));
+    const exitWalk = easeInOutCubic(clamp01((elapsed - exitAt - 0.22) / (TIP_ANIMATION.formationExitSec - 0.22)));
     const releaseTime = elapsed - actionAt;
     const release = easeOutCubic(clamp01(releaseTime / (tier === "catapult" ? 0.34 : 0.14)));
 
     if (carrier.current) {
-      carrier.current.position.lerpVectors(source, launch, easeInOutCubic(walk));
+      if (elapsed < exitAt) {
+        carrier.current.position.lerpVectors(source, launch, easeInOutCubic(walk));
+      } else {
+        carrier.current.position.lerpVectors(launch, exit, exitWalk);
+      }
+      const sampledGround = terrainSurfaceAt(carrier.current.position.x, carrier.current.position.z, tiles);
+      // Step up immediately at a raised hex edge so wheels and feet can never enter its side wall;
+      // ease downward when leaving a tile so the convoy does not visibly snap toward the ground.
+      if (groundY.current === null || sampledGround > groundY.current) {
+        groundY.current = sampledGround;
+      } else {
+        groundY.current = MathUtils.lerp(groundY.current, sampledGround, Math.min(1, delta * 10));
+      }
+      carrier.current.position.y = groundY.current;
       const stride = tier === "messenger" ? Math.sin(elapsed * 10.5) : Math.sin(elapsed * 7.2);
-      carrier.current.position.y += Math.abs(stride) * (tier === "messenger" ? 0.026 : 0.012) * (1 - walk);
+      const isMoving = elapsed < approachDuration || (elapsed >= exitAt + 0.22 && elapsed < endAt);
+      carrier.current.position.y += Math.abs(stride) * (tier === "messenger" ? 0.026 : 0.012) * Number(isMoving);
       if (releaseTime >= 0) {
         const recoil = Math.sin(clamp01(releaseTime / 0.32) * Math.PI) * (tier === "messenger" ? 0.035 : tier === "ballista" ? 0.12 : 0.08);
         carrier.current.position.addScaledVector(outward, recoil);
       }
-      carrier.current.rotation.y = Math.atan2(target[0] - source.x, target[2] - source.z);
-      carrier.current.visible = elapsed < endAt;
-      animateRig(rig, tier, elapsed, walk, aim, release, releaseTime, travelDistance);
+      const inwardHeading = Math.atan2(target[0] - source.x, target[2] - source.z);
+      const exitTurn = smootherStep(clamp01((elapsed - exitAt) / 0.35));
+      carrier.current.rotation.y = inwardHeading + exitTurn * Math.PI;
+      carrier.current.visible = elapsed >= 0 && elapsed < endAt;
+      animateRig(rig, tier, elapsed, walk, exitWalk, aim, release, releaseTime, travelDistance, launch.distanceTo(exit));
     }
 
     if (projectile.current) {
@@ -199,9 +316,9 @@ function TipDelivery({ id, tier, target, theme, onFinish }: {
         coins.current.children.forEach((coin, index) => {
           const physics = coinPhysics[index];
           coin.position.set(
-            target[0] + physics.x * burstTime,
-            target[1] + 1.35 + physics.vy * 0.72 * burstTime - 4.9 * burstTime * burstTime,
-            target[2] + physics.z * burstTime
+            impact.x + physics.x * burstTime,
+            impact.y + 0.1 + physics.vy * 0.72 * burstTime - 4.9 * burstTime * burstTime,
+            impact.z + physics.z * burstTime
           );
           coin.rotation.x = burstTime * physics.spin;
           coin.rotation.z = burstTime * physics.spin * 0.7;
@@ -223,9 +340,9 @@ function TipDelivery({ id, tier, target, theme, onFinish }: {
       if (!Array.isArray(material)) material.opacity = Math.max(0, 0.7 - Math.max(0, burstTime) * 0.92);
     }
     if (impactLight.current) {
-      impactLight.current.intensity = burstTime >= 0 && burstTime < 0.9 ? Math.max(0, 2.4 - burstTime * 2.65) : 0;
+      impactLight.current.intensity = showFinale && burstTime >= 0 && burstTime < 0.9 ? Math.max(0, 2.4 - burstTime * 2.65) : 0;
     }
-    if (elapsed >= endAt && !finished.current) {
+    if (onFinish && elapsed >= endAt && !finished.current) {
       finished.current = true;
       onFinish(id);
     }
@@ -233,7 +350,7 @@ function TipDelivery({ id, tier, target, theme, onFinish }: {
 
   return (
     <group>
-      <group ref={carrier}>
+      <group ref={carrier} visible={false}>
         {tier === "messenger" ? <Messenger theme={theme} rig={rig} /> : tier === "ballista" ? <Ballista theme={theme} rig={rig} /> : <Catapult theme={theme} rig={rig} />}
       </group>
       <group ref={projectile} visible={false}>
@@ -249,19 +366,34 @@ function TipDelivery({ id, tier, target, theme, onFinish }: {
           <mesh key={index} castShadow><cylinderGeometry args={[0.12, 0.12, 0.045, 10]} /><meshStandardMaterial {...theme.tip.gold} /></mesh>
         ))}
       </group>
-      <mesh ref={impactGlow} position={[target[0], target[1] + 1.25, target[2]]} visible={false}>
+      <mesh ref={impactGlow} position={[impact.x, impact.y, impact.z]} visible={false}>
         <sphereGeometry args={[0.32, 14, 10]} /><meshBasicMaterial color={theme.tip.glowColor} transparent opacity={0.58} depthWrite={false} />
       </mesh>
-      <mesh ref={impactRing} position={[target[0], target[1] + 0.08, target[2]]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+      <mesh ref={impactRing} position={[impact.x, target[1] + 0.08, impact.z]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
         <ringGeometry args={[0.42, 0.57, 24]} /><meshBasicMaterial color={theme.tip.glowColor} transparent opacity={0.7} depthWrite={false} side={2} />
       </mesh>
-      <pointLight ref={impactLight} position={[target[0], target[1] + 1.8, target[2]]} color={theme.tip.glowColor} intensity={0} distance={6} />
+      {showFinale ? (
+        <pointLight ref={impactLight} position={[impact.x, impact.y + 0.55, impact.z]} color={theme.tip.glowColor} intensity={0} distance={6} />
+      ) : null}
     </group>
   );
 }
 
-function animateRig(rig: DeliveryRig, tier: TipDeliveryTier, elapsed: number, walk: number, aim: number, release: number, releaseTime: number, travelDistance: number) {
-  const moving = 1 - smootherStep(walk);
+function animateRig(
+  rig: DeliveryRig,
+  tier: TipDeliveryTier,
+  elapsed: number,
+  walk: number,
+  exitWalk: number,
+  aim: number,
+  release: number,
+  releaseTime: number,
+  travelDistance: number,
+  exitDistance: number
+) {
+  const approaching = 1 - smootherStep(walk);
+  const exiting = exitWalk > 0 && exitWalk < 1 ? 1 : 0;
+  const moving = Math.max(approaching, exiting);
   const stride = Math.sin(elapsed * 10.5) * moving;
   if (tier === "messenger") {
     if (rig.archerBody.current) rig.archerBody.current.rotation.x = -0.09 * moving + Math.sin(Math.max(0, releaseTime) * 15) * 0.05 * (1 - release);
@@ -289,7 +421,7 @@ function animateRig(rig: DeliveryRig, tier: TipDeliveryTier, elapsed: number, wa
   }
 
   const wheelRadius = (tier === "ballista" ? 0.34 : 0.42) * TIP_ANIMATION.visualScales[tier];
-  const wheelAngle = -(travelDistance * easeInOutCubic(walk)) / wheelRadius;
+  const wheelAngle = -(travelDistance * easeInOutCubic(walk) + exitDistance * exitWalk) / wheelRadius;
   rotateWheel(rig.wheelFrontLeft, wheelAngle);
   rotateWheel(rig.wheelFrontRight, wheelAngle);
   rotateWheel(rig.wheelRearLeft, wheelAngle);
@@ -441,6 +573,16 @@ function setBeamBetween(mesh: Mesh, start: Vector3, end: Vector3) {
 
 function rotateWheel(wheel: RefObject<Group | null>, angle: number) {
   if (wheel.current) wheel.current.rotation.x = angle;
+}
+
+function seededNoise(seed: number, index: number) {
+  const value = Math.sin(seed * 91_973.17 + index * 78.233) * 43_758.5453;
+  return value - Math.floor(value);
+}
+
+function terrainSurfaceAt(x: number, z: number, tiles: Map<string, Tile>) {
+  const tile = tiles.get(coordKey(worldToHex(x, z)));
+  return tile ? HEX_HEIGHT + tile.height : SCENERY.groundY;
 }
 
 function clamp01(value: number) { return Math.min(1, Math.max(0, value)); }

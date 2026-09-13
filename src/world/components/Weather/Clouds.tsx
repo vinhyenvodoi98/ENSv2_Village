@@ -2,7 +2,7 @@
 
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { IcosahedronGeometry, MeshStandardMaterial, Object3D, type InstancedMesh } from "three";
+import { IcosahedronGeometry, MathUtils, MeshStandardMaterial, Object3D, type InstancedMesh } from "three";
 import { useWorldStore } from "@/world/state/useWorldStore";
 import { medievalTheme } from "@/world/config/theme";
 import { WEATHER } from "@/world/config/world.config";
@@ -121,9 +121,16 @@ export function Clouds({ theme = medievalTheme }: CloudsProps) {
     const [windX, , windZ] = WEATHER.windVector;
 
     const meshMaterial = mesh.material as MeshStandardMaterial;
-    meshMaterial.opacity = Math.min(
+    const weatherOpacity = Math.min(
       useWorldStore.getState().weatherRender.cloudOpacity,
       WEATHER.cloudMaxOpacity
+    );
+    const cinematicActive = useWorldStore.getState().tipCelebration !== null;
+    meshMaterial.opacity = MathUtils.damp(
+      meshMaterial.opacity,
+      cinematicActive ? Math.min(weatherOpacity, WEATHER.cinematicCloudOpacity) : weatherOpacity,
+      cinematicActive ? WEATHER.cinematicCloudFadeIn : WEATHER.cinematicCloudFadeOut,
+      delta
     );
 
     for (let i = 0; i < puffs.length; i++) {

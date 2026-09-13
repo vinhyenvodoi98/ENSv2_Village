@@ -94,21 +94,53 @@ export function ClaimNameWizard({
         </button>
 
         {/* Left: stepper, all 6 stages visible from the start. */}
-        <div className="flex w-48 shrink-0 flex-col gap-1 border-r-2 border-[#c9a15a] bg-gradient-to-b from-[#8e1f2b] to-[#5a141c] p-4">
-          <h2 className="mb-3 font-serif text-xs font-bold uppercase tracking-[0.2em] text-[#f3e6c8]">
+        <div className="flex w-52 shrink-0 flex-col border-r-2 border-[#c9a15a] bg-gradient-to-b from-[#8e1f2b] to-[#5a141c] p-4">
+          <h2 className="mb-4 font-serif text-xs font-bold uppercase tracking-[0.2em] text-[#f3e6c8]">
             Royal Charter
           </h2>
-          {STEP_TITLES.map(({ n, title }) => (
-            <div
-              key={n}
-              className={`flex items-start gap-2 rounded-sm px-2 py-1.5 text-xs ${
-                n === displayStep ? "bg-black/25 text-[#f3e6c8]" : "text-[#e0bd7a]/70"
-              }`}
-            >
-              <span className="font-mono">{n < displayStep ? "✓" : n}</span>
-              <span className="font-serif font-semibold uppercase tracking-wide">{title}</span>
-            </div>
-          ))}
+          <div className="flex flex-col">
+            {STEP_TITLES.map(({ n, title }, i) => {
+              const isDone = n < displayStep;
+              const isActive = n === displayStep;
+              const isLast = i === STEP_TITLES.length - 1;
+              return (
+                <div key={n} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border font-mono text-[11px] font-bold transition-colors ${
+                        isDone
+                          ? "border-emerald-400/70 bg-emerald-700/80 text-emerald-50"
+                          : isActive
+                            ? "border-[#f3e6c8] bg-[#c9a15a] text-[#4c0f16] shadow-[0_0_0_3px_rgba(201,161,90,0.25)]"
+                            : "border-[#e0bd7a]/40 bg-black/20 text-[#e0bd7a]/70"
+                      }`}
+                    >
+                      {isDone ? "✓" : n}
+                    </span>
+                    {!isLast && (
+                      <span
+                        className={`my-0.5 w-px flex-1 ${isDone ? "bg-emerald-400/60" : "bg-[#e0bd7a]/25"}`}
+                      />
+                    )}
+                  </div>
+                  <div className={`pb-4 pt-0.5 ${isLast ? "pb-0" : ""}`}>
+                    <p
+                      className={`font-serif text-xs font-semibold uppercase leading-tight tracking-wide ${
+                        isActive ? "text-[#f3e6c8]" : isDone ? "text-[#e0bd7a]" : "text-[#e0bd7a]/60"
+                      }`}
+                    >
+                      {title}
+                    </p>
+                    {isActive && (
+                      <p className="mt-1 animate-pulse font-mono text-[10px] font-semibold uppercase tracking-wide text-[#f3e6c8]/70">
+                        In progress…
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Right: current stage's content. */}

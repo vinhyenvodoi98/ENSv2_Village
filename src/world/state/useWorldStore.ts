@@ -10,11 +10,15 @@ import { randomDwellSeconds, tickWeather } from "../systems/weatherSystem";
 
 export type PresetName = keyof typeof presets;
 export type TipDeliveryTier = "messenger" | "ballista" | "catapult";
+export type TipUnitCounts = Record<TipDeliveryTier, number>;
 
 export interface TipCelebration {
   id: number;
   targetFortressId: string;
-  tier: TipDeliveryTier;
+  /** Exact mixed army purchased by the tipper. */
+  units: TipUnitCounts;
+  /** Generated when the tip starts so every delivery approaches from a fresh set of directions. */
+  formationSeed: number;
   amountEth: string;
   recipientName: string;
   /** Development-only visual preview; no transaction was submitted. */
@@ -147,7 +151,7 @@ export interface WorldState {
   clearCameraFocus: () => void;
   setMode: (mode: WorldMode) => void;
   setFoundKingdomOpen: (open: boolean) => void;
-  celebrateTip: (tip: Omit<TipCelebration, "id">) => void;
+  celebrateTip: (tip: Omit<TipCelebration, "id" | "formationSeed">) => void;
   finishTipCelebration: (id: number) => void;
   setBuildMessage: (message: string | null) => void;
   setWeather: (weather: Weather) => void;
@@ -410,7 +414,9 @@ export const useWorldStore = create<WorldState>((set) => ({
 
   setFoundKingdomOpen: (foundKingdomOpen) => set({ foundKingdomOpen }),
 
-  celebrateTip: (tip) => set({ tipCelebration: { ...tip, id: Date.now() } }),
+  celebrateTip: (tip) => set({
+    tipCelebration: { ...tip, id: Date.now(), formationSeed: Math.random() },
+  }),
   finishTipCelebration: (id) =>
     set((state) => (state.tipCelebration?.id === id ? { tipCelebration: null } : state)),
 

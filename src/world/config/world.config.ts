@@ -135,16 +135,21 @@ export const POPULATION_CAP = 200;
 export const TIP_ANIMATION = {
   sourceDistance: 16,
   launchDistance: 4.8,
+  /** Responsiveness of the authored approach / volley / retreat camera cuts. */
+  cameraShotEasePerSecond: 2.7,
+  formationApproachSec: 2.45,
+  formationVolleyAtSec: 3.55,
+  formationExitAtSec: 5.35,
+  formationExitSec: 2.5,
+  formationExitDistance: 10,
+  formationColumnSpacing: 0.92,
+  formationRowSpacing: 0.78,
   /** Model-space scale normalized against a 0.445-unit citizen and a ~2-unit keep. */
   visualScales: { messenger: 0.34, ballista: 0.52, catapult: 0.38 },
   groundOffsets: { messenger: 0.08, ballista: 0.12, catapult: 0.12 },
   projectileScales: { messenger: 0.34, ballista: 0.74, catapult: 0.3 },
-  messengerApproachSec: 2.2,
-  ballistaApproachSec: 1.55,
-  catapultApproachSec: 1.85,
   aimSeconds: { messenger: 0.82, ballista: 0.68, catapult: 1.05 },
   flightSeconds: { messenger: 0.78, ballista: 0.56, catapult: 1.08 },
-  coinBurstSec: 2.1,
   projectileArcHeights: { messenger: 0.75, ballista: 0.35, catapult: 2.4 },
   coinCounts: { messenger: 12, ballista: 22, catapult: 38 },
 } as const;
@@ -228,6 +233,10 @@ export const WEATHER = {
   cloudBaseOpacity: 0.12,
   /** Prevents overlapping puffs from becoming an opaque screen over the playable map. */
   cloudMaxOpacity: 0.26,
+  /** Clouds become a faint atmospheric veil during tip cinematics instead of obscuring units. */
+  cinematicCloudOpacity: 0.018,
+  cinematicCloudFadeIn: 5.5,
+  cinematicCloudFadeOut: 1.4,
   /** World units/second the cloud volumes drift, wrapping at the map bounds. */
   windVector: [0.5, 0, 0.2] as [number, number, number],
   /** Horizontal +/- bound clouds wrap at — kept inside every theme's fog-far so the teleport is hidden in haze rather than popping in view. */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatEther, parseEther, zeroAddress } from "viem";
 import { sepolia } from "wagmi/chains";
 import { useAccount, useConnect, useSwitchChain } from "wagmi";
@@ -9,22 +9,26 @@ import { useResolve } from "@/lib/ens/useResolve";
 import { useSendTip } from "@/lib/ens/useSendTip";
 import { explorerTxUrl } from "@/lib/explorer";
 import { truncateAddress } from "@/lib/format";
-import { useWorldStore, type TipDeliveryTier } from "@/world/state/useWorldStore";
-
-const TIP_OPTIONS = [
-  { value: "0.001", tier: "messenger", icon: "🏹", title: "Forest messenger", copy: "Walks in from the woods and fires your tip arrow." },
-  { value: "0.01", tier: "ballista", icon: "🛞", title: "Royal ballista", copy: "Rolls into range with a much bigger bow." },
-  { value: "0.05", tier: "catapult", icon: "💥", title: "Golden catapult", copy: "Launches the grand delivery — and a shower of coins." },
-] as const satisfies readonly { value: string; tier: TipDeliveryTier; icon: string; title: string; copy: string }[];
+import { useWorldStore, type TipDeliveryTier, type TipUnitCounts } from "@/world/state/useWorldStore";
 
 // Next replaces this at build time, so the preview controls and code path are removed from the
 // production client bundle. A fake tip must never be reachable on a deployed build.
 const TIP_PREVIEW_ENABLED = process.env.NODE_ENV === "development";
+const MAX_FORMATION_SIZE = 12;
+const UNIT_OPTIONS = [
+  { tier: "messenger", icon: "🏹", title: "Archer", price: parseEther("0.001"), max: 12 },
+  { tier: "ballista", icon: "🛞", title: "Ballista", price: parseEther("0.01"), max: 8 },
+  { tier: "catapult", icon: "💥", title: "Catapult", price: parseEther("0.05"), max: 6 },
+] as const satisfies readonly { tier: TipDeliveryTier; icon: string; title: string; price: bigint; max: number }[];
 
-function tierForAmount(value: bigint): TipDeliveryTier {
-  if (value >= parseEther("0.025")) return "catapult";
-  if (value >= parseEther("0.005")) return "ballista";
-  return "messenger";
+const INITIAL_UNITS: TipUnitCounts = { messenger: 1, ballista: 0, catapult: 0 };
+
+function formationLabel(units: TipUnitCounts) {
+  const labels = UNIT_OPTIONS.flatMap((option) => {
+    const count = units[option.tier];
+    return count > 0 ? [`${count} ${option.title}${count === 1 ? "" : "s"}`] : [];
+  });
+  return labels.join(" · ");
 }
 
 export function TipExperience({ state, targetFortressId }: { state: EnsNameState; targetFortressId: string }) {
@@ -50,9 +54,9 @@ export function TipExperience({ state, targetFortressId }: { state: EnsNameState
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-full border border-amber-300/40 bg-amber-400/10 px-3 py-1.5 text-xs font-bold tracking-wide text-amber-100 uppercase shadow-[0_0_18px_rgba(251,191,36,0.12)] transition hover:-translate-y-0.5 hover:bg-amber-400/20"
+        className="rounded-sm border-2 border-[#c9a15a] bg-gradient-to-b from-[#f2e5c5] to-[#d8c08a] px-3 py-1.5 font-serif text-xs font-black tracking-[0.12em] text-[#3a2918] uppercase shadow-[0_3px_0_#69461f,0_8px_18px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0 active:shadow-[0_1px_0_#69461f]"
       >
-        <span aria-hidden>🪙</span> Tip this kingdom
+        <span aria-hidden>⚔</span> Muster a tip
       </button>
       {open ? (
         <TipDialog
@@ -92,8 +96,7 @@ function TipDialog({
   chainId: number | undefined;
   onClose: () => void;
 }) {
-  const [amount, setAmount] = useState("0.01");
-  const [custom, setCustom] = useState(false);
+  const [units, setUnits] = useState<TipUnitCounts>(INITIAL_UNITS);
   const { connectors, connect, isPending: isConnecting } = useConnect();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   const { sendTip, state, txHash, error, reset } = useSendTip();
@@ -101,25 +104,20 @@ function TipDialog({
   const selectFortress = useWorldStore((world) => world.selectFortress);
   const celebratedHash = useRef<`0x${string}` | null>(null);
 
-  const parsedAmount = useMemo(() => {
-    try {
-      const value = parseEther(amount);
-      return value > 0n ? value : null;
-    } catch {
-      return null;
-    }
-  }, [amount]);
-  const tier = parsedAmount ? tierForAmount(parsedAmount) : "messenger";
+  const totalUnits = units.messenger + units.ballista + units.catapult;
+  const amountWei = UNIT_OPTIONS.reduce((total, option) => total + option.price * BigInt(units[option.tier]), 0n);
+  const amount = formatEther(amountWei);
+  const deliveryLabel = formationLabel(units);
   const busy = state === "signing" || state === "confirming";
   const wrongNetwork = isConnected && chainId !== sepolia.id;
 
   useEffect(() => {
     if (state !== "confirmed" || !txHash || celebratedHash.current === txHash) return;
     celebratedHash.current = txHash;
-    celebrateTip({ targetFortressId, tier, amountEth: amount, recipientName: name });
+    celebrateTip({ targetFortressId, units, amountEth: amount, recipientName: name });
     onClose();
     selectFortress(null);
-  }, [state, txHash, celebrateTip, selectFortress, targetFortressId, tier, amount, name, onClose]);
+  }, [state, txHash, celebrateTip, selectFortress, targetFortressId, units, amount, name, onClose]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -129,27 +127,32 @@ function TipDialog({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [busy, onClose]);
 
-  const selectPreset = (value: string) => {
+  const adjustUnit = (tier: TipDeliveryTier, direction: -1 | 1) => {
     if (busy) return;
     reset();
-    setCustom(false);
-    setAmount(value);
+    setUnits((current) => {
+      const option = UNIT_OPTIONS.find((entry) => entry.tier === tier)!;
+      const currentTotal = current.messenger + current.ballista + current.catapult;
+      if (direction > 0 && (currentTotal >= MAX_FORMATION_SIZE || current[tier] >= option.max)) return current;
+      if (direction < 0 && current[tier] <= 0) return current;
+      return { ...current, [tier]: current[tier] + direction };
+    });
   };
 
   const submit = async () => {
-    if (!recipient || !parsedAmount || busy) return;
+    if (!recipient || amountWei === 0n || busy) return;
     try {
-      await sendTip(recipient, parsedAmount);
+      await sendTip(recipient, amountWei);
     } catch {
       // The hook exposes a wallet-friendly error in the dialog.
     }
   };
 
   const previewDelivery = () => {
-    if (!TIP_PREVIEW_ENABLED || !parsedAmount || busy) return;
+    if (!TIP_PREVIEW_ENABLED || amountWei === 0n || busy) return;
     celebrateTip({
       targetFortressId,
-      tier,
+      units,
       amountEth: amount,
       recipientName: name,
       simulated: true,
@@ -160,64 +163,95 @@ function TipDialog({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="tip-title">
-      <button type="button" aria-label="Close tip dialog" onClick={busy ? undefined : onClose} className="absolute inset-0 bg-[#050814]/75 backdrop-blur-sm" />
-      <section className="relative max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-amber-200/20 bg-[#11182a]/95 p-5 text-white shadow-[0_24px_90px_rgba(0,0,0,0.65)] motion-safe:animate-[chain-scan-in_180ms_ease-out] sm:p-7">
-        <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="absolute right-4 top-4 rounded-full p-2 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-30">✕</button>
-        <p className="text-xs font-bold tracking-[0.24em] text-amber-300 uppercase">Send a royal tip</p>
-        <h2 id="tip-title" className="mt-2 pr-10 font-serif text-2xl font-bold sm:text-3xl">Choose your delivery to {name}</h2>
-        <p className="mt-2 text-sm leading-6 text-white/55">The ETH goes to this name’s address record when one is set, otherwise to its current on-chain owner. The spectacle begins only after the transaction is confirmed.</p>
+      <button type="button" aria-label="Close tip dialog" onClick={busy ? undefined : onClose} className="absolute inset-0 bg-[#090704]/80 backdrop-blur-[3px]" />
+      <section className="relative max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-sm border-2 border-[#c8a15a] bg-[#e9dcc0] text-[#352719] shadow-[0_28px_100px_rgba(0,0,0,0.72),inset_0_0_0_4px_#5d4026,inset_0_0_45px_rgba(91,55,24,0.18)] motion-safe:animate-[chain-scan-in_180ms_ease-out]">
+        <span className="pointer-events-none absolute left-2 top-2 z-10 size-5 border-l-2 border-t-2 border-[#d0aa62]" aria-hidden />
+        <span className="pointer-events-none absolute right-2 top-2 z-10 size-5 border-r-2 border-t-2 border-[#d0aa62]" aria-hidden />
+        <span className="pointer-events-none absolute bottom-2 left-2 z-10 size-5 border-b-2 border-l-2 border-[#9a7436]" aria-hidden />
+        <span className="pointer-events-none absolute bottom-2 right-2 z-10 size-5 border-b-2 border-r-2 border-[#9a7436]" aria-hidden />
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {TIP_OPTIONS.map((option) => {
-            const selected = !custom && amount === option.value;
+        <header className="relative border-b-2 border-[#b58a45] bg-[linear-gradient(135deg,#2d251d_0%,#493621_52%,#251c15_100%)] px-6 py-5 text-[#f3e6c8] shadow-[inset_0_-5px_12px_rgba(0,0,0,0.25)] sm:px-8">
+          <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="absolute right-4 top-4 grid size-9 place-items-center rounded-full border border-[#d1ae68]/40 bg-black/20 text-[#ead8b3]/70 transition hover:border-[#d1ae68] hover:bg-black/35 hover:text-white disabled:opacity-30">✕</button>
+          <div className="flex items-center gap-4 pr-10">
+            <div className="grid size-12 shrink-0 place-items-center border border-[#d1ae68]/70 bg-[#741f24] text-2xl shadow-[inset_0_0_0_2px_#321318,0_3px_8px_rgba(0,0,0,0.4)]" aria-hidden>♜</div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black tracking-[0.3em] text-[#d9b66f] uppercase">Royal war council</p>
+              <h2 id="tip-title" className="mt-1 break-words font-serif text-2xl font-black tracking-wide sm:text-3xl">Muster aid for {name}</h2>
+            </div>
+          </div>
+          <p className="mt-3 max-w-2xl font-serif text-sm leading-5 text-[#ddcfb3]/70">Choose your forces. Their individual levy is converted into ETH and sent to the kingdom only after your command is confirmed.</p>
+        </header>
+
+        <div className="p-5 sm:p-7">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="font-serif text-xs font-black tracking-[0.18em] text-[#755329] uppercase">I · Muster the company</p>
+              <p className="mt-1 text-xs text-[#735f47]">Select up to {MAX_FORMATION_SIZE} units. The battlefield capacity keeps the 3D campaign smooth across devices.</p>
+            </div>
+            <p className="shrink-0 rounded-sm border border-[#98713b]/40 bg-[#d7c59f]/60 px-2 py-1 font-mono text-xs font-bold text-[#62451f]" title="Performance-safe battlefield capacity">♜ {totalUnits} / {MAX_FORMATION_SIZE}</p>
+          </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {UNIT_OPTIONS.map((option) => {
+            const count = units[option.tier];
+            const cannotAdd = totalUnits >= MAX_FORMATION_SIZE || count >= option.max;
             return (
-              <button
-                key={option.value}
-                type="button"
-                disabled={busy}
-                onClick={() => selectPreset(option.value)}
-                className={`rounded-2xl border p-4 text-left transition disabled:opacity-50 ${selected ? "border-amber-300/70 bg-amber-300/15 shadow-[0_0_28px_rgba(251,191,36,0.10)]" : "border-white/10 bg-white/[0.035] hover:border-white/25 hover:bg-white/[0.06]"}`}
-              >
-                <span className="text-2xl" aria-hidden>{option.icon}</span>
-                <span className="mt-3 block text-lg font-bold">{option.value} ETH</span>
-                <span className="mt-1 block text-xs font-semibold text-amber-200/80">{option.title}</span>
-                <span className="mt-2 block text-xs leading-5 text-white/45">{option.copy}</span>
-              </button>
+              <div key={option.tier} className={`relative overflow-hidden rounded-sm border-2 p-4 shadow-[0_3px_8px_rgba(62,40,18,0.14)] transition ${count > 0 ? "border-[#9b6c2f] bg-[#f4ead1] ring-2 ring-[#ba914f]/20" : "border-[#b8a27b] bg-[#dfd0ae]/65 hover:border-[#9b7849]"}`}>
+                {count > 0 ? <span className="absolute right-0 top-0 border-b-[24px] border-l-[24px] border-b-transparent border-l-[#8a2630]" aria-hidden /> : null}
+                <div className="flex items-start justify-between gap-2">
+                  <span className="grid size-11 place-items-center rounded-full border border-[#a88046] bg-[#3e3023] text-2xl shadow-[inset_0_0_0_2px_#211912]" aria-hidden>{option.icon}</span>
+                  <span className="border-b border-[#9c7b49] pb-0.5 font-mono text-[11px] font-bold text-[#704c22]">{formatEther(option.price)} ETH</span>
+                </div>
+                <p className="mt-3 font-serif text-base font-black tracking-wide text-[#352719]">{option.title}</p>
+                <p className="mt-0.5 text-[10px] font-bold tracking-[0.16em] text-[#846946] uppercase">Per unit levy</p>
+                <div className="mt-4 flex items-center justify-between rounded-sm border border-[#927044] bg-[#cdbb95]/55 p-1 shadow-inner">
+                  <button
+                    type="button"
+                    aria-label={`Remove one ${option.title}`}
+                    disabled={busy || count === 0}
+                    onClick={() => adjustUnit(option.tier, -1)}
+                    className="grid size-9 place-items-center rounded-sm border border-transparent font-serif text-xl font-black text-[#503820] transition hover:border-[#8f6c3f] hover:bg-[#eee2c8] disabled:cursor-not-allowed disabled:opacity-20"
+                  >−</button>
+                  <span className="min-w-9 text-center font-serif text-2xl font-black text-[#5f1e25]" aria-label={`${count} ${option.title}s selected`}>{count}</span>
+                  <button
+                    type="button"
+                    aria-label={`Add one ${option.title}`}
+                    disabled={busy || cannotAdd}
+                    onClick={() => adjustUnit(option.tier, 1)}
+                    className="grid size-9 place-items-center rounded-sm border border-[#69451f] bg-gradient-to-b from-[#a77a38] to-[#805624] font-serif text-xl font-black text-[#fff2d2] shadow-[0_2px_0_#4e3219] transition hover:brightness-110 active:translate-y-px active:shadow-none disabled:cursor-not-allowed disabled:opacity-20"
+                  >+</button>
+                </div>
+              </div>
             );
           })}
         </div>
 
-        <label className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/15 px-4 py-3 focus-within:border-amber-300/50">
-          <input type="radio" checked={custom} onChange={() => { reset(); setCustom(true); }} disabled={busy} className="accent-amber-400" />
-          <span className="text-xs font-bold tracking-wide text-white/60 uppercase">Custom</span>
-          <input
-            inputMode="decimal"
-            value={custom ? amount : ""}
-            placeholder="0.02"
-            disabled={busy}
-            onFocus={() => { if (!custom) { reset(); setCustom(true); setAmount(""); } }}
-            onChange={(event) => { reset(); setCustom(true); setAmount(event.target.value); }}
-            className="min-w-0 flex-1 bg-transparent text-right font-mono text-base outline-none placeholder:text-white/20"
-            aria-label="Custom tip amount in ETH"
-          />
-          <span className="font-mono text-sm text-white/40">ETH</span>
-        </label>
+        <div className="mt-5 flex items-center justify-between gap-4 border-y-2 border-[#a67b3c] bg-[linear-gradient(90deg,#37291d,#564022,#37291d)] px-4 py-3 text-[#f2e3c1] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]" aria-live="polite">
+          <div className="min-w-0">
+            <p className="font-serif text-[10px] font-black tracking-[0.22em] text-[#d6b36c] uppercase">II · Royal muster</p>
+            <p className="mt-1 truncate font-serif text-sm text-[#f2e3c1]/85">{deliveryLabel || "Choose at least one unit"}</p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="font-mono text-2xl font-black text-[#f2cb73]">{amount} <span className="text-sm">ETH</span></p>
+            <p className="text-[9px] font-black tracking-[0.18em] text-[#d9c7a3]/55 uppercase">Total tribute</p>
+          </div>
+        </div>
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5">
-          <div className="min-w-0 text-xs text-white/45">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0 flex-1 text-xs leading-5 text-[#735f47]">
             {isResolving ? (
               "Resolving recipient…"
             ) : recipient ? (
               <>
-                To <span className="font-mono text-white/70">{truncateAddress(recipient)}</span>
-                <span className="ml-1 text-white/35">({recipientSource === "record" ? "ENS address record" : "current ENS owner fallback"})</span>
+                Treasury: <span className="font-mono font-bold text-[#4b3420]">{truncateAddress(recipient)}</span>
+                <span className="ml-1 text-[#8a755b]">({recipientSource === "record" ? "ENS record" : "current owner"})</span>
               </>
             ) : resolutionFailed ? (
               "Could not resolve this name or read its owner."
             ) : (
               "No safe recipient is available for this name."
             )}
-            {parsedAmount ? <span className="ml-2 text-amber-200/70">• {tier === "messenger" ? "messenger" : tier === "ballista" ? "ballista" : "catapult"} delivery</span> : null}
+            {totalUnits > 0 ? <span className="ml-2 font-semibold text-[#7a5629]">• random campaign route</span> : null}
           </div>
 
           {!isConnected ? (
@@ -229,38 +263,39 @@ function TipDialog({
               {isSwitching ? "Switching…" : "Switch to Sepolia"}
             </button>
           ) : (
-            <button type="button" disabled={!recipient || !parsedAmount || busy || state === "confirmed"} onClick={submit} className={primaryButtonClass}>
-              {state === "signing" ? "Approve in wallet…" : state === "confirming" ? "Crossing the realm…" : state === "confirmed" ? "Tip delivered!" : `Send ${parsedAmount ? formatEther(parsedAmount) : "—"} ETH`}
+            <button type="button" disabled={!recipient || totalUnits === 0 || busy || state === "confirmed"} onClick={submit} className={primaryButtonClass}>
+              {state === "signing" ? "Approve in wallet…" : state === "confirming" ? "Crossing the realm…" : state === "confirmed" ? "Tip delivered!" : `Send ${amount} ETH`}
             </button>
           )}
         </div>
 
         {state !== "idle" ? (
-          <div className={`mt-3 rounded-xl border px-3 py-2 text-xs ${state === "failed" ? "border-red-400/20 bg-red-500/10 text-red-200" : "border-amber-300/15 bg-amber-300/5 text-amber-100/70"}`}>
+          <div className={`mt-4 rounded-sm border px-3 py-2 text-xs ${state === "failed" ? "border-[#9e4242] bg-[#8a2630]/10 text-[#7a1f28]" : "border-[#9c7a48] bg-[#d5c39f]/45 text-[#654923]"}`}>
             {error ?? (state === "signing" ? "Waiting for your wallet signature." : state === "confirming" ? "Transaction sent. Waiting for confirmation…" : "Confirmed — watch the kingdom!")}
             {txHash ? <a href={explorerTxUrl(txHash)} target="_blank" rel="noreferrer" className="ml-2 underline underline-offset-2">View transaction ↗</a> : null}
           </div>
         ) : null}
 
         {TIP_PREVIEW_ENABLED ? (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-300/25 bg-sky-400/10 px-4 py-3">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-dashed border-[#8c704b] bg-[#d5c39f]/35 px-4 py-3">
             <div>
-              <p className="text-xs font-black tracking-[0.18em] text-sky-200 uppercase">Development preview</p>
-              <p className="mt-1 text-xs text-white/50">Runs the full delivery effect without opening a wallet or sending ETH.</p>
+              <p className="font-serif text-xs font-black tracking-[0.18em] text-[#5d4225] uppercase">Scribe&apos;s rehearsal · development only</p>
+              <p className="mt-1 text-xs text-[#806c52]">Preview the campaign without opening a wallet or sending ETH.</p>
             </div>
             <button
               type="button"
-              disabled={!parsedAmount || busy}
+              disabled={busy || totalUnits === 0}
               onClick={previewDelivery}
-              className="rounded-full border border-sky-200/30 bg-sky-300 px-4 py-2 text-xs font-black tracking-wide text-sky-950 uppercase transition hover:-translate-y-0.5 hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+              className="rounded-sm border border-[#765329] bg-[#efe2c5] px-4 py-2 font-serif text-xs font-black tracking-wide text-[#4a331d] uppercase shadow-[0_2px_0_#806039] transition hover:-translate-y-0.5 hover:bg-[#f7ecd5] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
             >
-              Preview {tier} animation
+              Preview campaign
             </button>
           </div>
         ) : null}
+        </div>
       </section>
     </div>
   );
 }
 
-const primaryButtonClass = "rounded-full border border-amber-200/30 bg-gradient-to-b from-amber-400 to-amber-600 px-5 py-2.5 text-sm font-black tracking-wide text-[#2b1b08] uppercase shadow-[0_3px_0_#744c0b] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0";
+const primaryButtonClass = "rounded-sm border-2 border-[#c39a50] bg-gradient-to-b from-[#8d2932] to-[#641c23] px-5 py-2.5 font-serif text-sm font-black tracking-[0.1em] text-[#fff0cf] uppercase shadow-[0_3px_0_#3d1418,0_7px_16px_rgba(62,24,19,0.24)] transition hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:shadow-[0_1px_0_#3d1418] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0";
